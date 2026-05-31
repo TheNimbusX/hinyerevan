@@ -1,0 +1,24 @@
+@use './tokens' as *;
+
+.panel,
+.page-head,
+.legacy-map-shell {
+  border: 1px solid $line;
+  border-radius: $radius-lg;
+  background: $surface;
+  box-shadow: $shadow-sm;
+}
+
+.panel,
+.page-head {
+  padding: 22px;
+  margin-bottom: 18px;
+}
+
+.page-head {
+  margin-top: 12px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  padding: 6px 0 14px;
+}

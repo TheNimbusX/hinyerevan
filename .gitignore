@@ -1,0 +1,26 @@
+# --- Secrets / environment (NEVER commit real values) ---
+.env
+.env.*
+!.env.example
+
+# --- Dependencies / build artifacts ---
+node_modules/
+vendor/
+dist/
+dist-ssr/
+/backend/public/build/
+/backend/public/hot
+/backend/public/storage
+/backend/storage/*.key
+
+# --- Database dumps (contain real user data — keep out of the repo) ---
+/dumb-bd/
+
+# --- Reference material / local-only folders (not part of the app) ---
+/hin-yerevan-backup-prod/
+/hin-yerevan-DEV/
+
+# --- Misc local junk ---
+/test*.png
+*.log
+.DS_Store

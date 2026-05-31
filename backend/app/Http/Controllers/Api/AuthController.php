@@ -1,0 +1,372 @@
+<?php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Comment;
+use App\Models\Photo;
+use App\Models\User;
+use App\Services\LegacyPhotoStorage;
+use App\Services\LegacySchema;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
+
+class AuthController extends Controller
+{
+    public function login(Request $request)
+    {
+        abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
+
+        $credentials = $request->validate([
+            'login' => ['required', 'string'],
+            'password' => ['required', 'string'],
+        ]);
+
+        $user = User::query()
+            ->where('uid', $credentials['login'])
+            ->orWhere('email', $credentials['login'])
+            ->first();
+
+        if (! $user || ! $this->passwordMatches($credentials['password'], (string) $user->password)) {
+            throw ValidationException::withMessages([
+                'login' => 'Invalid credentials.',
+            ]);
+        }
+
+        abort_if($user->isBlocked(), 403, 'This account is blocked.');
+
+        $user->forceFill(['last_ip' => $request->ip()])->save();
+
+        return [
+            'token' => $user->createToken('spa')->plainTextToken,
+            'user' => $this->serializeUser($user),
+        ];
+    }
+
+    public function register(Request $request, LegacyPhotoStorage $storage)
+    {
+        abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
+
+        $data = $request->validate([
+            'uid' => ['required', 'alpha_num', 'min:3', 'max:32', 'unique:users,uid'],
+            'first_name' => ['required', 'string', 'min:3', 'max:80'],
+            'last_name' => ['required', 'string', 'min:3', 'max:80'],
+            'email' => ['required', 'email', 'max:190', 'unique:users,email'],
+            'sex' => ['required', 'integer', 'in:0,1'],
+            'birth_day' => ['required', 'integer', 'between:1,31'],
+            'birth_month' => ['required', 'integer', 'between:1,12'],
+            'birth_year' => ['required', 'integer', 'between:1900,2026'],
+            'photo' => ['nullable', 'image', 'max:4096'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'recaptcha_token' => ['nullable', 'string'],
+        ]);
+
+        $this->verifyRecaptcha((string) ($data['recaptcha_token'] ?? ''));
+
+        $photo = 'http://www.hinyerevan.com/photos/user.png';
+        if ($request->hasFile('photo')) {
+            $fileId = $storage->storeUserPhoto($request->file('photo'), config('app.key'));
+            $photo = 'http://www.hinyerevan.com/photos/users/' . $fileId;
+        }
+
+        $user = User::query()->create([
+            'uid' => $data['uid'],
+            'network' => 'hinyerevan',
+            'unique' => md5($data['uid']),
+            'first_name' => $data['first_name'],
+            'last_name' => $data['last_name'],
+            'email' => $data['email'],
+            'identity' => '',
+            'bdate' => sprintf('%04d-%02d-%02d', $data['birth_year'], $data['birth_month'], $data['birth_day']),
+            'sex' => $data['sex'],
+            'photo' => $photo,
+            'type' => User::TYPE_USER,
+            // Keep the first-write format compatible with the legacy varchar(32) password column.
+            'password' => md5($data['password']),
+            'last_ip' => $request->ip(),
+        ]);
+
+        return response()->json([
+            'token' => $user->createToken('spa')->plainTextToken,
+            'user' => $this->serializeUser($user),
+        ], 201);
+    }
+
+    public function me(Request $request)
+    {
+        return $this->serializeUser($request->user());
+    }
+
+    public function updateProfile(Request $request)
+    {
+        $user = $request->user();
+        $data = $request->validate([
+            'first_name' => ['required', 'string', 'max:100'],
+            'last_name' => ['nullable', 'string', 'max:100'],
+            'email' => ['required', 'email', 'max:190', 'unique:users,email,' . $user->id],
+            'identity' => ['nullable', 'string', 'max:80'],
+            'sex' => ['nullable', 'integer', 'in:0,1'],
+            'birth_day' => ['nullable', 'integer', 'between:1,31'],
+            'birth_month' => ['nullable', 'integer', 'between:1,12'],
+            'birth_year' => ['nullable', 'integer', 'between:1900,2026'],
+        ]);
+
+        $data['last_name'] ??= '';
+        $data['identity'] ??= '';
+        $data['sex'] = isset($data['sex']) ? (int) $data['sex'] : (int) ($user->sex ?? 0);
+
+        if (! empty($data['birth_year']) && ! empty($data['birth_month']) && ! empty($data['birth_day'])) {
+            $data['bdate'] = sprintf(
+                '%04d-%02d-%02d',
+                (int) $data['birth_year'],
+                (int) $data['birth_month'],
+                (int) $data['birth_day'],
+            );
+        }
+
+        unset($data['birth_day'], $data['birth_month'], $data['birth_year']);
+
+        $user->fill($data)->save();
+
+        return $this->serializeUser($user);
+    }
+
+    public function changePassword(Request $request)
+    {
+        $data = $request->validate([
+            'current_password' => ['required', 'string'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if (! $this->passwordMatches($data['current_password'], (string) $user->password)) {
+            throw ValidationException::withMessages([
+                'current_password' => 'Current password is invalid.',
+            ]);
+        }
+
+        $user->forceFill(['password' => md5($data['password'])])->save();
+
+        return response()->noContent();
+    }
+
+    public function logout(Request $request)
+    {
+        $request->user()->currentAccessToken()?->delete();
+
+        return response()->noContent();
+    }
+
+    public function stats(Request $request)
+    {
+        $user = $request->user();
+
+        $stats = [
+            'photos_total' => 0,
+            'photos_published' => 0,
+            'photos_pending' => 0,
+            'comments_total' => 0,
+            'views_total' => 0,
+            'member_since' => null,
+        ];
+
+        if (LegacySchema::photosReady()) {
+            $totals = Photo::query()
+                ->where('id', '>', 0)
+                ->where('user', $user->unique)
+                ->selectRaw('COUNT(*) as total, SUM(published = 1) as published_count, SUM(published = 0) as pending_count')
+                ->first();
+
+            $stats['photos_total'] = (int) ($totals?->total ?? 0);
+            $stats['photos_published'] = (int) ($totals?->published_count ?? 0);
+            $stats['photos_pending'] = (int) ($totals?->pending_count ?? 0);
+
+            if (LegacySchema::viewsReady()) {
+                $stats['views_total'] = (int) DB::table('views')
+                    ->join('photos', 'photos.id', '=', 'views.photo_id')
+                    ->where('photos.user', $user->unique)
+                    ->where('photos.id', '>', 0)
+                    ->sum('views.count');
+            }
+
+            $firstPhotoAt = Photo::query()
+                ->where('user', $user->unique)
+                ->where('id', '>', 0)
+                ->min('datetime');
+
+            if ($firstPhotoAt) {
+                $stats['member_since'] = $firstPhotoAt;
+            }
+        }
+
+        if (LegacySchema::commentsReady()) {
+            $stats['comments_total'] = (int) Comment::query()
+                ->where('id', '>', 0)
+                ->where('user_unique', $user->unique)
+                ->count();
+
+            if (! $stats['member_since']) {
+                $firstCommentAt = Comment::query()
+                    ->where('user_unique', $user->unique)
+                    ->where('id', '>', 0)
+                    ->min('datetime');
+
+                if ($firstCommentAt) {
+                    $stats['member_since'] = $firstCommentAt;
+                }
+            }
+        }
+
+        return $stats;
+    }
+
+    public function myPhotos(Request $request)
+    {
+        $user = $request->user();
+
+        if (! LegacySchema::photosReady()) {
+            return LegacySchema::emptyPaginator($request, (int) $request->integer('per_page', 12));
+        }
+
+        $photos = Photo::query()
+            ->with('viewCounter')
+            ->withCount('comments')
+            ->where('id', '>', 0)
+            ->where('user', $user->unique)
+            ->orderByDesc('id')
+            ->paginate(min((int) $request->integer('per_page', 12), 60));
+
+        return $photos->through(fn (Photo $photo) => [
+            'id' => $photo->id,
+            'title' => $photo->title,
+            'year' => $photo->year,
+            'direction' => $photo->direction,
+            'direction_label' => $photo->direction_label,
+            'published' => (bool) $photo->published,
+            'datetime' => optional($photo->datetime)->toISOString(),
+            'views' => $photo->viewCounter?->count ?? 0,
+            'comments_count' => $photo->comments_count ?? 0,
+            'images' => $photo->image_urls,
+        ]);
+    }
+
+    public function myComments(Request $request)
+    {
+        $user = $request->user();
+
+        if (! LegacySchema::commentsReady()) {
+            return LegacySchema::emptyPaginator($request, (int) $request->integer('per_page', 12));
+        }
+
+        $comments = Comment::query()
+            ->alive()
+            ->where('user_unique', $user->unique)
+            ->whereRaw("post_id REGEXP '^[0-9]+$'")
+            ->with(['photo:id,title,year,file_id,published'])
+            ->orderByDesc('datetime')
+            ->paginate(min((int) $request->integer('per_page', 12), 60));
+
+        return $comments->through(function (Comment $comment) {
+            $photo = $comment->photo;
+
+            return [
+                'id' => $comment->id,
+                'body' => $comment->body,
+                'datetime' => optional($comment->datetime)->toISOString(),
+                'photo' => $photo && $photo->id > 0 ? [
+                    'id' => $photo->id,
+                    'title' => $photo->title,
+                    'year' => $photo->year,
+                    'thumb_url' => "/api/photos/file/thumb/{$photo->file_id}",
+                ] : null,
+            ];
+        });
+    }
+
+    public function uploadAvatar(Request $request, LegacyPhotoStorage $storage)
+    {
+        $request->validate([
+            'photo' => ['required', 'image', 'max:4096'],
+        ]);
+
+        $user = $request->user();
+        $fileId = $storage->storeUserPhoto($request->file('photo'), config('app.key'));
+        $user->forceFill([
+            'photo' => 'http://www.hinyerevan.com/photos/users/' . $fileId,
+        ])->save();
+
+        return $this->serializeUser($user);
+    }
+
+    private function passwordMatches(string $plain, string $stored): bool
+    {
+        if (strlen($stored) === 32 && hash_equals($stored, md5($plain))) {
+            return true;
+        }
+
+        return str_starts_with($stored, '$') && Hash::check($plain, $stored);
+    }
+
+    private function verifyRecaptcha(string $token): void
+    {
+        $secret = (string) config('services.recaptcha.secret');
+        if ($secret === '') {
+            return;
+        }
+
+        if ($token === '') {
+            throw ValidationException::withMessages([
+                'recaptcha_token' => 'Please complete the captcha.',
+            ]);
+        }
+
+        try {
+            $client = Http::asForm();
+            $proxy = trim((string) config('services.oauth.proxy', ''));
+            if ($proxy !== '') {
+                $client = $client->withOptions(['proxy' => $proxy]);
+            }
+
+            $response = $client->post('https://www.google.com/recaptcha/api/siteverify', [
+                'secret' => $secret,
+                'response' => $token,
+            ]);
+        } catch (\Throwable $e) {
+            // Google unreachable from the backend (e.g. local network blocks it).
+            // Don't punish the user for our connectivity — log and let it pass.
+            \Log::warning('reCAPTCHA verify unreachable, skipping check', ['message' => $e->getMessage()]);
+
+            return;
+        }
+
+        if (! $response->json('success')) {
+            throw ValidationException::withMessages([
+                'recaptcha_token' => 'Captcha verification failed.',
+            ]);
+        }
+    }
+
+    private function serializeUser(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'uid' => $user->uid,
+            'unique' => $user->unique,
+            'network' => $user->network,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'name' => $user->name,
+            'email' => $user->email,
+            'identity' => $user->identity,
+            'bdate' => $user->bdate,
+            'sex' => $user->sex,
+            'photo' => $user->photo,
+            'type' => $user->type,
+            'is_admin' => (bool) $user->isAdmin(),
+        ];
+    }
+}

@@ -1,0 +1,123 @@
+@use './tokens' as *;
+
+// Generic form controls used across stack-form, comment-form, filter-bar, etc.
+.stack-form,
+.comment-form {
+  display: grid;
+  gap: 10px;
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+
+  @include mq-down($bp-sm) {
+    input {
+      flex: 1 1 100%;
+      min-width: 0;
+    }
+
+    .button {
+      flex: 1 1 100%;
+    }
+  }
+}
+
+.filter-bar input,
+.stack-form input,
+.stack-form select,
+.comment-form textarea {
+  min-height: 40px;
+  padding: 9px 13px;
+  border: 1px solid $line;
+  border-radius: $radius-sm;
+  background: #fff;
+  color: $ink;
+  @include interactive((border-color, background, box-shadow));
+
+  &::placeholder {
+    color: rgba($muted, 0.85);
+  }
+
+  &:hover {
+    border-color: darken($line, 8%);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $primary;
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba($primary, 0.18);
+  }
+
+  &:disabled {
+    background: $surface-soft;
+    color: $muted;
+    cursor: not-allowed;
+  }
+}
+
+.comment-form textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 6px;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  border-radius: $radius-pill;
+  background: #eaf0ff;
+}
+
+.segmented button {
+  border: 0;
+  border-radius: $radius-pill;
+  padding: 7px 14px;
+  background: transparent;
+  color: $primary;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  @include interactive((background, color));
+
+  &:hover {
+    background: rgba($primary, 0.1);
+  }
+
+  &.active {
+    background: linear-gradient(135deg, $primary, $primary-dark);
+    color: #fff;
+    box-shadow: $shadow-primary;
+  }
+
+  @include focus-ring(rgba($primary, 0.4), 2px);
+}
+
+.form-two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+
+  @include mq-down($bp-sm) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.check-line {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  color: $primary-dark !important;
+}

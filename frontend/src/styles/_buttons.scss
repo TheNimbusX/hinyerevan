@@ -1,0 +1,106 @@
+@use './tokens' as *;
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 8px 20px;
+  border: 0;
+  border-radius: $radius-pill;
+  color: #fff;
+  background: $ink;
+  cursor: pointer;
+  font-weight: 500;
+  font-size: 13px;
+  text-decoration: none;
+  letter-spacing: 0.005em;
+  @include interactive((background, color, transform, box-shadow));
+
+  &:hover {
+    transform: translateY(-1px);
+    background: lighten($ink, 8%);
+    box-shadow: $shadow-md;
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: $shadow-xs;
+  }
+
+  @include focus-ring-inset(rgba(255, 255, 255, 0.65));
+  @include disabled;
+}
+
+.button-ghost {
+  color: $ink;
+  background: $surface;
+  border: 1px solid $line;
+  box-shadow: $shadow-xs;
+
+  &:hover {
+    color: $ink;
+    background: $surface;
+    border-color: $ink;
+    box-shadow: $shadow-sm;
+  }
+
+  &:active {
+    background: $bg;
+  }
+
+  @include focus-ring-inset(rgba($primary, 0.4));
+}
+
+.button-accent {
+  background: linear-gradient(135deg, $accent, $accent-dark);
+  color: #fff;
+  box-shadow: $shadow-accent;
+
+  &:hover {
+    background: linear-gradient(135deg, lighten($accent, 4%), $accent-dark);
+    box-shadow: 0 14px 28px rgba($accent-dark, 0.32);
+  }
+}
+
+.button-small {
+  min-height: 32px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.button-block {
+  width: 100%;
+}
+
+.link-button {
+  border: 0;
+  padding: 4px 0;
+  background: transparent;
+  color: $primary;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  @include interactive((color, opacity));
+
+  &:hover {
+    color: $primary-dark;
+    text-decoration: underline;
+  }
+
+  &:active {
+    opacity: 0.78;
+  }
+
+  @include focus-ring(rgba($primary, 0.4), 3px);
+}
+
+.nav-button {
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}

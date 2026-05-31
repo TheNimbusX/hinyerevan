@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="hy" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/Logo2026.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="HinYerevan.com — հին Երևանի լուսանկարների արխիվ և քարտեզ։ Ուսումնասիրեք քաղաքի պատկերները ըստ տարիների, հեղինակների և վայրերի։"
+    />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#0d1018" />
+    <meta property="og:site_name" content="HinYerevan.com" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="hy_AM" />
+    <meta property="og:image" content="/Logo2026.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <title>HinYerevan.com</title>
+    <script>
+      ;(function () {
+        try {
+          var t = localStorage.getItem('hinyerevan_theme')
+          document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark')
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'dark')
+        }
+        try {
+          var lang = localStorage.getItem('hinyerevan_language') || 'hy'
+          document.documentElement.lang = lang
+        } catch (e) {
+          document.documentElement.lang = 'hy'
+        }
+      })()
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

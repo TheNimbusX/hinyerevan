@@ -1,0 +1,208 @@
+@use './tokens' as *;
+
+.leaflet-container {
+  font: inherit;
+  background: #dce7ff;
+}
+
+.leaflet-control-attribution {
+  display: none;
+}
+
+// Leaflet's defaults place controls above z-index: 800, so they overlap the
+// sticky site header. Pin them below the header (z-index: 900).
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 400;
+}
+
+.leaflet-control {
+  z-index: 400;
+}
+
+.leaflet-pane {
+  z-index: 200;
+}
+
+// Keep zoom controls below the floating glass header on all breakpoints.
+.legacy-map-shell .leaflet-top.leaflet-left {
+  top: calc(var(--header-h) + 6px);
+  left: 12px;
+}
+
+// On phones, park zoom on the lower-left so it never fights the header pill.
+@include mq-down($bp-md) {
+  .legacy-map-shell .leaflet-top.leaflet-left {
+    top: auto;
+    bottom: 72px;
+    left: 10px;
+  }
+
+  .legacy-map-shell .leaflet-control-zoom {
+    border: 0;
+    box-shadow: 0 8px 24px rgba(20, 24, 34, 0.18);
+
+    a {
+      width: 36px;
+      height: 36px;
+      line-height: 36px;
+      font-size: 18px;
+    }
+  }
+}
+
+.legacy-map-shell .leaflet-bottom {
+  @include mq-down($bp-md) {
+    bottom: 12px;
+  }
+}
+
+.leaflet-tooltip {
+  border: 0;
+  border-radius: $radius-sm;
+  padding: 8px 10px;
+  color: $primary-dark;
+  box-shadow: 0 10px 26px rgba(23, 52, 126, 0.18);
+}
+
+// Leaflet default tooltip CSS loads after main.scss — beat it with compound selector.
+.leaflet-tooltip.marker-preview-tooltip {
+  padding: 0;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+
+  &::before {
+    border-top-color: var(--surface);
+  }
+}
+
+// Injected by Leaflet as raw HTML (not a Vue component) — use theme tokens.
+.marker-preview-card {
+  position: relative;
+  display: grid;
+  gap: 5px;
+  width: 178px;
+  padding: 8px;
+  border: 1px solid rgba($accent, 0.2);
+  border-radius: 18px;
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 18px 40px rgba(23, 52, 126, 0.22);
+  text-decoration: none;
+
+  .marker-preview-media {
+    position: relative;
+    height: 96px;
+    border-radius: 13px;
+    overflow: hidden;
+  }
+
+  img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0;
+    transition: opacity 0.25s ease;
+
+    &.is-loaded {
+      opacity: 1;
+    }
+  }
+
+  strong {
+    @include truncate;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  small {
+    color: var(--muted);
+    font-weight: 500;
+  }
+}
+
+.marker-preview-skeleton {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    var(--primary-light) 30%,
+    rgba(255, 255, 255, 0.65) 50%,
+    var(--primary-light) 70%
+  );
+  background-size: 220% 100%;
+  animation: marker-preview-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes marker-preview-shimmer {
+  0% {
+    background-position: 220% 0;
+  }
+  100% {
+    background-position: -220% 0;
+  }
+}
+
+.marker-preview-year {
+  position: relative;
+  z-index: 2;
+  justify-self: start;
+  margin-top: -22px;
+  margin-left: 8px;
+  padding: 3px 8px;
+  border-radius: $radius-pill;
+  color: #fff;
+  background: $accent;
+  font-size: 11px;
+  font-weight: 600;
+  box-shadow: 0 8px 18px rgba($accent, 0.26);
+}
+
+.marker-preview-video {
+  position: absolute;
+  z-index: 2;
+  top: 14px;
+  right: 14px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(8, 18, 40, 0.7);
+  font-size: 10px;
+  line-height: 1;
+  padding-left: 2px;
+  backdrop-filter: blur(4px);
+}
+
+.marker-preview-date {
+  display: block;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.85;
+}
+
+// Custom divIcon clusters — neutralize leaflet.markercluster default green blobs.
+.marker-cluster,
+.marker-cluster-small,
+.marker-cluster-medium,
+.marker-cluster-large {
+  background: transparent !important;
+}
+
+.marker-cluster div {
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border-radius: 0 !important;
+}

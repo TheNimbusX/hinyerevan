@@ -1,0 +1,1135 @@
+@use './tokens' as *;
+
+// =================================================================
+// Dark theme overrides.
+// Activated by `data-theme="dark"` on <html> (or any parent).
+// Light theme stays the default — these blocks paint over surfaces.
+// =================================================================
+
+[data-theme='dark'] {
+  --bg: #0d1018;
+  --bg-deep: #080a10;
+  --surface: #161b25;
+  --surface-soft: #1e2330;
+  --ink: #e7ebf3;
+  --muted: #98a0ae;
+  --line: #2a313d;
+
+  color-scheme: dark;
+  background: #0d1018;
+  color: #e7ebf3;
+
+  body {
+    background:
+      radial-gradient(1200px 600px at 80% -10%, rgba($accent, 0.08), transparent 60%),
+      radial-gradient(800px 480px at -10% 110%, rgba($primary, 0.12), transparent 60%),
+      #0d1018;
+    color: #e7ebf3;
+  }
+
+  // ---------- Header / nav --------------------------------------
+  .site-header {
+    background: rgba(13, 16, 24, 0.6);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .brand-text strong {
+    color: #f4f7ff;
+  }
+
+  .brand-text small {
+    color: #98a0ae;
+  }
+
+  .main-nav a {
+    color: #98a0ae;
+
+    &:hover {
+      color: #f4f7ff;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    &.router-link-active {
+      color: #f4f7ff;
+    }
+  }
+
+  .header-action,
+  .header-user,
+  .language-switcher,
+  .menu-toggle {
+    border-color: rgba(255, 255, 255, 0.08);
+    background: rgba(255, 255, 255, 0.04);
+    color: #e7ebf3;
+  }
+
+  .menu-toggle-box span {
+    background: #e7ebf3;
+  }
+
+  .menu-toggle.open .menu-toggle-box span {
+    background: #fff;
+  }
+
+  .header-menu.open {
+    background: rgba(22, 27, 37, 0.98);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .main-nav a {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .header-action:hover,
+  .header-user:hover {
+    border-color: #f4f7ff;
+    background: rgba(255, 255, 255, 0.08);
+    color: #f4f7ff;
+  }
+
+  .language-switcher button {
+    color: #98a0ae;
+
+    &:hover {
+      color: #f4f7ff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &.active {
+      color: #f4f7ff;
+      background: rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  // ---------- Panels / surfaces ---------------------------------
+  .panel,
+  .legacy-map-shell {
+    background: #161b25;
+    border-color: #2a313d;
+    color: #d6dae3;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.32);
+  }
+
+  .legacy-map-shell {
+    border-top-color: #2a313d;
+    border-bottom-color: #2a313d;
+  }
+
+  // ---------- Typography ----------------------------------------
+  h1,
+  h2,
+  h3 {
+    color: #f4f7ff;
+  }
+
+  .eyebrow {
+    color: #9aa0ad;
+  }
+
+  .empty,
+  .muted-hint {
+    color: #9aa0ad;
+  }
+
+  // ---------- User agreement ------------------------------------
+  .agreement-head {
+    border-bottom-color: #2a313d;
+
+    .agreement-updated {
+      background: rgba(138, 165, 236, 0.16);
+      color: #c8d4ff;
+    }
+  }
+
+  .agreement-lead,
+  .agreement-section h2 {
+    color: #f4f7ff;
+  }
+
+  .agreement-section p,
+  .agreement-section li {
+    color: #c5cad6;
+  }
+
+  // ---------- Random photo --------------------------------------
+  .random-author {
+    color: #f4f7ff;
+
+    img {
+      border-color: #2a313d;
+    }
+
+    small {
+      color: #98a0ae;
+    }
+  }
+
+  .random-stat,
+  .random-date {
+    color: #98a0ae;
+  }
+
+  .random-date {
+    border-top-color: #2a313d;
+  }
+
+  .random-stage {
+    background-color: #1e2330;
+  }
+
+  .random-shimmer {
+    background: linear-gradient(
+      100deg,
+      #1e2330 30%,
+      rgba(255, 255, 255, 0.08) 50%,
+      #1e2330 70%
+    );
+    background-size: 220% 100%;
+  }
+
+  // ---------- Social login --------------------------------------
+  .social-login-title {
+    color: #98a0ae;
+  }
+
+  .social-button {
+    background: #1e2330;
+    border-color: #2a313d;
+    color: #f4f7ff;
+  }
+
+  .social-divider {
+    &::before {
+      background: #2a313d;
+    }
+
+    span {
+      background: #161b25;
+      color: #98a0ae;
+    }
+  }
+
+  // ---------- Buttons -------------------------------------------
+  .button {
+    background: #f4f7ff;
+    color: #14171e;
+
+    &:hover {
+      background: #fff;
+    }
+  }
+
+  .button-ghost {
+    background: #1f2531;
+    color: #e7ebf3;
+    border-color: #2a313d;
+
+    &:hover {
+      background: #232a37;
+      border-color: #4a5060;
+    }
+  }
+
+  .link-button {
+    color: #8aa5ec;
+
+    &:hover {
+      color: #c8d4ff;
+    }
+  }
+
+  // ---------- Forms ---------------------------------------------
+  .filter-bar input,
+  .stack-form input,
+  .stack-form select,
+  .comment-form textarea,
+  .profile-form input {
+    background: #1c212c;
+    border-color: #2a313d;
+    color: #e7ebf3;
+
+    &::placeholder {
+      color: #6a7286;
+    }
+
+    &:hover {
+      border-color: #3a414f;
+    }
+
+    &:focus {
+      background: #1f2532;
+      border-color: #8aa5ec;
+      box-shadow: 0 0 0 3px rgba(138, 165, 236, 0.2);
+    }
+  }
+
+  .file-picker {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: #c5cad6;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: #8aa5ec;
+    }
+
+    small {
+      color: #98a0ae;
+    }
+  }
+
+  .segmented {
+    background: rgba(255, 255, 255, 0.05);
+
+    button {
+      color: #c5cad6;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      &.active {
+        background: #f4f7ff;
+        color: #14171e;
+      }
+    }
+  }
+
+  // ---------- Map widgets ---------------------------------------
+  .map-tools-toggle:not(.open),
+  .map-tools-panel,
+  .map-user-filter {
+    background: rgba(22, 27, 37, 0.95);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #e7ebf3;
+  }
+
+  .map-tools-label {
+    color: #98a0ae;
+  }
+
+  .map-review-toggle:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e7ebf3;
+
+    &:hover {
+      background: rgba(124, 92, 219, 0.18);
+      border-color: rgba(124, 92, 219, 0.4);
+    }
+  }
+
+  .map-types button:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+    color: #c5cad6;
+
+    &:hover {
+      color: #f4f7ff;
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  .map-user-filter .map-user-filter-label strong {
+    color: #f4f7ff;
+  }
+
+  .map-actions button {
+    background: rgba(255, 255, 255, 0.06);
+    color: #e7ebf3;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    &.active {
+      background: linear-gradient(135deg, #5e7fe0, $primary-dark);
+      color: #fff;
+    }
+  }
+
+  .year-filter {
+    background: #161b25;
+    border-color: #2a313d;
+  }
+
+  .year-filter-label {
+    color: #98a0ae;
+  }
+
+  .year-slider {
+    .slider-base {
+      background: #2a313d;
+      box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.32);
+    }
+  }
+
+  .year-ticks {
+    color: #6a7286;
+  }
+
+  .leaflet-container {
+    background: #0a0d12;
+  }
+
+  .map-loading {
+    background: #161b25;
+    color: #e7ebf3;
+  }
+
+  // ---------- Photo grids / cards -------------------------------
+  .photo-card,
+  .related-card,
+  .profile-photo,
+  .user-photo-tile,
+  .news-card,
+  .quick-action,
+  .stat-card,
+  .profile-tabs,
+  .author-card,
+  .random-photo-card {
+    background: #161b25;
+    border-color: #2a313d;
+    color: #d6dae3;
+  }
+
+  .photo-card img,
+  .related-card img,
+  .profile-photo img,
+  .user-photo-tile img,
+  .author-card img {
+    background: #20262f;
+  }
+
+  .photo-skeleton {
+    background:
+      linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent),
+      #20262f;
+
+    span,
+    strong,
+    small {
+      background: rgba(255, 255, 255, 0.05);
+    }
+  }
+
+  .photo-card-meta,
+  .related-card small,
+  .profile-photo small {
+    color: #98a0ae;
+  }
+
+  // ---------- Latest / rating rows ------------------------------
+  .latest-photo,
+  .news-row,
+  .rating-photo-row,
+  .author-row {
+    border-top-color: #2a313d;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    strong {
+      color: #e7ebf3;
+    }
+
+    small {
+      color: #98a0ae;
+    }
+  }
+
+  // ---------- Profile dashboard ---------------------------------
+  .profile-tab {
+    color: #98a0ae;
+
+    &:hover {
+      color: #f4f7ff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+  }
+
+  .profile-counter {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .profile-hero {
+    background:
+      radial-gradient(120% 140% at 0% 0%, rgba(138, 165, 236, 0.12), transparent 42%),
+      radial-gradient(120% 160% at 100% 0%, rgba(255, 145, 15, 0.1), transparent 46%),
+      #161b25;
+    border-color: #2a313d;
+  }
+
+  .profile-hero-info h1 {
+    color: #f4f7ff;
+  }
+
+  .profile-hero-info .eyebrow {
+    color: #8aa5ec;
+  }
+
+  .profile-handle {
+    color: #98a0ae;
+  }
+
+  .badge-soft {
+    background: rgba(255, 255, 255, 0.08);
+    color: #c5cad6;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  }
+
+  .badge-admin {
+    color: #ffce93;
+    box-shadow: inset 0 0 0 1px rgba($accent, 0.45);
+  }
+
+  .badge-user {
+    color: #a9c2ff;
+    box-shadow: inset 0 0 0 1px rgba($primary, 0.5);
+  }
+
+  .profile-avatar {
+    border-color: #161b25;
+  }
+
+  .stat-value {
+    color: #f4f7ff;
+  }
+
+  .stat-icon-comments {
+    color: #4ad08e;
+  }
+
+  .quick-icon-security {
+    color: #4ad08e;
+  }
+
+  .avatar-preview {
+    background: #20262f;
+  }
+
+  .profile-comments li {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .profile-comments p {
+    color: #c5cad6;
+  }
+
+  .profile-comments.preview li {
+    border-bottom-color: #2a313d;
+  }
+
+  // ---------- Comments ------------------------------------------
+  .comment {
+    border-top-color: #2a313d;
+  }
+
+  .comment-avatar {
+    background: #20262f;
+  }
+
+  .comment p {
+    color: #d6dae3;
+  }
+
+  .placeholder-avatar {
+    color: #fff;
+  }
+
+  // ---------- Marker tooltip ------------------------------------
+  .marker-preview-card {
+    border-color: rgba(255, 145, 15, 0.32);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .marker-preview-skeleton {
+    background: linear-gradient(
+      100deg,
+      #1d2530 30%,
+      rgba(255, 255, 255, 0.08) 50%,
+      #1d2530 70%
+    );
+    background-size: 220% 100%;
+  }
+
+  // ---------- Auth modal ----------------------------------------
+  .auth-modal {
+    background: #161b25;
+    color: #e7ebf3;
+  }
+
+  .auth-close {
+    color: #e7ebf3;
+    background: rgba(255, 255, 255, 0.08);
+
+    &:hover {
+      background: #f4f7ff;
+      color: #14171e;
+    }
+  }
+
+  .auth-tabs button.on {
+    border-bottom-color: #8aa5ec;
+    color: #e7ebf3;
+  }
+
+  .auth-divider span {
+    background: #161b25;
+  }
+
+  .auth-form input,
+  .auth-form select {
+    background: #12161f;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e7ebf3;
+  }
+
+  .register-field span,
+  .register-field small,
+  .form-help {
+    color: #98a0ae;
+  }
+
+  .auth-social__btn {
+    background: #1e2330;
+    border-color: #2a313d;
+
+    &:hover {
+      border-color: #4a5470;
+    }
+  }
+
+  // ---------- Action chips on photo detail ----------------------
+  .action-chip {
+    background: rgba(22, 27, 37, 0.85);
+    color: #e7ebf3;
+
+    &:hover {
+      background: #f4f7ff;
+      color: #14171e;
+    }
+  }
+
+  // ---------- News list -----------------------------------------
+  .news-preview {
+    color: #98a0ae;
+  }
+
+  // ---------- Misc ---------------------------------------------
+  .location-coords {
+    color: #98a0ae;
+  }
+
+  .static-page a {
+    color: #8aa5ec;
+  }
+
+  hr {
+    border-color: #2a313d;
+  }
+
+  // ---------- Errors / success ----------------------------------
+  .error,
+  .error-line {
+    color: #ff8a8a;
+  }
+
+  .success-line,
+  .upload-success {
+    color: #6ee7a8;
+    background: rgba(34, 173, 110, 0.12);
+  }
+
+  // ---------- Photo detail --------------------------------------
+  .photo-detail-loading,
+  .photo-detail-error,
+  .user-loading,
+  .profile-loading {
+    background: #161b25;
+    border-color: #2a313d;
+    color: #98a0ae;
+  }
+
+  .photo-detail-image,
+  .photo-detail-image img {
+    background: #20262f;
+  }
+
+  .direction-line {
+    color: #8aa5ec;
+  }
+
+  .detail-stats {
+    color: #98a0ae;
+
+    .like-pill {
+      color: #8aa5ec;
+    }
+  }
+
+  .action-chip {
+    background: rgba(22, 27, 37, 0.92);
+    color: #e7ebf3;
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.35);
+
+    &:hover {
+      background: #f4f7ff;
+      color: #14171e;
+    }
+  }
+
+  .comment-author {
+    color: #8aa5ec;
+
+    &:hover {
+      color: #c8d4ff;
+    }
+  }
+
+  .mini-map {
+    background: #0a0d12;
+  }
+
+  .related-card {
+    background: #1e2330;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
+  }
+
+  // ---------- Profile dashboard ---------------------------------
+  .stat-card {
+    background: #161b25;
+    border: 1px solid #2a313d;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+  }
+
+  .stat-label,
+  .stat-meta {
+    color: #98a0ae;
+  }
+
+  .profile-tabs {
+    background: #161b25;
+    border: 1px solid #2a313d;
+  }
+
+  .profile-tab {
+    color: #98a0ae;
+
+    &:hover {
+      color: #c8d4ff;
+      background: rgba(255, 255, 255, 0.06);
+    }
+
+    &.active {
+      background: linear-gradient(135deg, #5e7fe0, $primary-dark);
+      color: #fff;
+    }
+  }
+
+  .quick-action {
+    background: #161b25;
+    border-color: #2a313d;
+    color: #e7ebf3;
+
+    &:hover {
+      border-color: #8aa5ec;
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.32);
+    }
+
+    strong {
+      color: #f4f7ff;
+    }
+  }
+
+  .quick-icon {
+    background: rgba(94, 127, 224, 0.18);
+    color: #8aa5ec;
+  }
+
+  .quick-action:hover .quick-icon {
+    background: #5e7fe0;
+    color: #fff;
+  }
+
+  .profile-comments li {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .profile-comments.preview li {
+    border-bottom-color: #2a313d;
+  }
+
+  .profile-comments p {
+    color: #d6dae3;
+  }
+
+  .profile-comment-title {
+    color: #8aa5ec;
+  }
+
+  .profile-form {
+    label {
+      color: #98a0ae;
+    }
+
+    input,
+    select {
+      background-color: #1c212c;
+      border-color: #2a313d;
+      color: #e7ebf3;
+
+      &:focus {
+        background-color: #1f2532;
+        border-color: #8aa5ec;
+        box-shadow: 0 0 0 3px rgba(138, 165, 236, 0.2);
+      }
+
+      &:disabled {
+        background-color: #141820;
+        color: #6a7286;
+      }
+    }
+
+    select {
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2398a0ae' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    }
+  }
+
+  .profile-readonly,
+  .muted-hint {
+    color: #98a0ae;
+  }
+
+  // ---------- User public profile -------------------------------
+  .user-hero,
+  .user-profile-page .panel,
+  .user-section {
+    background: #161b25;
+    border-color: #2a313d;
+  }
+
+  .user-section-head h2 {
+    color: #f4f7ff;
+  }
+
+  .user-section .empty {
+    color: #98a0ae;
+  }
+
+  .user-handle {
+    color: #98a0ae;
+  }
+
+  // ---------- Photo detail bottom sheet -------------------------
+  .photo-sheet,
+  .photo-sheet-bar {
+    background: #161b25;
+    border-color: #2a313d;
+    color: #d6dae3;
+  }
+
+  .photo-sheet-grip {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .sheet-title {
+    color: #f4f7ff;
+  }
+
+  .photo-sheet-openfull {
+    color: #cdd9ff;
+    background: rgba(255, 255, 255, 0.07);
+
+    &:hover {
+      color: #fff;
+      background: $primary;
+    }
+  }
+
+  .sheet-coords {
+    background: #1e2330;
+    border-color: #2a313d;
+  }
+
+  .sheet-related h3,
+  .sheet-comments h3 {
+    color: #f4f7ff;
+  }
+
+  .user-photo-tile {
+    background: #1e2330;
+    border-color: #2a313d;
+  }
+
+  // ---------- Photos list / filters -----------------------------
+  .filter-bar {
+    background: #161b25;
+    border-color: #2a313d;
+
+    input,
+    select {
+      background: #1c212c;
+      border-color: #2a313d;
+      color: #e7ebf3;
+    }
+  }
+
+  // ---------- Static pages --------------------------------------
+  .content-card,
+  .static-page-body {
+    color: #d6dae3;
+
+    a {
+      color: #8aa5ec;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+      color: #f4f7ff;
+    }
+  }
+
+  // ---------- Upload modal --------------------------------------
+  .upload-modal,
+  .upload-modal-head .muted {
+    color: #98a0ae;
+  }
+
+  .upload-field-label,
+  .upload-map-hint {
+    color: #e7ebf3;
+  }
+
+  .upload-map {
+    background: #0a0d12;
+  }
+
+  .review-check {
+    background: rgba(255, 145, 15, 0.08);
+    border-color: rgba(255, 145, 15, 0.32);
+
+    span {
+      color: #f4f7ff;
+    }
+
+    small {
+      color: #98a0ae;
+    }
+  }
+
+  .media-tabs {
+    background: #1c212c;
+    border-color: #2a313d;
+
+    button {
+      color: #c5cad6;
+
+      &:hover {
+        color: #f4f7ff;
+      }
+
+      &.on {
+        color: #fff;
+      }
+    }
+  }
+
+  .upload-preview {
+    background: #20262f;
+  }
+
+  .facebook-comment,
+  .check-line {
+    color: #c5cad6;
+  }
+
+  // ---------- Admin ---------------------------------------------
+  .admin__head {
+    border-bottom-color: #2a313d;
+    color: #e7ebf3;
+  }
+
+  .admin__table,
+  .admin__box,
+  .admin__form,
+  .admin__input,
+  .admin__select,
+  .admin__textarea {
+    background: #161b25;
+    border-color: #2a313d;
+    color: #e7ebf3;
+  }
+
+  .admin__table th,
+  .admin__table td {
+    border-bottom-color: #2a313d;
+  }
+
+  .admin__subtabs {
+    border-bottom-color: #2a313d;
+  }
+
+  .admin__count,
+  .admin__more {
+    border-color: #2a313d;
+  }
+
+  // Tabs are plain text (underline on active) — no fill.
+  .admin__tabs button,
+  .admin__subtabs button {
+    background: none;
+    color: #98a0ae;
+
+    &.on {
+      background: none;
+      color: #f4f7ff;
+    }
+  }
+
+  .admin__input,
+  .admin__select,
+  .admin__textarea {
+    &::placeholder {
+      color: #6a7286;
+    }
+
+    &:focus {
+      outline: none;
+      border-color: #8aa5ec;
+    }
+  }
+
+  .admin__btn {
+    background: #1c212c;
+    border-color: #2a313d;
+    color: #e7ebf3;
+
+    &--plain {
+      background: transparent;
+      border-color: transparent;
+      color: #98a0ae;
+    }
+
+    &--danger {
+      background: transparent;
+      border-color: #5a3030;
+      color: #ff8a8a;
+    }
+  }
+
+  .admin__link {
+    color: #8aa5ec;
+
+    &--title {
+      color: #e7ebf3;
+    }
+
+    &--review {
+      color: #b3a4f2;
+    }
+
+    &--danger {
+      color: #ff8a8a;
+    }
+  }
+
+  .admin__stats,
+  .admin__muted,
+  .admin__empty,
+  .admin__feedback-preview,
+  .admin__field span {
+    color: #98a0ae;
+  }
+
+  .admin__thumb img {
+    background: #1c212c;
+  }
+
+  .admin__user-detail {
+    background: #1c212c;
+    border-color: #2a313d;
+  }
+
+  .admin__photo-row--review,
+  .admin__table .admin__photo-row--review td {
+    background: rgba(124, 92, 219, 0.14);
+  }
+
+  .admin__msg--err {
+    border-color: #5a3030;
+    background: rgba(255, 90, 90, 0.12);
+    color: #ff8a8a;
+  }
+
+  // ---------- Auth extras ---------------------------------------
+  .auth-tabs button {
+    color: #98a0ae;
+
+    &.on {
+      color: #f4f7ff;
+      border-bottom-color: #8aa5ec;
+    }
+  }
+
+  .auth-divider {
+    color: #98a0ae;
+
+    span {
+      background: #161b25;
+    }
+
+    &::before {
+      background: #2a313d;
+    }
+  }
+
+  .auth-form select {
+    background: #12161f;
+    border-color: rgba(255, 255, 255, 0.12);
+    color: #e7ebf3;
+  }
+
+  .captcha-box {
+    color: #c5cad6;
+    background: rgba(94, 127, 224, 0.12);
+    border-color: rgba(138, 165, 236, 0.25);
+  }
+
+  .file-picker {
+    color: #8aa5ec;
+    background: rgba(94, 127, 224, 0.1);
+    border-color: rgba(138, 165, 236, 0.35);
+
+    &:hover {
+      background: rgba(94, 127, 224, 0.18);
+      border-color: #8aa5ec;
+    }
+  }
+
+  // ---------- Mobile nav active state ---------------------------
+  @include mq-down($bp-md) {
+    .main-nav a.router-link-active {
+      color: #f4f7ff;
+      background: rgba(94, 127, 224, 0.35);
+      border-color: rgba(138, 165, 236, 0.45);
+    }
+  }
+
+  // ---------- Feedback form ---------------------------------------
+  .feedback-field span {
+    color: #e7ebf3;
+  }
+
+  .feedback-intro {
+    color: #98a0ae;
+  }
+
+  .feedback-success {
+    color: #6ee7a8;
+  }
+}

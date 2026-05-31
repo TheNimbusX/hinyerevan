@@ -1,0 +1,13 @@
+// Global stylesheet entry. Only truly shared rules live here;
+// each Vue component owns its own SCSS block.
+
+@use './reset';
+@use './typography';
+@use './buttons';
+@use './forms';
+@use './panel';
+@use './layout';
+@use './photo-grid';
+@use './animations';
+@use './leaflet';
+@use './dark';

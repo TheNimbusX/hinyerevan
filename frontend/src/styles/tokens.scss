@@ -1,0 +1,155 @@
+// =================================================================
+// Design tokens + shared mixins
+// Auto-imported into every SCSS block via vite.config.js.
+// =================================================================
+
+// ---------- Palette ----------------------------------------------
+$primary: #294fb3;
+$primary-dark: #17347e;
+$primary-light: #eef3fb;
+$primary-soft: #f5f7fc;
+
+$accent: #ff910f;
+$accent-dark: #d56f00;
+$accent-soft: #fff5e8;
+
+$ink: #14171e;
+$muted: #6b7280;
+$muted-soft: #9ba2af;
+$line: #e7e5e0;
+$line-soft: #efece6;
+$surface: #ffffff;
+$surface-soft: #faf8f3;
+$bg: #f5f2ec;
+$bg-deep: #ecead9;
+
+$success: #1c7a48;
+$danger: #c93b3b;
+$warning: #b45309;
+
+// Third status color — photos that need location clarification
+$review-color: #7c5cdb;
+$review-color-dark: #5b3fc0;
+
+// ---------- Fonts ------------------------------------------------
+$font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+  Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-serif: ui-serif, Georgia, 'Times New Roman', serif;
+
+// ---------- Shadows ----------------------------------------------
+$shadow-xs: 0 1px 2px rgba(20, 24, 34, 0.04);
+$shadow-sm: 0 4px 14px rgba(20, 24, 34, 0.06);
+$shadow-md: 0 10px 28px rgba(20, 24, 34, 0.08);
+$shadow-lg: 0 20px 48px rgba(20, 24, 34, 0.1);
+$shadow-xl: 0 28px 70px rgba(20, 24, 34, 0.16);
+$shadow-primary: 0 8px 18px rgba(41, 79, 179, 0.2);
+$shadow-accent: 0 10px 22px rgba(213, 111, 0, 0.24);
+
+// ---------- Radii ------------------------------------------------
+$radius-xs: 6px;
+$radius-sm: 10px;
+$radius-md: 14px;
+$radius-lg: 18px;
+$radius-xl: 22px;
+$radius-pill: 999px;
+
+// ---------- Motion -----------------------------------------------
+$ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+$duration-fast: 0.14s;
+$duration: 0.22s;
+$duration-slow: 0.32s;
+
+// ---------- Breakpoints ------------------------------------------
+$bp-sm: 520px;
+$bp-md: 820px;
+$bp-lg: 1100px;
+
+// ---------- Focus / interaction mixins ---------------------------
+// Visible focus ring that doesn't clash with native outline
+@mixin focus-ring($color: rgba(41, 79, 179, 0.35), $offset: 2px) {
+  &:focus-visible {
+    outline: 2px solid $color;
+    outline-offset: $offset;
+  }
+}
+
+// Same ring but inset (for buttons that have their own shadow)
+@mixin focus-ring-inset($color: rgba(41, 79, 179, 0.45)) {
+  &:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px $color;
+  }
+}
+
+// Smooth lift on hover for cards / tiles
+@mixin hover-lift($amount: -2px, $shadow: $shadow-md) {
+  transition: transform $duration $ease, box-shadow $duration $ease;
+
+  &:hover {
+    transform: translateY($amount);
+    box-shadow: $shadow;
+  }
+}
+
+// Standard interactive transition
+@mixin interactive($props: (background, color, border-color, transform, box-shadow)) {
+  $list: ();
+
+  @each $prop in $props {
+    $list: append($list, #{$prop} #{$duration} #{$ease}, comma);
+  }
+
+  transition: $list;
+}
+
+// Visually hide (for a11y)
+@mixin sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+// Truncate single line
+@mixin truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+// Multi-line clamp
+@mixin clamp-lines($n: 3) {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: $n;
+  line-clamp: $n;
+  overflow: hidden;
+}
+
+// Pretty disabled
+@mixin disabled {
+  &:disabled,
+  &[aria-disabled='true'] {
+    opacity: 0.55;
+    cursor: not-allowed;
+    pointer-events: none;
+  }
+}
+
+// Media query helpers
+@mixin mq-down($bp) {
+  @media (max-width: $bp) {
+    @content;
+  }
+}
+
+@mixin mq-up($bp) {
+  @media (min-width: ($bp + 1)) {
+    @content;
+  }
+}

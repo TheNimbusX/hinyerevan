@@ -1,0 +1,46 @@
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes marker-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.72);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes marker-fade {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.7);
+  }
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    background-position: -220px 0, 0 0;
+  }
+  to {
+    background-position: calc(100% + 220px) 0, 0 0;
+  }
+}

@@ -1,0 +1,85 @@
+@use './tokens' as *;
+
+// CSS variables that mirror the SCSS tokens for use from inline styles
+// and third-party CSS that expects custom properties.
+:root {
+  --primary: #{$primary};
+  --primary-dark: #{$primary-dark};
+  --primary-light: #{$primary-light};
+  --accent: #{$accent};
+  --accent-dark: #{$accent-dark};
+  --ink: #{$ink};
+  --muted: #{$muted};
+  --line: #{$line};
+  --surface: #{$surface};
+  --surface-soft: #{$surface-soft};
+  --shadow: #{$shadow-md};
+  --shadow-strong: #{$shadow-lg};
+  --bg: #{$bg};
+  --bg-deep: #{$bg-deep};
+  --font-sans: #{$font-sans};
+  --font-serif: #{$font-serif};
+  --header-h: 82px;
+
+  font: 14px/1.55 #{$font-sans};
+  color: $ink;
+  background: $bg;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  overflow-x: hidden;
+}
+
+body {
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(1200px 600px at 80% -10%, rgba($accent, 0.06), transparent 60%),
+    radial-gradient(800px 480px at -10% 110%, rgba($primary, 0.07), transparent 60%),
+    $bg;
+  font-weight: 400;
+  color: $ink;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+  @include interactive((color, opacity));
+
+  &:focus-visible {
+    outline: 2px solid rgba($primary, 0.55);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  font-family: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+::selection {
+  background: rgba($accent, 0.32);
+  color: $ink;
+}
