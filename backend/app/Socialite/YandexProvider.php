@@ -11,27 +11,41 @@ use SocialiteProviders\Yandex\Provider as BaseProvider;
  */
 class YandexProvider extends BaseProvider
 {
+    /** @var array<int, string> */
+    protected $scopes = ['login:email', 'login:info'];
+
+    protected $scopeSeparator = ' ';
+
     protected function getUserByToken($token)
     {
-        try {
-            $response = $this->getHttpClient()->get(
-                'https://login.yandex.ru/info',
-                [
-                    'query' => ['format' => 'json'],
-                    'headers' => [
-                        'Authorization' => 'OAuth '.$token,
-                    ],
-                ],
-            );
+        $last = null;
 
-            return json_decode($response->getBody()->getContents(), true);
-        } catch (ConnectException $e) {
-            throw new ConnectException(
-                'login.yandex.ru unreachable from server (set OAUTH_PROXY). '.$e->getMessage(),
-                $e->getRequest(),
-                $e->getPrevious(),
-                $e->getHandlerContext(),
-            );
+        for ($attempt = 1; $attempt <= 3; $attempt++) {
+            try {
+                $response = $this->getHttpClient()->get(
+                    'https://login.yandex.ru/info',
+                    [
+                        'query' => ['format' => 'json'],
+                        'headers' => [
+                            'Authorization' => 'OAuth '.$token,
+                        ],
+                    ],
+                );
+
+                return json_decode($response->getBody()->getContents(), true);
+            } catch (ConnectException $e) {
+                $last = $e;
+                if ($attempt < 3) {
+                    usleep(500000 * $attempt);
+                }
+            }
         }
+
+        throw new ConnectException(
+            'login.yandex.ru unreachable from server (set OAUTH_PROXY). '.$last->getMessage(),
+            $last->getRequest(),
+            $last->getPrevious(),
+            $last->getHandlerContext(),
+        );
     }
 }
