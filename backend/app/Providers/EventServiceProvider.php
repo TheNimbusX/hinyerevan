@@ -21,7 +21,7 @@ class EventServiceProvider extends ServiceProvider
         ],
         // Register community Socialite drivers (Google/Facebook are built in).
         SocialiteWasCalled::class => [
-            \SocialiteProviders\Yandex\YandexExtendSocialite::class . '@handle',
+            \App\Socialite\YandexExtendSocialite::class . '@handle',
             \SocialiteProviders\VKontakte\VKontakteExtendSocialite::class . '@handle',
             \SocialiteProviders\Odnoklassniki\OdnoklassnikiExtendSocialite::class . '@handle',
             \SocialiteProviders\Apple\AppleExtendSocialite::class . '@handle',

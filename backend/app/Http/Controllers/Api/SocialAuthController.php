@@ -55,6 +55,7 @@ class SocialAuthController extends Controller
 
         return match ($provider) {
             'facebook' => $driver->scopes(['email', 'public_profile'])->redirect(),
+            'yandex' => $driver->scopes(['login:email', 'login:info'])->redirect(),
             default => $driver->redirect(),
         };
     }
@@ -83,7 +84,7 @@ class SocialAuthController extends Controller
             ]);
 
             return redirect()->away(
-                $frontend . '/?social_error=' . urlencode('Could not sign in with ' . self::PROVIDERS[$provider]['label'] . '.'),
+                $frontend . '/?social_error=' . urlencode($this->socialErrorMessage($provider, $e)),
             );
         }
 
@@ -185,8 +186,8 @@ class SocialAuthController extends Controller
         $driver = Socialite::driver($provider);
 
         $clientOptions = [
-            'connect_timeout' => 15,
-            'timeout' => 45,
+            'connect_timeout' => 8,
+            'timeout' => 20,
         ];
         $proxy = trim((string) config('services.oauth.proxy', ''));
         if ($proxy !== '') {
@@ -215,6 +216,24 @@ class SocialAuthController extends Controller
             default => ! empty(config("services.$provider.client_id"))
                 && ! empty(config("services.$provider.client_secret")),
         };
+    }
+
+    private function socialErrorMessage(string $provider, \Throwable $e): string
+    {
+        $label = self::PROVIDERS[$provider]['label'] ?? $provider;
+        $msg = $e->getMessage();
+
+        if ($provider === 'yandex' && (
+            str_contains($msg, 'login.yandex.ru')
+            || str_contains($msg, 'OAUTH_PROXY')
+            || str_contains($msg, 'Connection timed out')
+            || str_contains($msg, 'Could not resolve host')
+        )) {
+            return 'Вход через Яндекс: сервер не может связаться с login.yandex.ru (часто блокируют IP датацентров). '
+                .'Добавьте в backend/.env OAUTH_PROXY= socks5://… или http://… — прокси/VPN с доступом к Яндексу, затем php artisan config:cache.';
+        }
+
+        return 'Could not sign in with '.$label.'.';
     }
 
     private function frontendUrl(): string
