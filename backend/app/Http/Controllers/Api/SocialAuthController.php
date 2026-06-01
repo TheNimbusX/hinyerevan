@@ -71,11 +71,11 @@ class SocialAuthController extends Controller
         $frontend = rtrim((string) config('app.frontend_url', env('FRONTEND_URL', 'http://127.0.0.1:5173')), '/');
 
         if (! isset(self::PROVIDERS[$provider]) || ! $this->isConfigured($provider)) {
-            return redirect()->away($frontend . '/auth?social_error=' . urlencode('Unknown provider.'));
+            return redirect()->away($frontend . '/?social_error=' . urlencode('Unknown provider.'));
         }
 
         if (! LegacySchema::usersReady()) {
-            return redirect()->away($frontend . '/auth?social_error=' . urlencode('User database is not connected yet.'));
+            return redirect()->away($frontend . '/?social_error=' . urlencode('User database is not connected yet.'));
         }
 
         try {
@@ -99,19 +99,19 @@ class SocialAuthController extends Controller
                 'message' => $e->getMessage(),
             ]);
 
-            return redirect()->away($frontend . '/auth?social_error=' . urlencode('Could not sign in with ' . self::PROVIDERS[$provider]['label'] . '.'));
+            return redirect()->away($frontend . '/?social_error=' . urlencode('Could not sign in with ' . self::PROVIDERS[$provider]['label'] . '.'));
         }
 
         $user = $this->findOrCreateUser($provider, $oauthUser);
 
         if ($user->isBlocked()) {
-            return redirect()->away($frontend . '/auth?social_error=' . urlencode('This account is blocked.'));
+            return redirect()->away($frontend . '/?social_error=' . urlencode('This account is blocked.'));
         }
 
         $user->forceFill(['last_ip' => request()->ip()])->save();
         $token = $user->createToken('spa-' . $provider)->plainTextToken;
 
-        return redirect()->away($frontend . '/auth?social_token=' . urlencode($token));
+        return redirect()->away($frontend . '/?social_token=' . urlencode($token));
     }
 
     /**

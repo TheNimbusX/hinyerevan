@@ -148,6 +148,29 @@ function syncAuthState() {
   loadCurrentUser()
 }
 
+// OAuth providers redirect back to "/" with a one-time token (or an error)
+// in the query string. Consume it, then strip the params from the URL.
+async function handleSocialCallback() {
+  const route = router.currentRoute.value
+  const token = route.query.social_token
+  const socialError = route.query.social_error
+  if (!token && !socialError) return
+
+  const cleanQuery = { ...route.query }
+  delete cleanQuery.social_token
+  delete cleanQuery.social_error
+  router.replace({ path: route.path, query: cleanQuery })
+
+  if (token) {
+    setToken(String(token))
+    await loadCurrentUser()
+    router.push('/profile')
+  } else if (socialError) {
+    openAuth('login')
+    authError.value = String(socialError) || t('socialLoginFailed')
+  }
+}
+
 function closeMenu() {
   menuOpen.value = false
 }
@@ -258,6 +281,7 @@ watch(
 onMounted(() => {
   loadCurrentUser()
   loadSocialProviders()
+  handleSocialCallback()
   window.addEventListener('hinyerevan:auth-changed', syncAuthState)
   window.addEventListener('hinyerevan:open-auth', handleOpenAuth)
 })

@@ -61,6 +61,36 @@ class LegacyPhotoStorage
         return $this->renderWatermark($sourcePath, $watermark, $info, $cachePath);
     }
 
+    /**
+     * Burn the upload watermark (the new site logo) directly into $path.
+     * Used for freshly uploaded photos so they permanently carry the new
+     * watermark, the same way legacy photos already have one baked in.
+     */
+    public function burnUploadWatermark(string $path): void
+    {
+        if (! is_file($path)) {
+            return;
+        }
+
+        $watermark = config('hinyerevan.watermark_upload');
+        if (! $watermark || ! is_file($watermark)) {
+            return;
+        }
+
+        $info = @getimagesize($path);
+        if ($info === false) {
+            return;
+        }
+
+        $tmp = $path . '.wm';
+        $rendered = $this->renderWatermark($path, $watermark, $info, $tmp);
+        if ($rendered !== null && is_file($rendered)) {
+            @rename($rendered, $path);
+        } else {
+            @unlink($tmp);
+        }
+    }
+
     private function watermarkAssetPath(): ?string
     {
         $configured = config('hinyerevan.watermark');
@@ -181,6 +211,10 @@ class LegacyPhotoStorage
         $this->resize($original, $large, 800, 800);
         $this->resize($original, $thumb, 192, 192, true);
 
+        $this->burnUploadWatermark($original);
+        $this->burnUploadWatermark($large);
+        $this->burnUploadWatermark($thumb);
+
         return $fileId;
     }
 
@@ -202,6 +236,10 @@ class LegacyPhotoStorage
         File::copy($sourcePath, $original);
         $this->resize($original, $large, 800, 800);
         $this->resize($original, $thumb, 192, 192, true);
+
+        $this->burnUploadWatermark($original);
+        $this->burnUploadWatermark($large);
+        $this->burnUploadWatermark($thumb);
 
         return $fileId;
     }

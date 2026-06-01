@@ -94,16 +94,18 @@ export async function api(path, options = {}) {
   const payload = await response.json().catch(() => null)
   if (!response.ok) {
     // Laravel validation: { message, errors: { field: [messages...] } }
+    let message = payload?.message || 'Request failed'
     if (payload && typeof payload === 'object' && payload.errors && typeof payload.errors === 'object') {
       const firstField = Object.keys(payload.errors)[0]
       const firstMessage = firstField ? payload.errors[firstField]?.[0] : null
       if (typeof firstMessage === 'string' && firstMessage.trim() !== '') {
-        throw new Error(firstMessage)
+        message = firstMessage
       }
     }
 
-    const message = payload?.message || 'Request failed'
-    throw new Error(message)
+    const err = new Error(message)
+    err.status = response.status
+    throw err
   }
 
   if ((options.method || 'GET').toUpperCase() !== 'GET') {

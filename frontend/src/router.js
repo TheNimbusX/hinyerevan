@@ -6,7 +6,6 @@ import PhotoUploadView from './views/PhotoUploadView.vue'
 import NewsView from './views/NewsView.vue'
 import NewsDetailView from './views/NewsDetailView.vue'
 import PageView from './views/PageView.vue'
-import AuthView from './views/AuthView.vue'
 import ProfileView from './views/ProfileView.vue'
 import AdminView from './views/AdminView.vue'
 import RandomPhotoView from './views/RandomPhotoView.vue'
@@ -29,7 +28,6 @@ const routes = [
   { path: '/news', name: 'news', component: NewsView, meta: { titleKey: 'pageTitleNews' } },
   { path: '/news/:id', name: 'news-detail', component: NewsDetailView },
   { path: '/pages/:alias', name: 'page', component: PageView },
-  { path: '/auth', name: 'auth', component: AuthView, meta: { titleKey: 'pageTitleAuth', noindex: true } },
   {
     path: '/profile',
     name: 'profile',

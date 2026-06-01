@@ -222,8 +222,16 @@ watch([theme, currentLanguage], () => {
   requestAnimationFrame(() => miniMap?.invalidateSize())
 })
 
+function promptLogin() {
+  window.dispatchEvent(new CustomEvent('hinyerevan:open-auth', { detail: { mode: 'login' } }))
+}
+
 async function submitComment() {
   error.value = ''
+  if (!isAuthenticated.value) {
+    promptLogin()
+    return
+  }
   try {
     await api(`/photos/${route.params.id}/comments`, {
       method: 'POST',
@@ -232,6 +240,10 @@ async function submitComment() {
     comment.value = ''
     await load()
   } catch (event) {
+    if (event.status === 401) {
+      promptLogin()
+      return
+    }
     error.value = event.message
   }
 }
@@ -393,11 +405,14 @@ async function submitComment() {
 
   <section v-if="photo" class="panel">
     <h2>{{ t('comments') }}</h2>
-    <form class="comment-form" @submit.prevent="submitComment">
+    <form v-if="isAuthenticated" class="comment-form" @submit.prevent="submitComment">
       <textarea v-model="comment" :placeholder="t('writeComment')" required />
       <button class="button" type="submit">{{ t('postComment') }}</button>
       <p v-if="error" class="error">{{ error }}</p>
     </form>
+    <button v-else class="button comment-login-prompt" type="button" @click="promptLogin">
+      {{ t('loginToComment') }}
+    </button>
     <div v-for="item in photo.comments || []" :key="item.id" class="comment">
       <img class="comment-avatar" :src="authorAvatar(item.author)" :alt="userDisplayName(item.author, t)" />
       <span>
