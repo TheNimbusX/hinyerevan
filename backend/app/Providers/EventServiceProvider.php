@@ -24,6 +24,8 @@ class EventServiceProvider extends ServiceProvider
             \SocialiteProviders\Yandex\YandexExtendSocialite::class . '@handle',
             \SocialiteProviders\VKontakte\VKontakteExtendSocialite::class . '@handle',
             \SocialiteProviders\Odnoklassniki\OdnoklassnikiExtendSocialite::class . '@handle',
+            \SocialiteProviders\Apple\AppleExtendSocialite::class . '@handle',
+            \SocialiteProviders\Instagram\InstagramExtendSocialite::class . '@handle',
         ],
     ];
 

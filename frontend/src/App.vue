@@ -31,6 +31,7 @@ const authForm = ref({
   recaptcha_token: '',
 })
 const socialProviders = ref([])
+const socialRedirecting = ref(null)
 const providerIcons = {
   google:
     '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#4285F4" d="M22.5 12.2c0-.7-.06-1.4-.18-2.06H12v3.9h5.9a5.04 5.04 0 0 1-2.19 3.31v2.74h3.54c2.07-1.91 3.25-4.72 3.25-7.89z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.54-2.74c-.98.66-2.24 1.05-3.74 1.05-2.87 0-5.3-1.94-6.17-4.55H2.18v2.83A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.83 14.1a6.6 6.6 0 0 1 0-4.2V7.07H2.18a11 11 0 0 0 0 9.86l3.65-2.83z"/><path fill="#EA4335" d="M12 5.35c1.62 0 3.07.56 4.21 1.65l3.14-3.14C17.45 2.02 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07L5.83 9.9C6.7 7.3 9.13 5.35 12 5.35z"/></svg>',
@@ -42,6 +43,10 @@ const providerIcons = {
     '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#0077FF" d="M15.07 2H8.93C3.33 2 2 3.33 2 8.93v6.14C2 20.67 3.33 22 8.93 22h6.14c5.6 0 6.93-1.33 6.93-6.93V8.93C22 3.33 20.68 2 15.07 2zm3.5 14.27h-1.46c-.55 0-.72-.44-1.71-1.43-.86-.83-1.24-.94-1.45-.94-.3 0-.39.08-.39.49v1.31c0 .35-.11.56-1.04.56-1.53 0-3.23-.93-4.43-2.65-1.8-2.54-2.3-4.46-2.3-4.85 0-.21.08-.4.49-.4h1.46c.37 0 .51.17.65.55.72 2.08 1.92 3.9 2.42 3.9.18 0 .27-.09.27-.56V11.1c-.06-1.06-.62-1.15-.62-1.53 0-.18.15-.36.39-.36h2.3c.31 0 .42.16.42.53v3.09c0 .31.13.42.22.42.18 0 .33-.11.66-.44 1.02-1.14 1.74-2.9 1.74-2.9.1-.21.27-.4.64-.4h1.46c.44 0 .53.23.44.53-.18.85-1.96 3.37-1.96 3.37-.15.25-.21.36 0 .64.15.21.65.64.98 1.02.61.7 1.08 1.29 1.21 1.7.13.4-.08.61-.49.61z"/></svg>',
   odnoklassniki:
     '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#EE8208" d="M12 11.6a4.8 4.8 0 1 0 0-9.6 4.8 4.8 0 0 0 0 9.6zm0-7a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4zM14.2 14.8a8 8 0 0 0 2.5-1.04 1.3 1.3 0 1 0-1.38-2.2 5.4 5.4 0 0 1-6.64 0 1.3 1.3 0 1 0-1.38 2.2 8 8 0 0 0 2.5 1.05L7.1 17.9a1.3 1.3 0 0 0 1.84 1.84L12 16.68l3.06 3.06a1.3 1.3 0 1 0 1.84-1.84z"/></svg>',
+  apple:
+    '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M17.05 12.67c-.02-2.17 1.77-3.21 1.85-3.26-1.01-1.47-2.58-1.67-3.13-1.69-1.33-.14-2.6.78-3.27.78-.68 0-1.72-.76-2.83-.74-1.45.02-2.79.84-3.54 2.14-1.51 2.62-.39 6.49 1.08 8.61.72 1.04 1.58 2.2 2.71 2.16 1.09-.04 1.5-.7 2.82-.7 1.32 0 1.69.7 2.82.68 1.17-.02 1.9-1.05 2.61-2.09.82-1.2 1.16-2.36 1.18-2.42-.03-.01-2.27-.87-2.29-3.45zM14.94 4.87c.6-.73 1.01-1.74.9-2.75-.87.04-1.93.58-2.56 1.31-.56.64-1.05 1.67-.92 2.65.97.07 1.96-.49 2.58-1.21z"/></svg>',
+  instagram:
+    '<svg viewBox="0 0 24 24" width="20" height="20"><defs><linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#FD5949"/><stop offset="50%" stop-color="#D6249F"/><stop offset="100%" stop-color="#285AEB"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig)"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff"/></svg>',
 }
 
 function providerIcon(id) {
@@ -249,7 +254,7 @@ function selectAvatar(event) {
 }
 
 function socialLogin(providerId) {
-  // Full-page redirect into the backend OAuth flow; it returns to /auth with a token.
+  socialRedirecting.value = providerId
   window.location.href = apiUrl(`/auth/social/${providerId}/redirect`)
 }
 
@@ -384,14 +389,16 @@ onBeforeUnmount(() => {
               :key="provider.id"
               type="button"
               class="auth-social__btn"
-              :class="`auth-social__btn--${provider.id}`"
-              :title="provider.label"
+              :class="[`auth-social__btn--${provider.id}`, { 'is-loading': socialRedirecting === provider.id }]"
+              :disabled="Boolean(socialRedirecting)"
               :aria-label="provider.label"
               @click="socialLogin(provider.id)"
             >
               <span class="auth-social__icon" v-html="providerIcon(provider.id)"></span>
+              <span class="auth-social__label">{{ provider.label }}</span>
             </button>
           </div>
+          <p v-else class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
 
           <p v-if="socialProviders.length" class="auth-divider"><span>{{ t('orContinueWithEmail') }}</span></p>
 
@@ -1047,30 +1054,39 @@ onBeforeUnmount(() => {
 }
 
 .auth-social {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: 8px;
   margin-bottom: 14px;
 }
 
+.auth-social-empty {
+  margin: 0 0 14px;
+  color: $muted;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .auth-social__btn {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 48px;
-  height: 48px;
-  padding: 0;
+  gap: 6px;
+  min-height: 72px;
+  padding: 10px 8px;
   border: 1px solid $line;
   border-radius: 12px;
   background: $surface;
+  color: $ink;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
 
   .auth-social__icon {
     display: inline-flex;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
   }
 
   .auth-social__icon svg {
@@ -1079,9 +1095,28 @@ onBeforeUnmount(() => {
     height: 100%;
   }
 
-  &:hover {
+  .auth-social__label {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  &:hover:not(:disabled) {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  }
+
+  &:disabled {
+    opacity: 0.65;
+    cursor: wait;
+  }
+
+  &.is-loading .auth-social__label::after {
+    content: '…';
+  }
+
+  &--apple {
+    color: $ink;
   }
 }
 
