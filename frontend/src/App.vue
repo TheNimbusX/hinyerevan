@@ -939,8 +939,11 @@ onBeforeUnmount(() => {
   position: fixed;
   inset: 0;
   z-index: 1000;
-  display: grid;
-  place-items: center;
+  display: flex;
+  // Scroll the backdrop (not the modal) so a tall form stays fully reachable
+  // on mobile; `margin: auto` on the modal still centers it when it fits.
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   padding: 20px;
   background: rgba(12, 16, 24, 0.55);
   backdrop-filter: blur(6px);
@@ -949,13 +952,23 @@ onBeforeUnmount(() => {
 .auth-modal {
   position: relative;
   width: min(440px, 100%);
-  max-height: calc(100vh - 40px);
-  overflow: auto;
+  margin: auto;
+  overflow-x: hidden;
   padding: 24px 22px 22px;
   border: 1px solid $line;
   border-radius: $radius-lg;
   background: $surface;
   box-shadow: 0 16px 48px rgba(0, 0, 0, 0.18);
+}
+
+@include mq-down($bp-md) {
+  .auth-modal-backdrop {
+    padding: 12px;
+  }
+
+  .auth-modal {
+    padding: 20px 16px 16px;
+  }
 }
 
 .auth-modal__head {
@@ -1159,6 +1172,14 @@ onBeforeUnmount(() => {
   display: flex;
   justify-content: center;
   min-height: 78px;
+  overflow: hidden;
+
+  // The reCAPTCHA iframe is a fixed 304px wide; scale it down on narrow phones
+  // so it never spills out of the modal.
+  @media (max-width: 360px) {
+    transform: scale(0.86);
+    transform-origin: center top;
+  }
 }
 
 .file-picker {

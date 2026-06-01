@@ -851,6 +851,10 @@ async function submitComment() {
 }
 
 // ---------- Comments --------------------------------------------
+.comment-login-prompt {
+  margin-bottom: 1em;
+}
+
 .comment {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);

@@ -9,19 +9,21 @@
   display: none;
 }
 
-// Leaflet's defaults place controls above z-index: 800, so they overlap the
-// sticky site header. Pin them below the header (z-index: 900).
+// Leaflet's defaults place controls at z-index: 1000, so they overlap the
+// fixed site header (z-index: 900) — especially while scrolling on mobile.
+// Leaflet's own CSS is imported per-view and can load AFTER this file, so we
+// force these below the header with !important to win regardless of order.
 .leaflet-top,
 .leaflet-bottom {
-  z-index: 400;
+  z-index: 400 !important;
 }
 
 .leaflet-control {
-  z-index: 400;
+  z-index: 400 !important;
 }
 
 .leaflet-pane {
-  z-index: 200;
+  z-index: 200 !important;
 }
 
 // Keep zoom controls below the floating glass header on all breakpoints.
