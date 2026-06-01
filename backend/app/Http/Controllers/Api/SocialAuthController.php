@@ -61,6 +61,8 @@ class SocialAuthController extends Controller
 
     public function callback(string $provider)
     {
+        set_time_limit(120);
+
         $frontend = $this->frontendUrl();
 
         if (! isset(self::PROVIDERS[$provider]) || ! $this->isConfigured($provider)) {
@@ -181,13 +183,16 @@ class SocialAuthController extends Controller
     private function socialiteDriver(string $provider)
     {
         $driver = Socialite::driver($provider);
+
+        $clientOptions = [
+            'connect_timeout' => 15,
+            'timeout' => 45,
+        ];
         $proxy = trim((string) config('services.oauth.proxy', ''));
         if ($proxy !== '') {
-            $driver->setHttpClient(new \GuzzleHttp\Client([
-                'proxy' => $proxy,
-                'timeout' => 20,
-            ]));
+            $clientOptions['proxy'] = $proxy;
         }
+        $driver->setHttpClient(new \GuzzleHttp\Client($clientOptions));
 
         return $driver;
     }

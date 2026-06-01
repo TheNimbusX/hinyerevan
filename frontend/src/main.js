@@ -7,9 +7,13 @@ import { currentLanguage } from './i18n'
 
 document.documentElement.lang = currentLanguage.value || 'hy'
 
-createApp(App).use(router).mount('#app')
+const app = createApp(App)
+app.use(router)
 
-applyRouteMeta(router.currentRoute.value)
+router.isReady().then(() => {
+  app.mount('#app')
+  applyRouteMeta(router.currentRoute.value)
+})
 
 window.addEventListener('hinyerevan:language-changed', () => {
   applyRouteMeta(router.currentRoute.value)

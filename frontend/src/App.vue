@@ -156,27 +156,49 @@ function syncAuthState() {
   loadCurrentUser()
 }
 
+let socialCallbackConsumed = false
+
 // OAuth providers redirect back to "/" with a one-time token (or an error)
 // in the query string. Consume it, then strip the params from the URL.
 async function handleSocialCallback() {
+  if (socialCallbackConsumed) return false
+
   const route = router.currentRoute.value
-  const token = route.query.social_token
-  const socialError = route.query.social_error
-  if (!token && !socialError) return
+  const rawToken = route.query.social_token
+  const rawError = route.query.social_error
+  const token = Array.isArray(rawToken) ? rawToken[0] : rawToken
+  const socialError = Array.isArray(rawError) ? rawError[0] : rawError
+  if (!token && !socialError) return false
+
+  socialCallbackConsumed = true
 
   const cleanQuery = { ...route.query }
   delete cleanQuery.social_token
   delete cleanQuery.social_error
-  router.replace({ path: route.path, query: cleanQuery })
+  await router.replace({ path: route.path, query: cleanQuery })
 
   if (token) {
     setToken(String(token))
-    await loadCurrentUser()
-    router.push('/profile')
-  } else if (socialError) {
+    try {
+      currentUser.value = await api('/auth/me')
+      await router.push('/profile')
+      return true
+    } catch (event) {
+      setToken(null)
+      currentUser.value = null
+      openAuth('login')
+      authError.value = event?.message || t('socialLoginFailed')
+      return true
+    }
+  }
+
+  if (socialError) {
     openAuth('login')
     authError.value = String(socialError) || t('socialLoginFailed')
+    return true
   }
+
+  return false
 }
 
 function closeMenu() {
@@ -286,10 +308,14 @@ watch(
   },
 )
 
-onMounted(() => {
-  loadCurrentUser()
+onMounted(async () => {
+  // Must run before loadCurrentUser(): a stale token in localStorage can 401 and
+  // call setToken(null), wiping the fresh social_token we just received.
+  await handleSocialCallback()
+  if (!currentUser.value) {
+    await loadCurrentUser()
+  }
   loadSocialProviders()
-  handleSocialCallback()
   window.addEventListener('hinyerevan:auth-changed', syncAuthState)
   window.addEventListener('hinyerevan:open-auth', handleOpenAuth)
 })
