@@ -56,9 +56,9 @@ class AuthController extends Controller
             'last_name' => ['required', 'string', 'min:3', 'max:80'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
             'sex' => ['required', 'integer', 'in:0,1'],
-            'birth_day' => ['required', 'integer', 'between:1,31'],
-            'birth_month' => ['required', 'integer', 'between:1,12'],
-            'birth_year' => ['required', 'integer', 'between:1900,2026'],
+            'birth_day' => ['nullable', 'integer', 'between:1,31'],
+            'birth_month' => ['nullable', 'integer', 'between:1,12'],
+            'birth_year' => ['nullable', 'integer', 'between:1900,2026'],
             'photo' => ['nullable', 'image', 'max:4096'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
             'recaptcha_token' => ['nullable', 'string'],
@@ -72,7 +72,7 @@ class AuthController extends Controller
             $photo = 'http://www.hinyerevan.com/photos/users/' . $fileId;
         }
 
-        $user = User::query()->create([
+        $attributes = [
             'uid' => $data['uid'],
             'network' => 'hinyerevan',
             'unique' => md5($data['uid']),
@@ -80,14 +80,20 @@ class AuthController extends Controller
             'last_name' => $data['last_name'],
             'email' => $data['email'],
             'identity' => '',
-            'bdate' => sprintf('%04d-%02d-%02d', $data['birth_year'], $data['birth_month'], $data['birth_day']),
             'sex' => $data['sex'],
             'photo' => $photo,
             'type' => User::TYPE_USER,
             // Keep the first-write format compatible with the legacy varchar(32) password column.
             'password' => md5($data['password']),
             'last_ip' => $request->ip(),
-        ]);
+        ];
+
+        // Birthday is optional; only store it when all three parts are provided.
+        if (! empty($data['birth_year']) && ! empty($data['birth_month']) && ! empty($data['birth_day'])) {
+            $attributes['bdate'] = sprintf('%04d-%02d-%02d', $data['birth_year'], $data['birth_month'], $data['birth_day']);
+        }
+
+        $user = User::query()->create($attributes);
 
         return response()->json([
             'token' => $user->createToken('spa')->plainTextToken,
@@ -331,7 +337,7 @@ class AuthController extends Controller
                 $client = $client->withOptions(['proxy' => $proxy]);
             }
 
-            $response = $client->post('https://www.google.com/recaptcha/api/siteverify', [
+            $response = $client->post('https://www.recaptcha.net/recaptcha/api/siteverify', [
                 'secret' => $secret,
                 'response' => $token,
             ]);

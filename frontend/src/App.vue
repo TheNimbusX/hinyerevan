@@ -68,7 +68,10 @@ function loadRecaptchaScript() {
       return
     }
     const script = document.createElement('script')
-    script.src = 'https://www.google.com/recaptcha/api.js?render=explicit'
+    // Load from recaptcha.net instead of google.com: in some regions (RU/AM)
+    // www.google.com is throttled/blocked and the script fails with
+    // ERR_CONNECTION_RESET. recaptcha.net is Google's official mirror.
+    script.src = 'https://www.recaptcha.net/recaptcha/api.js?render=explicit'
     script.async = true
     script.defer = true
     script.onload = resolve
@@ -422,16 +425,16 @@ onBeforeUnmount(() => {
               <label class="register-field">
                 <span>{{ t('birthDate') }}</span>
                 <div class="birth-grid">
-                  <select v-model="authForm.birth_day" required>
-                    <option value="" disabled>{{ t('day') }}</option>
+                  <select v-model="authForm.birth_day">
+                    <option value="">{{ t('day') }}</option>
                     <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
                   </select>
-                  <select v-model="authForm.birth_month" required>
-                    <option value="" disabled>{{ t('month') }}</option>
+                  <select v-model="authForm.birth_month">
+                    <option value="">{{ t('month') }}</option>
                     <option v-for="month in months" :key="month" :value="month">{{ month }}</option>
                   </select>
-                  <select v-model="authForm.birth_year" required>
-                    <option value="" disabled>{{ t('year') }}</option>
+                  <select v-model="authForm.birth_year">
+                    <option value="">{{ t('year') }}</option>
                     <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
                   </select>
                 </div>
