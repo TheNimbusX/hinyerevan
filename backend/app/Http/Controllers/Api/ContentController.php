@@ -32,7 +32,7 @@ class ContentController extends Controller
             return $paginator;
         }
 
-        return $paginator->through(fn (NewsItem $item) => $this->translateNews($item, $lang));
+        return $paginator->through(fn (NewsItem $item) => $this->translateNewsListItem($item, $lang));
     }
 
     public function newsShow(Request $request, NewsItem $news)
@@ -105,6 +105,20 @@ class ContentController extends Controller
             'content' => '',
             'type' => 'feedback',
         ];
+    }
+
+    private function translateNewsListItem(NewsItem $item, ?string $lang): array
+    {
+        $data = $item->toArray();
+
+        if (! $lang) {
+            return $data;
+        }
+
+        $data['title'] = $this->translator->translate($item->title, $lang);
+        $data['content'] = $this->translator->translateExcerpt($item->content, $lang);
+
+        return $data;
     }
 
     private function translateNews(NewsItem $item, ?string $lang): array

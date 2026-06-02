@@ -83,10 +83,7 @@ class TranslationService
             $unique[(string) $normalized[$index]] = true;
         }
 
-        $translatedBySource = [];
-        foreach (array_keys($unique) as $source) {
-            $translatedBySource[$source] = $this->translateOne($source, $targetLang, $html);
-        }
+        $translatedBySource = $this->resolveTranslations(array_keys($unique), $targetLang, $html);
 
         foreach ($slots as $index) {
             $source = (string) $normalized[$index];
@@ -111,18 +108,52 @@ class TranslationService
             return $this->translate(strip_tags($html), $targetLang) ?? $html;
         }
 
-        $result = preg_replace_callback('/>([^<]+)</u', function (array $matches) use ($targetLang) {
+        $segments = [];
+        $marked = preg_replace_callback('/>([^<]+)</u', function (array $matches) use (&$segments) {
             $text = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
             if ($text === '') {
                 return $matches[0];
             }
 
-            $translated = $this->translate($text, $targetLang) ?? $text;
+            $index = count($segments);
+            $segments[] = $text;
 
-            return '>' . htmlspecialchars($translated, ENT_NOQUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '<';
+            return '>__HY_TR_' . $index . '__<';
         }, $html);
 
-        return is_string($result) ? $result : $html;
+        if (! is_string($marked) || $segments === []) {
+            return $html;
+        }
+
+        $translated = $this->translateMany($segments, $targetLang);
+
+        foreach ($translated as $index => $text) {
+            $safe = htmlspecialchars((string) $text, ENT_NOQUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8');
+            $marked = str_replace('__HY_TR_' . $index . '__', $safe, $marked);
+        }
+
+        return $marked;
+    }
+
+    /**
+     * Short plain-text excerpt for list previews (news cards).
+     */
+    public function translateExcerpt(?string $html, ?string $targetLang, int $maxChars = 220): ?string
+    {
+        if ($html === null || trim($html) === '' || ! $targetLang) {
+            return $html;
+        }
+
+        $plain = trim(preg_replace('/\s+/u', ' ', strip_tags($html)) ?? '');
+        if ($plain === '') {
+            return '';
+        }
+
+        if (mb_strlen($plain) > $maxChars) {
+            $plain = mb_substr($plain, 0, $maxChars) . '…';
+        }
+
+        return $this->translate($plain, $targetLang) ?? $plain;
     }
 
     /**
@@ -167,29 +198,123 @@ class TranslationService
         return $rows;
     }
 
-    private function translateOne(string $text, string $targetLang, bool $html): string
+    /**
+     * @param  list<string>  $sources
+     * @return array<string, string>
+     */
+    private function resolveTranslations(array $sources, string $targetLang, bool $html): array
     {
+        $resolved = [];
+        $pending = [];
+
+        foreach ($sources as $source) {
+            $cached = Cache::get($this->cacheKey($source, $targetLang, $html));
+            if (is_string($cached) && $cached !== '') {
+                $resolved[$source] = $cached;
+            } else {
+                $pending[] = $source;
+            }
+        }
+
+        if ($pending === []) {
+            return $resolved;
+        }
+
+        $maxCalls = max(1, (int) config('services.translate.max_api_calls_per_request', 24));
+        if (count($pending) > $maxCalls) {
+            Log::info('Translation budget exceeded, leaving some strings untranslated', [
+                'pending' => count($pending),
+                'max' => $maxCalls,
+                'target' => $targetLang,
+            ]);
+            $pending = array_slice($pending, 0, $maxCalls);
+        }
+
+        $fetched = $this->fetchInParallel($pending, $targetLang, $html);
+
+        foreach ($fetched as $source => $translation) {
+            Cache::put($this->cacheKey($source, $targetLang, $html), $translation, now()->addDays(30));
+            $resolved[$source] = $translation;
+        }
+
+        return $resolved;
+    }
+
+    /**
+     * @param  list<string>  $texts
+     * @return array<string, string>
+     */
+    private function fetchInParallel(array $texts, string $targetLang, bool $html): array
+    {
+        $driver = (string) config('services.translate.driver', 'mymemory');
+        $batchSize = max(1, (int) config('services.translate.parallel_batch', 12));
         $source = (string) config('services.translate.source', self::DEFAULT_SOURCE);
-        $cacheKey = 'translate:v2:' . md5(json_encode([
+        $resolved = [];
+
+        foreach (array_chunk($texts, $batchSize) as $chunk) {
+            if ($driver === 'libretranslate') {
+                foreach ($chunk as $text) {
+                    $resolved[$text] = $this->viaLibreTranslate($text, $source, $targetLang, $html) ?? $text;
+                }
+
+                continue;
+            }
+
+            $responses = Http::pool(function ($pool) use ($chunk, $source, $targetLang) {
+                foreach ($chunk as $index => $text) {
+                    $pool->as((string) $index)
+                        ->timeout(6)
+                        ->when(config('services.oauth.proxy'), fn ($client) => $client->withOptions([
+                            'proxy' => config('services.oauth.proxy'),
+                        ]))
+                        ->get('https://api.mymemory.translated.net/get', [
+                            'q' => $text,
+                            'langpair' => "{$source}|{$targetLang}",
+                            'de' => 'a@b.c',
+                        ]);
+                }
+            });
+
+            foreach ($chunk as $index => $text) {
+                $response = $responses[(string) $index] ?? null;
+                $resolved[$text] = $this->parseMyMemoryResponse($response, $text);
+            }
+        }
+
+        return $resolved;
+    }
+
+    private function parseMyMemoryResponse(mixed $response, string $fallback): string
+    {
+        try {
+            if (! $response || ! method_exists($response, 'successful') || ! $response->successful()) {
+                return $fallback;
+            }
+
+            $translated = $response->json('responseData.translatedText');
+            $status = (int) $response->json('responseStatus', 0);
+
+            if ($status !== 200 || ! is_string($translated) || $translated === '') {
+                return $fallback;
+            }
+
+            return html_entity_decode($translated, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        } catch (\Throwable $exception) {
+            Log::warning('MyMemory translate failed', ['message' => $exception->getMessage()]);
+
+            return $fallback;
+        }
+    }
+
+    private function cacheKey(string $text, string $targetLang, bool $html): string
+    {
+        return 'translate:v3:' . md5(json_encode([
             'driver' => config('services.translate.driver'),
-            'source' => $source,
+            'source' => config('services.translate.source', self::DEFAULT_SOURCE),
             'target' => $targetLang,
             'html' => $html,
             'text' => $text,
         ], JSON_UNESCAPED_UNICODE));
-
-        return Cache::remember($cacheKey, now()->addDays(30), function () use ($text, $source, $targetLang, $html) {
-            $driver = (string) config('services.translate.driver', 'mymemory');
-
-            if ($driver === 'libretranslate') {
-                $translated = $this->viaLibreTranslate($text, $source, $targetLang, $html);
-                if ($translated !== null) {
-                    return $translated;
-                }
-            }
-
-            return $this->viaMyMemory($text, $source, $targetLang) ?? $text;
-        });
     }
 
     private function viaLibreTranslate(string $text, string $source, string $target, bool $html): ?string
@@ -209,8 +334,7 @@ class TranslationService
                 $payload['api_key'] = $apiKey;
             }
 
-            $response = Http::timeout(15)
-                ->retry(1, 250)
+            $response = Http::timeout(8)
                 ->acceptJson()
                 ->when(config('services.oauth.proxy'), fn ($client) => $client->withOptions([
                     'proxy' => config('services.oauth.proxy'),
@@ -228,43 +352,6 @@ class TranslationService
             return is_string($translated) && $translated !== '' ? $translated : null;
         } catch (\Throwable $exception) {
             Log::warning('LibreTranslate failed', ['message' => $exception->getMessage()]);
-
-            return null;
-        }
-    }
-
-    private function viaMyMemory(string $text, string $source, string $target): ?string
-    {
-        try {
-            $response = Http::timeout(12)
-                ->retry(1, 200)
-                ->when(config('services.oauth.proxy'), fn ($client) => $client->withOptions([
-                    'proxy' => config('services.oauth.proxy'),
-                ]))
-                ->get('https://api.mymemory.translated.net/get', [
-                    'q' => $text,
-                    'langpair' => "{$source}|{$target}",
-                    'de' => 'a@b.c',
-                ]);
-
-            if (! $response->successful()) {
-                return null;
-            }
-
-            $translated = $response->json('responseData.translatedText');
-            $status = (int) $response->json('responseStatus', 0);
-
-            if ($status !== 200 || ! is_string($translated) || $translated === '') {
-                return null;
-            }
-
-            if (strtoupper($translated) === strtoupper($text)) {
-                return $translated;
-            }
-
-            return html_entity_decode($translated, ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        } catch (\Throwable $exception) {
-            Log::warning('MyMemory translate failed', ['message' => $exception->getMessage()]);
 
             return null;
         }

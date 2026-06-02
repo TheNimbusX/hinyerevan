@@ -67,17 +67,15 @@ class PhotoController extends Controller
         // The full marker set (~10k rows) is expensive to build, so cache it.
         // The cache version is bumped whenever a photo is created/updated/removed.
         $version = (int) Cache::get(self::MARKERS_CACHE_VERSION_KEY, 1);
-        $lang = $this->translator->targetLanguage($request->query('lang'));
         $cacheKey = 'photo_markers:v' . $version . ':' . md5(json_encode([
             'user' => (string) $request->query('user', ''),
             'review' => $request->boolean('review') ? 1 : 0,
             'year_from' => (string) $request->query('year_from', ''),
             'year_to' => (string) $request->query('year_to', ''),
-            'lang' => $lang ?? 'hy',
         ]));
 
-        return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($request, $lang) {
-            $rows = Photo::query()
+        return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($request) {
+            return Photo::query()
                 ->published()
                 ->when($request->filled('user'), fn ($query) => $query->where('user', (string) $request->string('user')))
                 ->when($request->filled('year_from'), fn ($query) => $query->where('year', '>=', (int) $request->year_from))
@@ -99,12 +97,6 @@ class PhotoController extends Controller
                     'needs_location_review' => (bool) $photo->needs_location_review,
                 ])
                 ->all();
-
-            if ($lang && count($rows) <= (int) config('services.translate.markers_max', 2000)) {
-                $rows = $this->translator->translateItems($rows, ['title'], $lang);
-            }
-
-            return $rows;
         });
     }
 
