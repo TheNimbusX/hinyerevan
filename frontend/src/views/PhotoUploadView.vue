@@ -7,7 +7,10 @@ import { api } from '../api'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { applyMapTileLayer, getMapTileLayer } from '../utils/mapTiles'
+import { getDirectionIcon } from '../utils/mapMarkerIcons'
+import { setupLeaflet } from '../utils/leafletSetup'
 import { isYoutubeUrl, youtubeId } from '../utils/video'
+import CompassNeedle from '../components/CompassNeedle.vue'
 import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 
 const router = useRouter()
@@ -67,18 +70,24 @@ function selectFile(event) {
   previewUrl.value = URL.createObjectURL(file)
 }
 
+function uploadMarkerIcon() {
+  return getDirectionIcon(form.value.direction)
+}
+
 function setCoordinates(latlng) {
   form.value.lat = latlng.lat.toFixed(12)
   form.value.lng = latlng.lng.toFixed(12)
   if (!uploadMarker) {
-    uploadMarker = L.marker(latlng).addTo(uploadMap)
+    uploadMarker = L.marker(latlng, { icon: uploadMarkerIcon() }).addTo(uploadMap)
   } else {
     uploadMarker.setLatLng(latlng)
+    uploadMarker.setIcon(uploadMarkerIcon())
   }
 }
 
 function initUploadMap() {
   if (uploadMap || !uploadMapElement.value) return
+  setupLeaflet()
   const layer = getMapTileLayer('google', theme.value, currentLanguage.value)
   uploadMap = L.map(uploadMapElement.value, {
     center: [40.179136, 44.511623],
@@ -95,6 +104,13 @@ watch([theme, currentLanguage], () => {
   if (!uploadMap) return
   uploadMapTileLayer = applyMapTileLayer(uploadMap, uploadMapTileLayer, 'google', theme.value, currentLanguage.value)
 })
+
+watch(
+  () => form.value.direction,
+  () => {
+    if (uploadMarker) uploadMarker.setIcon(uploadMarkerIcon())
+  },
+)
 
 function resetForm() {
   form.value = {
@@ -252,7 +268,12 @@ onBeforeUnmount(() => {
               <input type="file" accept="image/*" required @change="selectFile" />
               <span>{{ form.file?.name || t('chooseFile') }}</span>
             </label>
-            <img v-if="previewUrl" class="upload-preview" :src="previewUrl" alt="" />
+            <div v-if="previewUrl" class="upload-preview-wrap">
+              <img class="upload-preview" :src="previewUrl" alt="" />
+              <span class="upload-preview-direction" :title="t('direction')">
+                <CompassNeedle :direction="form.direction" size="md" />
+              </span>
+            </div>
           </template>
 
           <template v-else>
@@ -267,7 +288,12 @@ onBeforeUnmount(() => {
               />
               <small>{{ t('videoThumbNote') }}</small>
             </label>
-            <img v-if="videoThumbPreview" class="upload-preview" :src="videoThumbPreview" alt="" />
+            <div v-if="videoThumbPreview" class="upload-preview-wrap">
+              <img class="upload-preview" :src="videoThumbPreview" alt="" />
+              <span class="upload-preview-direction" :title="t('direction')">
+                <CompassNeedle :direction="form.direction" size="md" />
+              </span>
+            </div>
           </template>
 
           <label class="check-line">
@@ -403,11 +429,34 @@ onBeforeUnmount(() => {
   box-shadow: 0 10px 24px rgba(23, 52, 126, 0.16);
 }
 
+.upload-preview-wrap {
+  position: relative;
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+}
+
 .upload-preview {
+  display: block;
+  max-width: 100%;
   max-height: 180px;
   border-radius: 18px;
   object-fit: contain;
   background: $primary-light;
+}
+
+.upload-preview-direction {
+  position: absolute;
+  right: 10px;
+  bottom: 10px;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 8px 22px rgba(23, 52, 126, 0.22);
+  pointer-events: none;
 }
 
 .review-check {

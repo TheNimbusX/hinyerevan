@@ -4,6 +4,9 @@ import App from './App.vue'
 import router from './router'
 import { applyRouteMeta } from './utils/seo'
 import { currentLanguage } from './i18n'
+import { setupLeaflet } from './utils/leafletSetup'
+
+setupLeaflet()
 
 document.documentElement.lang = currentLanguage.value || 'hy'
 

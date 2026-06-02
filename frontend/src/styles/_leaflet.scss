@@ -208,3 +208,39 @@
   background: transparent !important;
   border-radius: 0 !important;
 }
+
+// Direction pins (upload map, detail mini-map, home cluster map).
+.camera-direction-icon,
+.photo-cluster-icon {
+  background: transparent !important;
+  border: 0 !important;
+}
+
+.map-pin-svg {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 3px 6px rgba($accent-dark, 0.28));
+  @include interactive((transform, filter));
+}
+
+.camera-direction-icon:hover .map-pin-svg {
+  transform: translateY(-2px) scale(1.12);
+  filter: drop-shadow(0 8px 14px rgba($accent-dark, 0.38));
+}
+
+.map-cluster-pin {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  font-weight: 700;
+  line-height: 1;
+  border: 2px solid #fff;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.38) 0 16%, transparent 17%),
+    linear-gradient(145deg, lighten($accent, 4%), $accent-dark);
+  box-shadow:
+    0 6px 16px rgba($accent-dark, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
