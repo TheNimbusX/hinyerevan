@@ -8,6 +8,7 @@ use App\Models\Photo;
 use App\Models\User;
 use App\Services\LegacyPhotoStorage;
 use App\Services\LegacySchema;
+use App\Services\TranslationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -16,6 +17,10 @@ use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    public function __construct(private TranslationService $translator)
+    {
+    }
+
     public function login(Request $request)
     {
         abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
@@ -246,23 +251,34 @@ class AuthController extends Controller
             ->orderByDesc('id')
             ->paginate(min((int) $request->integer('per_page', 12), 60));
 
-        return $photos->through(fn (Photo $photo) => [
-            'id' => $photo->id,
-            'title' => $photo->title,
-            'year' => $photo->year,
-            'direction' => $photo->direction,
-            'direction_label' => $photo->direction_label,
-            'published' => (bool) $photo->published,
-            'datetime' => optional($photo->datetime)->toISOString(),
-            'views' => $photo->viewCounter?->count ?? 0,
-            'comments_count' => $photo->comments_count ?? 0,
-            'images' => $photo->image_urls,
-        ]);
+        $lang = $this->translator->targetLanguage($request->query('lang'));
+
+        return $photos->through(function (Photo $photo) use ($lang) {
+            $row = [
+                'id' => $photo->id,
+                'title' => $photo->title,
+                'year' => $photo->year,
+                'direction' => $photo->direction,
+                'direction_label' => $photo->direction_label,
+                'published' => (bool) $photo->published,
+                'datetime' => optional($photo->datetime)->toISOString(),
+                'views' => $photo->viewCounter?->count ?? 0,
+                'comments_count' => $photo->comments_count ?? 0,
+                'images' => $photo->image_urls,
+            ];
+
+            if ($lang) {
+                $row['title'] = $this->translator->translate($photo->title, $lang);
+            }
+
+            return $row;
+        });
     }
 
     public function myComments(Request $request)
     {
         $user = $request->user();
+        $lang = $this->translator->targetLanguage($request->query('lang'));
 
         if (! LegacySchema::commentsReady()) {
             return LegacySchema::emptyPaginator($request, (int) $request->integer('per_page', 12));
@@ -276,16 +292,23 @@ class AuthController extends Controller
             ->orderByDesc('datetime')
             ->paginate(min((int) $request->integer('per_page', 12), 60));
 
-        return $comments->through(function (Comment $comment) {
+        return $comments->through(function (Comment $comment) use ($lang) {
             $photo = $comment->photo;
+            $title = $photo?->title;
+
+            if ($lang && $title) {
+                $title = $this->translator->translate($title, $lang);
+            }
 
             return [
                 'id' => $comment->id,
-                'body' => $comment->body,
+                'body' => $lang
+                    ? ($this->translator->translate($comment->body, $lang) ?? $comment->body)
+                    : $comment->body,
                 'datetime' => optional($comment->datetime)->toISOString(),
                 'photo' => $photo && $photo->id > 0 ? [
                     'id' => $photo->id,
-                    'title' => $photo->title,
+                    'title' => $title,
                     'year' => $photo->year,
                     'thumb_url' => "/api/photos/file/thumb/{$photo->file_id}",
                 ] : null,

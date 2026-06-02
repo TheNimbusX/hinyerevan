@@ -78,11 +78,51 @@ class TranslationService
             return $texts;
         }
 
+        $unique = [];
         foreach ($slots as $index) {
-            $normalized[$index] = $this->translateOne((string) $normalized[$index], $targetLang, $html);
+            $unique[(string) $normalized[$index]] = true;
+        }
+
+        $translatedBySource = [];
+        foreach (array_keys($unique) as $source) {
+            $translatedBySource[$source] = $this->translateOne($source, $targetLang, $html);
+        }
+
+        foreach ($slots as $index) {
+            $source = (string) $normalized[$index];
+            $normalized[$index] = $translatedBySource[$source] ?? $source;
         }
 
         return $normalized;
+    }
+
+    public function translateHtml(?string $html, ?string $targetLang): ?string
+    {
+        if ($html === null || trim($html) === '' || ! $targetLang) {
+            return $html;
+        }
+
+        $plainLength = mb_strlen(trim(strip_tags($html)));
+        if ($plainLength === 0) {
+            return $html;
+        }
+
+        if ($plainLength <= self::MAX_TRANSLATE_CHARS) {
+            return $this->translate(strip_tags($html), $targetLang) ?? $html;
+        }
+
+        $result = preg_replace_callback('/>([^<]+)</u', function (array $matches) use ($targetLang) {
+            $text = html_entity_decode(trim($matches[1]), ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            if ($text === '') {
+                return $matches[0];
+            }
+
+            $translated = $this->translate($text, $targetLang) ?? $text;
+
+            return '>' . htmlspecialchars($translated, ENT_NOQUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') . '<';
+        }, $html);
+
+        return is_string($result) ? $result : $html;
     }
 
     /**
@@ -172,6 +212,9 @@ class TranslationService
             $response = Http::timeout(15)
                 ->retry(1, 250)
                 ->acceptJson()
+                ->when(config('services.oauth.proxy'), fn ($client) => $client->withOptions([
+                    'proxy' => config('services.oauth.proxy'),
+                ]))
                 ->post("{$baseUrl}/translate", $payload);
 
             if (! $response->successful()) {
@@ -195,6 +238,9 @@ class TranslationService
         try {
             $response = Http::timeout(12)
                 ->retry(1, 200)
+                ->when(config('services.oauth.proxy'), fn ($client) => $client->withOptions([
+                    'proxy' => config('services.oauth.proxy'),
+                ]))
                 ->get('https://api.mymemory.translated.net/get', [
                     'q' => $text,
                     'langpair' => "{$source}|{$target}",

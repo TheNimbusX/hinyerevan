@@ -22,10 +22,17 @@ class ContentController extends Controller
             return DemoData::paginatedNews($request, min((int) $request->integer('per_page', 10), 50));
         }
 
-        return NewsItem::query()
+        $lang = $this->translator->targetLanguage($request->query('lang'));
+        $paginator = NewsItem::query()
             ->published()
             ->latest('date')
             ->paginate(min((int) $request->integer('per_page', 10), 50));
+
+        if (! $lang) {
+            return $paginator;
+        }
+
+        return $paginator->through(fn (NewsItem $item) => $this->translateNews($item, $lang));
     }
 
     public function newsShow(Request $request, NewsItem $news)
@@ -36,13 +43,20 @@ class ContentController extends Controller
         return $this->translateNews($news, $this->translator->targetLanguage($request->query('lang')));
     }
 
-    public function pagesIndex()
+    public function pagesIndex(Request $request)
     {
         if (! LegacySchema::pagesReady()) {
             return [];
         }
 
-        return Page::query()->alive()->orderBy('title')->get(['id', 'title', 'alias']);
+        $lang = $this->translator->targetLanguage($request->query('lang'));
+        $pages = Page::query()->alive()->orderBy('title')->get(['id', 'title', 'alias']);
+
+        if (! $lang) {
+            return $pages;
+        }
+
+        return $this->translator->translateItems($pages->all(), ['title'], $lang);
     }
 
     public function pageShow(Request $request, string $alias)
@@ -64,8 +78,7 @@ class ContentController extends Controller
             'id' => $page->id,
             'title' => $this->translator->translate($page->title, $lang),
             'alias' => $page->alias,
-            // Full page HTML is too large for free translation APIs — keep original body.
-            'content' => $page->content,
+            'content' => $this->translator->translateHtml($page->content, $lang),
         ];
     }
 
@@ -103,6 +116,7 @@ class ContentController extends Controller
         }
 
         $data['title'] = $this->translator->translate($item->title, $lang);
+        $data['content'] = $this->translator->translateHtml($item->content, $lang);
 
         return $data;
     }

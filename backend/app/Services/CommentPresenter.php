@@ -12,15 +12,20 @@ class CommentPresenter
      * @param  iterable<Comment>  $comments
      * @return list<array<string, mixed>>
      */
-    public static function serializeFlat(iterable $comments): array
+    public static function serializeFlat(iterable $comments, ?TranslationService $translator = null, ?string $lang = null): array
     {
         $collection = $comments instanceof Collection ? $comments : collect($comments);
         $authors = self::resolveAuthors($collection);
-
-        return $collection
+        $rows = $collection
             ->map(fn (Comment $comment) => self::serializeOne($comment, $authors))
             ->values()
             ->all();
+
+        if (! $translator || ! $lang) {
+            return $rows;
+        }
+
+        return $translator->translateItems($rows, ['body'], $lang);
     }
 
     /**

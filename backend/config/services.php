@@ -103,9 +103,10 @@ return [
     | translate.driver: mymemory (free, no key) | libretranslate (self-host or libretranslate.com)
     */
     'translate' => [
-        'enabled' => env('TRANSLATE_ENABLED', false),
+        'enabled' => env('TRANSLATE_ENABLED', true),
         'driver' => env('TRANSLATE_DRIVER', 'mymemory'),
         'source' => env('TRANSLATE_SOURCE', 'hy'),
+        'markers_max' => (int) env('TRANSLATE_MARKERS_MAX', 2000),
         'libretranslate_url' => env('LIBRETRANSLATE_URL', 'https://libretranslate.com'),
         'libretranslate_key' => env('LIBRETRANSLATE_API_KEY'),
     ],

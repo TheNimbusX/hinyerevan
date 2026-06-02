@@ -9,16 +9,26 @@ use App\Models\Photo;
 use App\Services\CommentPresenter;
 use App\Services\DemoData;
 use App\Services\LegacySchema;
+use App\Services\TranslationService;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
 {
+    public function __construct(private TranslationService $translator)
+    {
+    }
+
     private function newsPostId(int $news): string
     {
         return 'news-' . $news;
     }
 
-    public function index(int $photo)
+    private function lang(Request $request): ?string
+    {
+        return $this->translator->targetLanguage($request->query('lang'));
+    }
+
+    public function index(Request $request, int $photo)
     {
         if (! LegacySchema::commentsReady()) {
             return DemoData::findPhoto($photo)['comments'] ?? [];
@@ -37,7 +47,7 @@ class CommentController extends Controller
             ->oldest('datetime')
             ->get();
 
-        return CommentPresenter::serializeFlat($comments);
+        return CommentPresenter::serializeFlat($comments, $this->translator, $this->lang($request));
     }
 
     public function store(Request $request, int $photo)
@@ -61,10 +71,13 @@ class CommentController extends Controller
 
         $comment->load('author:id,unique,uid,first_name,last_name,photo,identity,email');
 
-        return response()->json(CommentPresenter::serializeFlat(collect([$comment]))[0], 201);
+        return response()->json(
+            CommentPresenter::serializeFlat(collect([$comment]), $this->translator, $this->lang($request))[0],
+            201,
+        );
     }
 
-    public function newsIndex(int $news)
+    public function newsIndex(Request $request, int $news)
     {
         abort_unless(LegacySchema::commentsReady(), 503, 'Legacy comments table is not connected yet.');
         $newsItem = NewsItem::query()->findOrFail($news);
@@ -77,7 +90,7 @@ class CommentController extends Controller
             ->oldest('datetime')
             ->get();
 
-        return CommentPresenter::serializeFlat($comments);
+        return CommentPresenter::serializeFlat($comments, $this->translator, $this->lang($request));
     }
 
     public function newsStore(Request $request, int $news)
@@ -100,7 +113,10 @@ class CommentController extends Controller
 
         $comment->load('author:id,unique,uid,first_name,last_name,photo,identity,email');
 
-        return response()->json(CommentPresenter::serializeFlat(collect([$comment]))[0], 201);
+        return response()->json(
+            CommentPresenter::serializeFlat(collect([$comment]), $this->translator, $this->lang($request))[0],
+            201,
+        );
     }
 
     public function destroy(Comment $comment)
