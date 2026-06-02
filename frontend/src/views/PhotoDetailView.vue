@@ -13,7 +13,6 @@ import { directionLabel, formatDateTime } from '../utils/locale'
 import { formatCommentBody } from '../utils/commentBody'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import { setPageMeta } from '../utils/seo'
-import CompassNeedle from '../components/CompassNeedle.vue'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
 import YoutubeEmbed from '../components/YoutubeEmbed.vue'
@@ -266,9 +265,6 @@ async function submitComment() {
           @click="openLightbox"
         >
           <img :src="detailImageSrc" :alt="photo.title" @error="fallbackToThumb" />
-          <span class="photo-detail-direction-badge" :title="photoDirectionLabel">
-            <CompassNeedle :direction="photo.direction" size="md" />
-          </span>
           <span class="photo-detail-expand" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20">
               <path
@@ -511,21 +507,6 @@ async function submitComment() {
   }
 
   @include focus-ring(rgba($primary, 0.45), 3px);
-}
-
-.photo-detail-direction-badge {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 10px 24px rgba(23, 52, 126, 0.22);
-  pointer-events: none;
 }
 
 .photo-detail-expand {
