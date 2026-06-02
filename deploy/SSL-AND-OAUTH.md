@@ -37,6 +37,8 @@ https://dev.hinyerevan.com/api/auth/social/vkontakte/callback
 
 5. То же **https://** добавить в Google / Facebook / Yandex / OK, если используете их на этом стенде.
 
+**Privacy Policy URL для Meta / Google:** `https://hinyerevan.ru/pages/privacy` (страница на фронтенде, hy/ru/en).
+
 Сайт открывать по **https://dev.hinyerevan.com**, не по IP.
 
 ### Dev (`hinyerevan.ru`) из РФ без VPN

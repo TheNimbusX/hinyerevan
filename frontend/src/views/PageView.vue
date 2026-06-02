@@ -6,6 +6,7 @@ import { useI18n } from '../i18n'
 import FeedbackForm from '../components/FeedbackForm.vue'
 import { setPageMeta } from '../utils/seo'
 import { agreementFor, agreementUpdated } from '../content/agreement'
+import { privacyFor, privacyUpdated } from '../content/privacy'
 
 const route = useRoute()
 const { t, currentLanguage } = useI18n()
@@ -15,7 +16,19 @@ const error = ref('')
 
 const isFeedback = computed(() => route.params.alias === 'feedback')
 const isAgreement = computed(() => route.params.alias === 'agreement')
+const isPrivacy = computed(() => route.params.alias === 'privacy')
 const agreement = computed(() => agreementFor(currentLanguage.value))
+const privacy = computed(() => privacyFor(currentLanguage.value))
+
+const staticPage = computed(() => {
+  if (isAgreement.value) {
+    return { doc: agreement.value, updated: agreementUpdated, eyebrow: t('agreement') }
+  }
+  if (isPrivacy.value) {
+    return { doc: privacy.value, updated: privacyUpdated, eyebrow: t('privacyPolicy') }
+  }
+  return null
+})
 
 function plainText(html) {
   if (!html) return ''
@@ -28,15 +41,13 @@ async function load() {
   loading.value = true
   error.value = ''
 
-  if (isAgreement.value) {
-    // The agreement is rendered from localised client content instead of the
-    // legacy single-language DB blob, so there is no API call to make.
+  if (staticPage.value) {
     page.value = null
     error.value = ''
     loading.value = false
     setPageMeta({
-      title: agreement.value.title,
-      description: agreement.value.intro[0]?.slice(0, 160),
+      title: staticPage.value.doc.title,
+      description: staticPage.value.doc.intro[0]?.slice(0, 160),
       path: route.fullPath,
     })
     return
@@ -66,19 +77,19 @@ watch(currentLanguage, load)
 </script>
 
 <template>
-  <article v-if="isAgreement" class="panel content-card static-page agreement-page">
+  <article v-if="staticPage" class="panel content-card static-page agreement-page">
     <header class="agreement-head">
-      <p class="eyebrow">{{ t('agreement') }}</p>
-      <h1>{{ agreement.title }}</h1>
-      <p class="agreement-updated">{{ agreement.updatedLabel }}: {{ agreementUpdated }}</p>
+      <p class="eyebrow">{{ staticPage.eyebrow }}</p>
+      <h1>{{ staticPage.doc.title }}</h1>
+      <p class="agreement-updated">{{ staticPage.doc.updatedLabel }}: {{ staticPage.updated }}</p>
     </header>
 
     <div class="agreement-body">
-      <p v-for="(line, index) in agreement.intro" :key="`intro-${index}`" class="agreement-lead">
+      <p v-for="(line, index) in staticPage.doc.intro" :key="`intro-${index}`" class="agreement-lead">
         {{ line }}
       </p>
 
-      <section v-for="(section, index) in agreement.sections" :key="`section-${index}`" class="agreement-section">
+      <section v-for="(section, index) in staticPage.doc.sections" :key="`section-${index}`" class="agreement-section">
         <h2>{{ section.heading }}</h2>
         <p v-for="(para, pIndex) in section.paragraphs || []" :key="`p-${pIndex}`">{{ para }}</p>
         <ul v-if="section.list">

@@ -28,6 +28,7 @@ const year = new Date().getFullYear()
         <section class="footer-col">
           <h4>{{ t('contact') }}</h4>
           <RouterLink to="/pages/feedback">{{ t('feedback') }}</RouterLink>
+          <RouterLink to="/pages/privacy">{{ t('privacyPolicy') }}</RouterLink>
           <RouterLink to="/pages/agreement">{{ t('agreement') }}</RouterLink>
         </section>
 
@@ -44,6 +45,7 @@ const year = new Date().getFullYear()
     <div class="footer-bottom">
       <span>© {{ year }} HinYerevan.com</span>
       <span class="footer-rule"></span>
+      <RouterLink to="/pages/privacy">{{ t('privacyPolicy') }}</RouterLink>
       <RouterLink to="/pages/agreement">{{ t('agreement') }}</RouterLink>
     </div>
   </footer>
