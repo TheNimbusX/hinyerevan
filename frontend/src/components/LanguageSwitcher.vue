@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { clearApiCache } from '../api'
 import { useI18n } from '../i18n'
+import { isBrowserTranslateSupported, prepareBrowserTranslator } from '../utils/browserTranslate'
 import armenianFlag from '../assets/flags/am.svg'
 import russianFlag from '../assets/flags/ru.svg'
 import englishFlag from '../assets/flags/en.svg'
@@ -20,11 +22,24 @@ const active = computed(
   () => languages.find((l) => l.code === currentLanguage.value) || languages[0],
 )
 
+const translateHint = computed(() =>
+  isBrowserTranslateSupported() ? t('browserTranslateHint') : t('browserTranslateManual'),
+)
+
 function toggle() {
   open.value = !open.value
 }
 
 function pick(code) {
+  prepareBrowserTranslator(code)
+  if (currentLanguage.value === code) {
+    if (code !== 'hy') {
+      clearApiCache()
+      window.dispatchEvent(new CustomEvent('hinyerevan:language-changed', { detail: { language: code } }))
+    }
+    open.value = false
+    return
+  }
   setLanguage(code)
   open.value = false
 }
@@ -71,7 +86,7 @@ onBeforeUnmount(() => {
         <span>{{ language.label }}</span>
       </button>
     </div>
-    <p v-if="currentLanguage !== 'hy'" class="language-browser-hint">{{ t('browserTranslateHint') }}</p>
+    <p v-if="currentLanguage !== 'hy'" class="language-browser-hint">{{ translateHint }}</p>
 
     <!-- Desktop header: compact dropdown -->
     <div class="language-dropdown" :class="{ open }">

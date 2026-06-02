@@ -40,6 +40,7 @@ function providerIcon(id) {
 
 const router = useRouter()
 const { t } = useI18n()
+const contentKey = ref(0)
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
 const months = Array.from({ length: 12 }, (_, index) => index + 1)
 const years = Array.from({ length: 127 }, (_, index) => new Date().getFullYear() - index)
@@ -279,6 +280,10 @@ function handleOpenAuth(event) {
   openAuth(mode)
 }
 
+function bumpContentKey() {
+  contentKey.value += 1
+}
+
 watch(menuOpen, (open) => {
   document.body.style.overflow = open ? 'hidden' : ''
 })
@@ -303,12 +308,14 @@ onMounted(async () => {
   loadSocialProviders()
   window.addEventListener('hinyerevan:auth-changed', syncAuthState)
   window.addEventListener('hinyerevan:open-auth', handleOpenAuth)
+  window.addEventListener('hinyerevan:language-changed', bumpContentKey)
 })
 
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
   window.removeEventListener('hinyerevan:auth-changed', syncAuthState)
   window.removeEventListener('hinyerevan:open-auth', handleOpenAuth)
+  window.removeEventListener('hinyerevan:language-changed', bumpContentKey)
 })
 </script>
 
@@ -374,7 +381,7 @@ onBeforeUnmount(() => {
     </Transition>
 
     <main class="site-content">
-      <RouterView />
+      <RouterView :key="contentKey" />
     </main>
 
     <SiteFooter />

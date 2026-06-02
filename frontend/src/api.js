@@ -1,15 +1,12 @@
+import { getUiLanguage, translateApiPayload } from './utils/browserTranslate'
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
+const TOKEN_KEY = 'hinyerevan_token'
+const CACHE_PREFIX = 'hinyerevan:api-cache:'
 
 /** Absolute URL to a backend endpoint — used for full-page OAuth redirects. */
 export function apiUrl(path) {
   return `${API_URL}${path}`
-}
-const TOKEN_KEY = 'hinyerevan_token'
-const CACHE_PREFIX = 'hinyerevan:api-cache:'
-
-/** Legacy no-op: UI language is client-side; content uses browser translate. */
-export function withLang(path) {
-  return path
 }
 
 export function getToken() {
@@ -44,8 +41,7 @@ export async function api(path, options = {}) {
     headers.Authorization = `Bearer ${token}`
   }
 
-  const localizedPath =
-    options.skipLang || (options.method || 'GET').toUpperCase() !== 'GET' ? path : withLang(path)
+  const localizedPath = path
 
   const controller = new AbortController()
   const timeoutMs = options.timeoutMs ?? 45000
@@ -103,13 +99,18 @@ export async function api(path, options = {}) {
     clearApiCache()
   }
 
+  const lang = getUiLanguage()
+  if (lang !== 'hy' && payload && (options.method || 'GET').toUpperCase() === 'GET' && !options.skipTranslate) {
+    return translateApiPayload(payload, lang, path)
+  }
+
   return payload
 }
 
 export async function cachedApi(path, options = {}) {
   const ttl = options.ttl ?? 10 * 60 * 1000
-  const localizedPath = withLang(path)
-  const cacheKey = options.cacheKey || `${CACHE_PREFIX}${localizedPath}`
+  const lang = getUiLanguage()
+  const cacheKey = options.cacheKey || `${CACHE_PREFIX}${lang}:${path}`
   const now = Date.now()
 
   try {
@@ -121,7 +122,7 @@ export async function cachedApi(path, options = {}) {
     localStorage.removeItem(cacheKey)
   }
 
-  const payload = await api(localizedPath, { skipLang: true })
+  const payload = await api(path, { skipTranslate: false })
   try {
     localStorage.setItem(cacheKey, JSON.stringify({ savedAt: now, payload }))
   } catch {

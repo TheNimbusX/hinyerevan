@@ -33,7 +33,8 @@ const messages = {
     linkedVia: 'Մուտք',
     unique: 'Unique ID',
     language: 'Լեզու',
-    browserTranslateHint: 'Մենյուն և կոճակները փոխվում են այստեղ։ Լուսանկարների և նորությունների տext-ը թարգմանելու համար օգտագործեք բրաուզերի «Translate page»։',
+    browserTranslateHint: 'Chrome-ում տեքստը թարգմանվում է տեղում (AI)։ Այլ բրաուզերում՝ «Translate page»։',
+    browserTranslateManual: 'Այս բրաուզերում տեքստի համար օգտագործեք «Translate page»։',
     tagline: 'Հին Երևանի լուսանկարներ',
     metaDescriptionDefault: 'Հին Երևանի լուսանկարների արխիվ և քարտեզ. Ուսումնասիրեք քաղաքի պատկերները ըստ տարիների, հեղինակների և վայրերի։',
     pageTitleHome: 'Քարտեզ',
@@ -310,7 +311,8 @@ const messages = {
     linkedVia: 'Вход через',
     unique: 'Unique ID',
     language: 'Язык',
-    browserTranslateHint: 'Меню переключается здесь. Тексты фото и новостей — через перевод страницы в браузере (Chrome: иконка в адресной строке).',
+    browserTranslateHint: 'Тексты переводятся локально в Chrome (AI). В других браузерах — «Перевести страницу».',
+    browserTranslateManual: 'В этом браузере для текстов фото используйте «Перевести страницу» в Chrome.',
     tagline: 'Фотографии старого Еревана',
     metaDescriptionDefault: 'Архив и карта фотографий старого Еревана. Исследуйте снимки города по годам, авторам и местам.',
     pageTitleHome: 'Карта',
@@ -586,7 +588,8 @@ const messages = {
     linkedVia: 'Signed in via',
     unique: 'Unique ID',
     language: 'Language',
-    browserTranslateHint: 'Menu switches here. Photo and news text: use browser Translate page (Chrome icon in the address bar).',
+    browserTranslateHint: 'Texts translate on-device in Chrome (AI). Other browsers: use Translate page.',
+    browserTranslateManual: 'This browser has no built-in translator — use Chrome Translate page for photo text.',
     tagline: 'Old Yerevan photos',
     metaDescriptionDefault: 'Archive and map of old Yerevan photographs. Explore the city by year, author, and location.',
     pageTitleHome: 'Map',
@@ -855,8 +858,8 @@ export function setLanguage(language) {
 
   currentLanguage.value = language
   localStorage.setItem(STORAGE_KEY, language)
-  // Content in DB is Armenian — keep hy so Chrome/Edge/Safari can offer page translation.
   document.documentElement.lang = 'hy'
+  clearApiCache()
   window.dispatchEvent(new CustomEvent('hinyerevan:language-changed', { detail: { language } }))
 }
 
