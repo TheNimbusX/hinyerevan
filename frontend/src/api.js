@@ -38,6 +38,75 @@ export function clearApiCache() {
     .forEach((key) => localStorage.removeItem(key))
 }
 
+export function clearApiCacheForLanguage(lang) {
+  const prefix = `${CACHE_PREFIX}${lang}:`
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith(prefix))
+    .forEach((key) => localStorage.removeItem(key))
+}
+
+function readCacheEntry(key, ttl) {
+  try {
+    const cached = JSON.parse(localStorage.getItem(key) || 'null')
+    if (cached && Date.now() - cached.savedAt < ttl) {
+      return cached.payload
+    }
+  } catch {
+    localStorage.removeItem(key)
+  }
+
+  return null
+}
+
+function writeCacheEntry(key, payload) {
+  try {
+    localStorage.setItem(key, JSON.stringify({ savedAt: Date.now(), payload }))
+  } catch {
+    localStorage.removeItem(key)
+  }
+}
+
+function queueLocalizedRefresh(path, lang, cacheKey, ttl) {
+  void api(path)
+    .then((payload) => {
+      writeCacheEntry(cacheKey, payload)
+      window.dispatchEvent(
+        new CustomEvent('hinyerevan:localized-ready', { detail: { path, lang } }),
+      )
+    })
+    .catch(() => {})
+}
+
+/** Fast Armenian payload first, translated version loads in the background when needed. */
+export async function localizedApi(path, options = {}) {
+  const ttl = options.ttl ?? 10 * 60 * 1000
+  const lang = getUiLanguage()
+  const cacheKey = options.cacheKey || `${CACHE_PREFIX}${lang}:${path}`
+  const hyKey = `${CACHE_PREFIX}hy:${path}`
+
+  const cached = readCacheEntry(cacheKey, ttl)
+  if (cached) {
+    return cached
+  }
+
+  if (lang !== 'hy') {
+    const hyCached = readCacheEntry(hyKey, ttl)
+    if (hyCached) {
+      queueLocalizedRefresh(path, lang, cacheKey, ttl)
+      return hyCached
+    }
+
+    const hyPayload = await api(path, { skipLang: true })
+    writeCacheEntry(hyKey, hyPayload)
+    queueLocalizedRefresh(path, lang, cacheKey, ttl)
+    return hyPayload
+  }
+
+  const payload = await api(path)
+  writeCacheEntry(cacheKey, payload)
+  return payload
+}
+
 export async function api(path, options = {}) {
   const headers = {
     Accept: 'application/json',
@@ -113,28 +182,7 @@ export async function api(path, options = {}) {
 }
 
 export async function cachedApi(path, options = {}) {
-  const ttl = options.ttl ?? 10 * 60 * 1000
-  const lang = getUiLanguage()
-  const cacheKey = options.cacheKey || `${CACHE_PREFIX}${lang}:${path}`
-  const now = Date.now()
-
-  try {
-    const cached = JSON.parse(localStorage.getItem(cacheKey) || 'null')
-    if (cached && now - cached.savedAt < ttl) {
-      return cached.payload
-    }
-  } catch {
-    localStorage.removeItem(cacheKey)
-  }
-
-  const payload = await api(path)
-  try {
-    localStorage.setItem(cacheKey, JSON.stringify({ savedAt: now, payload }))
-  } catch {
-    localStorage.removeItem(cacheKey)
-  }
-
-  return payload
+  return localizedApi(path, options)
 }
 
 export function imageUrl(path) {

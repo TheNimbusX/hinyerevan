@@ -9,6 +9,7 @@
       content="HinYerevan.com — հին Երևանի լուսանկարների արխիվ և քարտեզ։ Ուսումնասիրեք քաղաքի պատկերները ըստ տարիների, հեղինակների և վայրերի։"
     />
     <meta name="robots" content="index, follow" />
+    <meta name="google" content="notranslate" />
     <meta name="theme-color" content="#0d1018" />
     <meta property="og:site_name" content="HinYerevan.com" />
     <meta property="og:type" content="website" />
@@ -25,8 +26,7 @@
           document.documentElement.setAttribute('data-theme', 'dark')
         }
         try {
-          var lang = localStorage.getItem('hinyerevan_language') || 'hy'
-          document.documentElement.lang = lang
+          document.documentElement.lang = 'hy'
         } catch (e) {
           document.documentElement.lang = 'hy'
         }

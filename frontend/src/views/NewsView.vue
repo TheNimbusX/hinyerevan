@@ -1,7 +1,8 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import { api } from '../api'
+import { localizedApi } from '../api'
 import { useI18n } from '../i18n'
+import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { formatDate } from '../utils/locale'
 
 const { t, currentLanguage } = useI18n()
@@ -9,21 +10,32 @@ const news = ref([])
 const loading = ref(true)
 const error = ref('')
 
-async function load() {
-  loading.value = true
+async function load({ soft = false } = {}) {
+  if (!soft) {
+    loading.value = true
+  }
   error.value = ''
   try {
-    const payload = await api('/news?per_page=50')
+    const payload = await localizedApi('/news?per_page=50')
     news.value = payload?.data ?? []
   } catch (event) {
-    news.value = []
+    if (!soft) {
+      news.value = []
+    }
     error.value = event.message
   } finally {
     loading.value = false
   }
 }
 
-onMounted(load)
+onMounted(() => load())
+useLanguageReload(() => load({ soft: true }))
+useLocalizedReady(async ({ path }) => {
+  if (path === '/news?per_page=50') {
+    const payload = await localizedApi(path)
+    news.value = payload?.data ?? []
+  }
+})
 </script>
 
 <template>

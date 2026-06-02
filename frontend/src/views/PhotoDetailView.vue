@@ -3,9 +3,10 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRoute } from 'vue-router'
-import { api, getToken, imageUrl, safeAvatarUrl } from '../api'
+import { api, getToken, imageUrl, localizedApi, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
+import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { applyMapTileLayer, getMapTileLayer } from '../utils/mapTiles'
 import { getDirectionIcon } from '../utils/mapMarkerIcons'
 import { setupLeaflet } from '../utils/leafletSetup'
@@ -63,14 +64,17 @@ function authorAvatar(author) {
   return safeAvatarUrl(author?.photo)
 }
 
-async function load() {
-  loading.value = true
-  error.value = ''
-  photo.value = null
-  destroyMiniMap()
+async function load({ soft = false } = {}) {
+  if (!soft) {
+    loading.value = true
+    error.value = ''
+    photo.value = null
+    destroyMiniMap()
+  }
 
   try {
-    photo.value = await api(`/photos/${route.params.id}`)
+    const data = await localizedApi(`/photos/${route.params.id}`)
+    photo.value = data
     isFavorite.value = Boolean(photo.value?.is_favorite)
     detailImageSrc.value = imageUrl(photo.value.images.large || photo.value.images.original || photo.value.images.thumb)
     setPageMeta({
@@ -81,16 +85,33 @@ async function load() {
       type: 'article',
     })
   } catch (event) {
-    photo.value = null
-    error.value = event?.message || t('loading')
+    if (!soft) {
+      photo.value = null
+      error.value = event?.message || t('loading')
+    }
   } finally {
     loading.value = false
   }
 
   if (photo.value) {
     await nextTick()
-    initMiniMap()
+    if (!miniMap) {
+      initMiniMap()
+    }
   }
+}
+
+async function applyLocalized({ path }) {
+  const photoPath = `/photos/${route.params.id}`
+  if (path !== photoPath) return
+  photo.value = await localizedApi(photoPath)
+  setPageMeta({
+    title: photo.value.title,
+    description: `${photo.value.year} — ${photo.value.title}`,
+    image: imageUrl(photo.value.images.large || photo.value.images.thumb),
+    path: route.fullPath,
+    type: 'article',
+  })
 }
 
 function fallbackToThumb() {
@@ -215,6 +236,9 @@ watch(() => route.params.id, () => {
   closeLightbox()
   load()
 })
+
+useLanguageReload(() => load({ soft: true }))
+useLocalizedReady(applyLocalized)
 
 watch([theme, currentLanguage], () => {
   if (!miniMap) return

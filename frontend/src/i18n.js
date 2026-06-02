@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue'
-import { clearApiCache } from './api'
+import { clearApiCacheForLanguage } from './api'
 
 const STORAGE_KEY = 'hinyerevan_language'
 
@@ -853,7 +853,7 @@ export function setLanguage(language) {
   currentLanguage.value = language
   localStorage.setItem(STORAGE_KEY, language)
   document.documentElement.lang = 'hy'
-  clearApiCache()
+  clearApiCacheForLanguage(language)
   window.dispatchEvent(new CustomEvent('hinyerevan:language-changed', { detail: { language } }))
 }
 

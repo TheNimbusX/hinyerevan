@@ -1,7 +1,8 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { api, imageUrl } from '../api'
+import { localizedApi } from '../api'
 import { useI18n } from '../i18n'
+import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel } from '../utils/locale'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
@@ -16,18 +17,18 @@ let observer
 const { t, currentLanguage } = useI18n()
 const skeletonItems = Array.from({ length: 12 }, (_, index) => index)
 
-async function load(page = 1, append = false) {
+async function load(page = 1, append = false, { soft = false } = {}) {
   if (loading.value || loadingMore.value) return
 
   if (append) {
     loadingMore.value = true
-  } else {
+  } else if (!soft) {
     loading.value = true
   }
   try {
     const params = new URLSearchParams({ page })
     Object.entries(filters.value).forEach(([key, value]) => value && params.set(key, value))
-    const payload = await api(`/photos?${params}`)
+    const payload = await localizedApi(`/photos?${params}`)
     photos.value = append ? [...photos.value, ...payload.data] : payload.data
     meta.value = payload
   } finally {
@@ -58,6 +59,8 @@ onMounted(() => {
     observer.observe(sentinel.value)
   }
 })
+
+useLanguageReload(() => load(1, false, { soft: true }))
 
 onBeforeUnmount(() => observer?.disconnect())
 </script>

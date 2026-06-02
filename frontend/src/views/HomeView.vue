@@ -8,8 +8,9 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import Slider from '@vueform/slider'
 import '@vueform/slider/themes/default.css'
-import { api, cachedApi, imageUrl, safeAvatarUrl } from '../api'
+import { api, cachedApi, imageUrl, localizedApi, safeAvatarUrl } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
+import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { getMapTileLayer, MAP_MAX_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
@@ -482,6 +483,24 @@ async function loadSecondaryContent() {
   if (newsData.status === 'fulfilled') news.value = newsData.value.data || []
   loadFilteredUserLabel()
 }
+
+useLanguageReload(() => loadSecondaryContent())
+
+useLocalizedReady(async ({ path }) => {
+  if (path === '/ratings') {
+    ratings.value = await cachedApi('/ratings')
+    return
+  }
+  if (path === '/photos?per_page=3') {
+    const photoData = await cachedApi('/photos?per_page=3')
+    photos.value = photoData?.data || []
+    return
+  }
+  if (path === '/news?per_page=3') {
+    const newsData = await cachedApi('/news?per_page=3')
+    news.value = newsData?.data || []
+  }
+})
 
 onMounted(async () => {
   try {

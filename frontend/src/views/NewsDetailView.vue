@@ -1,8 +1,9 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { api } from '../api'
+import { api, localizedApi } from '../api'
 import { useI18n } from '../i18n'
+import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { formatDate } from '../utils/locale'
 import { formatCommentBody } from '../utils/commentBody'
 import { userDisplayName, userProfilePath } from '../utils/user'
@@ -22,15 +23,37 @@ function plainText(html) {
   return (node.textContent || '').trim()
 }
 
-async function load() {
-  item.value = await api(`/news/${route.params.id}`)
-  comments.value = await api(`/news/${route.params.id}/comments`)
+async function load({ soft = false } = {}) {
+  if (!soft) {
+    item.value = null
+  }
+  const newsPath = `/news/${route.params.id}`
+  const commentsPath = `/news/${route.params.id}/comments`
+  item.value = await localizedApi(newsPath)
+  comments.value = await localizedApi(commentsPath)
   setPageMeta({
     title: item.value.title,
     description: plainText(item.value.content).slice(0, 160) || item.value.title,
     path: route.fullPath,
     type: 'article',
   })
+}
+
+async function applyLocalized({ path }) {
+  const newsPath = `/news/${route.params.id}`
+  const commentsPath = `/news/${route.params.id}/comments`
+  if (path === newsPath) {
+    item.value = await localizedApi(newsPath)
+    setPageMeta({
+      title: item.value.title,
+      description: plainText(item.value.content).slice(0, 160) || item.value.title,
+      path: route.fullPath,
+      type: 'article',
+    })
+  }
+  if (path === commentsPath) {
+    comments.value = await localizedApi(commentsPath)
+  }
 }
 
 async function submitComment() {
@@ -47,8 +70,10 @@ async function submitComment() {
   }
 }
 
-onMounted(load)
-watch(() => route.params.id, load)
+onMounted(() => load())
+watch(() => route.params.id, () => load())
+useLanguageReload(() => load({ soft: true }))
+useLocalizedReady(applyLocalized)
 </script>
 
 <template>

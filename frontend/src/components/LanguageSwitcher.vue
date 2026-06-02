@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { clearApiCache } from '../api'
+import { clearApiCacheForLanguage } from '../api'
 import { useI18n } from '../i18n'
 import armenianFlag from '../assets/flags/am.svg'
 import russianFlag from '../assets/flags/ru.svg'
@@ -28,7 +28,7 @@ function toggle() {
 function pick(code) {
   if (currentLanguage.value === code) {
     if (code !== 'hy') {
-      clearApiCache()
+      clearApiCacheForLanguage(code)
       window.dispatchEvent(new CustomEvent('hinyerevan:language-changed', { detail: { language: code } }))
     }
     open.value = false

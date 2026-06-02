@@ -42,7 +42,7 @@ export function setPageMeta({ title, description, image, path, type = 'website',
   const pageImage = absoluteUrl(image || DEFAULT_IMAGE)
 
   document.title = pageTitle
-  document.documentElement.lang = lang === 'ru' ? 'ru' : lang === 'en' ? 'en' : 'hy'
+  document.documentElement.lang = 'hy'
 
   upsertMeta('meta[name="description"]', { name: 'description', content: pageDescription })
   upsertMeta('meta[name="robots"]', {

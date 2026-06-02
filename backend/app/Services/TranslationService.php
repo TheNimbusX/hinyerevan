@@ -12,8 +12,8 @@ class TranslationService
 
     private const TARGETS = ['ru', 'en'];
 
-    /** MyMemory free tier is ~500 words; skip huge HTML blobs to avoid timeouts. */
-    private const MAX_TRANSLATE_CHARS = 480;
+    /** MyMemory free tier is ~500 bytes per request; longer strings are split into chunks. */
+    private const CHUNK_SIZE = 450;
 
     public function isEnabled(): bool
     {
@@ -41,13 +41,16 @@ class TranslationService
             return $text;
         }
 
-        if (mb_strlen($text) > self::MAX_TRANSLATE_CHARS) {
-            return $text;
+        if (mb_strlen($text) <= self::CHUNK_SIZE) {
+            $results = $this->translateMany([$text], $targetLang, $html);
+
+            return $results[0] ?? $text;
         }
 
-        $results = $this->translateMany([$text], $targetLang, $html);
+        $chunks = $this->splitIntoChunks($text, self::CHUNK_SIZE);
+        $translated = $this->translateMany($chunks, $targetLang, $html);
 
-        return $results[0] ?? $text;
+        return implode('', $translated);
     }
 
     /**
@@ -104,7 +107,7 @@ class TranslationService
             return $html;
         }
 
-        if ($plainLength <= self::MAX_TRANSLATE_CHARS) {
+        if ($plainLength <= self::CHUNK_SIZE) {
             return $this->translate(strip_tags($html), $targetLang) ?? $html;
         }
 
@@ -220,7 +223,7 @@ class TranslationService
             return $resolved;
         }
 
-        $maxCalls = max(1, (int) config('services.translate.max_api_calls_per_request', 24));
+        $maxCalls = max(1, (int) config('services.translate.max_api_calls_per_request', 48));
         if (count($pending) > $maxCalls) {
             Log::info('Translation budget exceeded, leaving some strings untranslated', [
                 'pending' => count($pending),
@@ -355,5 +358,47 @@ class TranslationService
 
             return null;
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function splitIntoChunks(string $text, int $maxChars): array
+    {
+        if (mb_strlen($text) <= $maxChars) {
+            return [$text];
+        }
+
+        $chunks = [];
+        $remaining = $text;
+
+        while (mb_strlen($remaining) > $maxChars) {
+            $piece = mb_substr($remaining, 0, $maxChars);
+            $breakAt = mb_strrpos($piece, '. ');
+
+            if ($breakAt === false) {
+                $breakAt = mb_strrpos($piece, "\n");
+            }
+
+            if ($breakAt === false) {
+                $breakAt = mb_strrpos($piece, ' ');
+            }
+
+            if ($breakAt === false || $breakAt < (int) ($maxChars * 0.4)) {
+                $breakAt = $maxChars;
+                $chunkEnd = $maxChars;
+            } else {
+                $chunkEnd = mb_substr($piece, $breakAt, 2) === '. ' ? $breakAt + 2 : $breakAt + 1;
+            }
+
+            $chunks[] = mb_substr($remaining, 0, $chunkEnd);
+            $remaining = mb_substr($remaining, $chunkEnd);
+        }
+
+        if ($remaining !== '') {
+            $chunks[] = $remaining;
+        }
+
+        return $chunks;
     }
 }
