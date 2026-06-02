@@ -245,6 +245,42 @@ class LegacyPhotoStorage
         return $fileId;
     }
 
+    /**
+     * Serve path for user avatars: upscale tiny legacy/OAuth files for crisp display.
+     */
+    public function userAvatarDisplayPath(string $sourcePath): string
+    {
+        if (! is_file($sourcePath)) {
+            return $sourcePath;
+        }
+
+        $info = @getimagesize($sourcePath);
+        if ($info === false) {
+            return $sourcePath;
+        }
+
+        $width = (int) ($info[0] ?? 0);
+        $height = (int) ($info[1] ?? 0);
+        $max = max($width, $height);
+
+        if ($max >= 256) {
+            return $sourcePath;
+        }
+
+        $cacheDir = storage_path('app/cache/user-avatars');
+        File::ensureDirectoryExists($cacheDir);
+        $cacheKey = md5($sourcePath . ':' . filemtime($sourcePath) . ':' . filesize($sourcePath));
+        $cached = $cacheDir . DIRECTORY_SEPARATOR . $cacheKey . '.jpg';
+
+        if (is_file($cached) && filemtime($cached) >= filemtime($sourcePath)) {
+            return $cached;
+        }
+
+        $this->resize($sourcePath, $cached, 512, 512, true);
+
+        return is_file($cached) ? $cached : $sourcePath;
+    }
+
     public function storeUserPhoto(UploadedFile $file, string $salt): string
     {
         $fileId = md5('user' . microtime(true) . Str::random(24) . $salt);
@@ -300,7 +336,7 @@ class LegacyPhotoStorage
             $fileId = md5('user' . microtime(true) . Str::random(24) . $salt);
             $target = $this->absolutePath('users', $fileId);
             File::ensureDirectoryExists(dirname($target));
-            File::copy($tmp, $target);
+            $this->resize($tmp, $target, 512, 512, true);
             @unlink($tmp);
 
             return $fileId;

@@ -5,6 +5,7 @@ import { api, apiUrl, imageUrl, safeAvatarUrl, setToken } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useI18n } from '../i18n'
 import { formatCommentBody } from '../utils/commentBody'
+import { socialNetworkLabel, socialProviderIcon } from '../utils/socialProviderIcons'
 import { isAdminUser, parseBirthdate } from '../utils/user'
 import siteLogo from '../assets/logos/Logo2026.png'
 import LikeIcon from '../components/LikeIcon.vue'
@@ -62,13 +63,20 @@ const socialLinkBusy = ref(null)
 const socialLinkError = ref('')
 const socialLinkMessage = ref('')
 
-const canLinkSocial = computed(() => (user.value?.network || '').toLowerCase() === 'hinyerevan')
-const linkedNetworkLabel = computed(() => {
+const canLinkSocial = computed(() => isLocalAccount.value)
+const isLocalAccount = computed(() => {
   const id = (user.value?.network || '').toLowerCase()
-  if (!id || id === 'hinyerevan') return ''
-  const found = socialProviders.value.find((p) => p.id === id)
-  return found?.label || id
+  return !id || id === 'hinyerevan'
 })
+
+const linkedNetworkLabel = computed(() => {
+  if (isLocalAccount.value) return ''
+  return socialNetworkLabel(user.value?.network)
+})
+
+function providerIcon(id) {
+  return socialProviderIcon(id)
+}
 
 const memberSince = computed(() => formatDate(stats.value?.member_since))
 
@@ -543,11 +551,11 @@ watch(currentLanguage, loadAll)
               </select>
             </div>
           </label>
-          <label>
+          <label v-if="canLinkSocial">
             <span>{{ t('profileUrl') }}</span>
             <input v-model="profileForm.identity" :placeholder="t('profileUrl')" />
           </label>
-          <p v-if="linkedNetworkLabel" class="profile-readonly">{{ t('linkedVia') }}: {{ linkedNetworkLabel }}</p>
+          <p v-else-if="linkedNetworkLabel" class="profile-readonly">{{ t('linkedVia') }}: {{ linkedNetworkLabel }}</p>
 
           <div v-if="canLinkSocial && socialProviders.length" class="profile-social-link">
             <h3>{{ t('linkSocialAccount') }}</h3>
@@ -557,11 +565,13 @@ watch(currentLanguage, loadAll)
                 v-for="provider in socialProviders"
                 :key="provider.id"
                 type="button"
-                class="button button-ghost button-small profile-social-link-btn"
+                class="profile-social-link-btn"
+                :class="[`profile-social-link-btn--${provider.id}`, { 'is-loading': socialLinkBusy === provider.id }]"
                 :disabled="socialLinkBusy === provider.id"
+                :aria-label="provider.label"
                 @click="startSocialLink(provider.id)"
               >
-                {{ socialLinkBusy === provider.id ? t('loading') : provider.label }}
+                <span class="profile-social-link-icon" v-html="providerIcon(provider.id)"></span>
               </button>
             </div>
             <p v-if="socialLinkMessage" class="success-line">{{ socialLinkMessage }}</p>
@@ -1324,7 +1334,45 @@ watch(currentLanguage, loadAll)
 .profile-social-link-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.profile-social-link-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 1px solid $line;
+  border-radius: 10px;
+  background: $surface;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+
+  &:hover:not(:disabled) {
+    border-color: $accent;
+    background: rgba($accent, 0.06);
+  }
+
+  &:disabled,
+  &.is-loading {
+    opacity: 0.55;
+    cursor: wait;
+  }
+
+  .profile-social-link-icon {
+    display: inline-flex;
+    width: 22px;
+    height: 22px;
+  }
+
+  .profile-social-link-icon svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
 }
 
 .profile-form-row {

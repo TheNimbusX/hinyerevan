@@ -79,12 +79,17 @@ class VkIdProvider extends VkontakteProvider
         $firstName = Arr::get($user, 'first_name', '');
         $lastName = Arr::get($user, 'last_name', '');
 
+        $avatar = Arr::get($user, 'avatar')
+            ?? Arr::get($user, 'avatar_200')
+            ?? Arr::get($user, 'photo_200')
+            ?? Arr::get($user, 'photo_max_orig');
+
         return (new User)->setRaw($user)->map([
             'id' => (string) Arr::get($user, 'user_id', Arr::get($user, 'id', '')),
             'nickname' => null,
             'name' => trim($firstName.' '.$lastName) ?: null,
             'email' => Arr::get($user, 'email'),
-            'avatar' => Arr::get($user, 'avatar'),
+            'avatar' => $avatar,
         ]);
     }
 }

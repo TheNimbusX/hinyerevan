@@ -256,7 +256,29 @@ class SocialAuthController extends Controller
         $existing = $this->socialAuth->findExisting($provider, $providerId, $email);
 
         if ($existing) {
-            return $this->socialAuth->touchExisting($existing, $email, $avatar);
+            $net = mb_strtolower((string) $existing->network);
+            $networks = $this->socialAuth->networkCandidates($provider);
+
+            if (in_array($net, $networks, true) && (string) $existing->uid === $providerId) {
+                return $this->socialAuth->touchExisting($existing, $email, $avatar, true);
+            }
+
+            if ($net === 'hinyerevan' || $net === '') {
+                return $this->socialAuth->linkProviderToUser(
+                    $existing,
+                    $provider,
+                    $providerId,
+                    $email,
+                    $avatar,
+                );
+            }
+
+            \Log::warning('OAuth account mismatch; creating new user', [
+                'provider' => $provider,
+                'provider_id' => $providerId,
+                'existing_id' => $existing->id,
+                'existing_network' => $net,
+            ]);
         }
 
         [$firstName, $lastName] = $this->socialAuth->splitName(

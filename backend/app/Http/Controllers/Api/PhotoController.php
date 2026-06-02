@@ -383,6 +383,12 @@ class PhotoController extends Controller
         foreach ($order as $candidate) {
             $path = $storage->absolutePath($candidate, $fileId);
             if (is_file($path) && filesize($path) > 0) {
+                if ($variant === 'users') {
+                    $display = $storage->userAvatarDisplayPath($path);
+
+                    return Response::file($display, ['Content-Type' => mime_content_type($display)]);
+                }
+
                 // Burn the site watermark into the full-size display variants so
                 // every visible photo carries our mark, just like the legacy site.
                 if (in_array($variant, ['large', 'original'], true)) {

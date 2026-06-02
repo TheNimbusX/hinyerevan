@@ -9,7 +9,8 @@ use Illuminate\Support\Str;
  * Resolves social/OAuth logins against the legacy HinYerevan users table.
  *
  * Legacy uLogin stored unique = md5(provider_uid) without a network prefix.
- * Matching order: network+uid → email → legacy unique → create.
+ * Matching order: network+uid → legacy unique (same provider) → email (hinyerevan only) → create.
+ * Never merge different OAuth providers by email alone.
  */
 class SocialAuthService
 {
@@ -54,22 +55,28 @@ class SocialAuthService
             ->where('uid', $providerId)
             ->first();
 
+        if (! $user) {
+            $legacy = User::query()->where('unique', md5($providerId))->first();
+            if ($legacy) {
+                $network = mb_strtolower((string) $legacy->network);
+                if ($network === 'hinyerevan' || $network === '' || in_array($network, $networks, true)) {
+                    $user = $legacy;
+                }
+            }
+        }
+
+        // Email merge only for local (email/password) accounts — never hijack another OAuth row.
         if (! $user && $email !== null && $email !== '') {
             $user = User::query()
                 ->whereRaw('LOWER(email) = ?', [mb_strtolower($email)])
-                ->first();
-        }
-
-        if (! $user) {
-            $user = User::query()
-                ->where('unique', md5($providerId))
+                ->where('network', 'hinyerevan')
                 ->first();
         }
 
         return $user;
     }
 
-    public function touchExisting(User $user, ?string $email, ?string $photo): User
+    public function touchExisting(User $user, ?string $email, ?string $photo, bool $refreshAvatar = false): User
     {
         $fill = [];
 
@@ -77,7 +84,7 @@ class SocialAuthService
             $fill['email'] = $email;
         }
 
-        if ($photo && $this->shouldRefreshPhoto($user->photo)) {
+        if ($photo && ($refreshAvatar || $this->shouldRefreshPhoto($user->photo))) {
             $fill['photo'] = $this->normalizePhoto($this->upgradeAvatarUrl($photo));
         }
 
@@ -132,15 +139,39 @@ class SocialAuthService
         if (! $user && $email) {
             $user = User::query()
                 ->whereRaw('LOWER(email) = ?', [mb_strtolower($email)])
+                ->where('network', 'hinyerevan')
                 ->first();
         }
 
         if (! $user) {
-            $user = User::query()->where('unique', md5($uid))->first();
+            $legacy = User::query()->where('unique', md5($uid))->first();
+            if ($legacy) {
+                $network = mb_strtolower((string) $legacy->network);
+                if ($network === 'hinyerevan' || $network === '' || in_array($network, $this->networkCandidates($network), true)) {
+                    $user = $legacy;
+                }
+            }
         }
 
         if ($user) {
-            return $this->touchExisting($user, $email ?: null, $photo ? (string) $photo : null);
+            $existingNet = mb_strtolower((string) $user->network);
+            $networks = $this->networkCandidates($network);
+
+            if (in_array($existingNet, $networks, true) && (string) $user->uid === $uid) {
+                return $this->touchExisting($user, $email ?: null, $photo ? (string) $photo : null, true);
+            }
+
+            if ($existingNet === 'hinyerevan' || $existingNet === '') {
+                return $this->linkProviderToUser(
+                    $user,
+                    $network,
+                    $uid,
+                    $email ?: null,
+                    $photo ? (string) $photo : null,
+                );
+            }
+
+            $user = null;
         }
 
         return User::query()->create([
@@ -230,8 +261,10 @@ class SocialAuthService
             return str_contains($url, '?') ? $url . '&sz=256' : $url . '?sz=256';
         }
 
-        if (str_contains($url, 'userapi.com') || str_contains($url, 'vk-cdn')) {
-            return preg_replace('/photo_\d+/', 'photo_200', $url) ?? $url;
+        if (str_contains($url, 'userapi.com') || str_contains($url, 'vk-cdn') || str_contains($url, 'vkuserphoto')) {
+            $url = preg_replace('/photo_\d+/', 'photo_200', $url) ?? $url;
+
+            return preg_replace('/\?sz=\d+/', '?sz=200', $url) ?? $url;
         }
 
         return $url;
