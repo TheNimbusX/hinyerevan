@@ -10,6 +10,7 @@ import ProfileView from './views/ProfileView.vue'
 import AdminView from './views/AdminView.vue'
 import RandomPhotoView from './views/RandomPhotoView.vue'
 import UserProfileView from './views/UserProfileView.vue'
+import FacebookPageView from './views/FacebookPageView.vue'
 import { api, getToken } from './api'
 import { applyRouteMeta } from './utils/seo'
 import { isAdminUser } from './utils/user'
@@ -35,6 +36,7 @@ const routes = [
     meta: { requiresAuth: true, titleKey: 'pageTitleProfile', noindex: true },
   },
   { path: '/users/:unique', name: 'user-profile', component: UserProfileView },
+  { path: '/facebook', name: 'facebook-page', component: FacebookPageView, meta: { titleKey: 'facebookPage' } },
   {
     path: '/admin',
     name: 'admin',

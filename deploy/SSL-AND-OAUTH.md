@@ -39,6 +39,8 @@ https://dev.hinyerevan.com/api/auth/social/vkontakte/callback
 
 **Privacy Policy URL для Meta / Google:** `https://hinyerevan.ru/pages/privacy` (страница на фронтенде, hy/ru/en).
 
+**Facebook Page (публикация, подписчики, виджет):** [`deploy/FACEBOOK-PAGE-INTEGRATION.md`](FACEBOOK-PAGE-INTEGRATION.md).
+
 Сайт открывать по **https://dev.hinyerevan.com**, не по IP.
 
 ### Dev (`hinyerevan.ru`) из РФ без VPN

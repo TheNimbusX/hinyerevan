@@ -8,6 +8,7 @@ use App\Models\Photo;
 use App\Models\PhotoView;
 use App\Services\CommentPresenter;
 use App\Services\DemoData;
+use App\Services\Facebook\FacebookPublishService;
 use App\Services\LegacyPhotoStorage;
 use App\Services\LegacySchema;
 use App\Services\TranslationService;
@@ -23,8 +24,10 @@ class PhotoController extends Controller
 {
     private const MARKERS_CACHE_VERSION_KEY = 'photo_markers_version';
 
-    public function __construct(private TranslationService $translator)
-    {
+    public function __construct(
+        private TranslationService $translator,
+        private FacebookPublishService $facebookPublish,
+    ) {
     }
 
     public function index(Request $request)
@@ -273,6 +276,8 @@ class PhotoController extends Controller
             'file' => ['required_without:video', 'nullable', 'image', 'max:10240'],
             'video' => ['required_without:file', 'nullable', 'string', 'max:512', 'regex:#^https?://(www\.)?(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/shorts/)[\w\-]{6,}#i'],
             'needs_location_review' => ['nullable', 'boolean'],
+            'publish_to_facebook' => ['nullable', 'boolean'],
+            'facebook_comment' => ['nullable', 'string', 'max:2000'],
         ], [
             'video.regex' => 'The video link must be a valid YouTube URL.',
         ]);
@@ -288,6 +293,7 @@ class PhotoController extends Controller
 
         // Admin uploads are published immediately, others go through moderation.
         $isAdmin = (bool) $request->user()?->isAdmin();
+        $publishToFacebook = filter_var($request->input('publish_to_facebook', false), FILTER_VALIDATE_BOOLEAN);
 
         $photo = Photo::query()->create([
             'title' => $data['title'],
@@ -301,17 +307,27 @@ class PhotoController extends Controller
             'file_id' => $fileId,
             'video' => $video,
             'needs_location_review' => (bool) ($data['needs_location_review'] ?? false),
+            'facebook_publish_pending' => $publishToFacebook,
+            'facebook_comment' => $publishToFacebook ? trim((string) $request->input('facebook_comment', '')) : null,
         ]);
 
         PhotoView::query()->create(['photo_id' => $photo->id, 'count' => 0]);
 
         self::flushMarkersCache();
 
-        $payload = $this->serialize($photo);
+        $facebookError = null;
+        if ($publishToFacebook && $isAdmin && $photo->published) {
+            $facebookError = $this->facebookPublish->publishIfPending($photo->fresh());
+        }
+
+        $payload = $this->serialize($photo->fresh());
         $payload['moderation_pending'] = ! $isAdmin;
         $payload['message'] = $isAdmin
             ? 'Photo published.'
             : 'Photo submitted for moderation.';
+        if ($facebookError) {
+            $payload['facebook_publish_error'] = $facebookError;
+        }
 
         return response()->json($payload, 201);
     }
@@ -446,6 +462,7 @@ class PhotoController extends Controller
             'likes_count' => $photo->likes_count ?? 0,
             'author' => $photo->author,
             'images' => $photo->image_urls,
+            'facebook' => $this->serializeFacebook($photo),
         ];
 
         if ($includeComments) {
@@ -455,5 +472,20 @@ class PhotoController extends Controller
         }
 
         return $data;
+    }
+
+    private function serializeFacebook(Photo $photo): ?array
+    {
+        if (! $photo->facebook_post_id && ! $photo->facebook_post_url) {
+            return null;
+        }
+
+        return [
+            'post_id' => $photo->facebook_post_id,
+            'post_url' => $photo->facebook_post_url,
+            'likes' => (int) ($photo->facebook_likes ?? 0),
+            'comments_count' => (int) ($photo->facebook_comments_count ?? 0),
+            'synced_at' => optional($photo->facebook_synced_at)->toISOString(),
+        ];
     }
 }

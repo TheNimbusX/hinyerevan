@@ -38,6 +38,13 @@ class Photo extends Model
         'file_id',
         'video',
         'needs_location_review',
+        'facebook_post_id',
+        'facebook_post_url',
+        'facebook_publish_pending',
+        'facebook_comment',
+        'facebook_likes',
+        'facebook_comments_count',
+        'facebook_synced_at',
     ];
 
     protected $casts = [
@@ -48,6 +55,10 @@ class Photo extends Model
         'year' => 'integer',
         'published' => 'boolean',
         'needs_location_review' => 'boolean',
+        'facebook_publish_pending' => 'boolean',
+        'facebook_likes' => 'integer',
+        'facebook_comments_count' => 'integer',
+        'facebook_synced_at' => 'datetime',
         'datetime' => 'datetime',
     ];
 

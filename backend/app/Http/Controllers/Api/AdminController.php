@@ -8,10 +8,15 @@ use App\Models\NewsItem;
 use App\Models\Page;
 use App\Models\Photo;
 use App\Models\User;
+use App\Services\Facebook\FacebookPublishService;
 use App\Services\LegacySchema;
 use Illuminate\Http\Request;
+
 class AdminController extends Controller
 {
+    public function __construct(
+        private readonly FacebookPublishService $facebookPublish,
+    ) {}
     public function dashboard()
     {
         if (! LegacySchema::photosReady()) {
@@ -99,11 +104,23 @@ class AdminController extends Controller
             $data['needs_location_review'] = (int) filter_var($data['needs_location_review'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
         }
 
+        $wasPublished = (bool) $photo->published;
+
         $photo->fill($data)->save();
+
+        $facebookError = null;
+        if (! $wasPublished && (bool) $photo->published) {
+            $facebookError = $this->facebookPublish->publishIfPending($photo->fresh());
+        }
 
         PhotoController::flushMarkersCache();
 
-        return $this->serializeAdminPhoto($photo->fresh(['author', 'viewCounter']));
+        $payload = $this->serializeAdminPhoto($photo->fresh(['author', 'viewCounter']));
+        if ($facebookError) {
+            $payload['facebook_publish_error'] = $facebookError;
+        }
+
+        return $payload;
     }
 
     public function deletePhoto(Photo $photo)

@@ -51,6 +51,11 @@ return [
         'client_id' => env('FACEBOOK_CLIENT_ID'),
         'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
         'redirect' => env('FACEBOOK_REDIRECT_URI', rtrim(env('OAUTH_REDIRECT_BASE', 'http://127.0.0.1:8000'), '/') . '/api/auth/social/facebook/callback'),
+        'page_id' => env('FACEBOOK_PAGE_ID'),
+        'page_url' => env('FACEBOOK_PAGE_URL', 'https://www.facebook.com/HinYerevanCom/'),
+        'page_access_token' => env('FACEBOOK_PAGE_ACCESS_TOKEN'),
+        'app_id' => env('FACEBOOK_APP_ID', env('FACEBOOK_CLIENT_ID')),
+        'site_url' => rtrim(env('FRONTEND_URL', env('APP_URL', 'http://127.0.0.1:8000')), '/'),
     ],
 
     'yandex' => [

@@ -8,6 +8,7 @@ import { socialProviderIcon } from './utils/socialProviderIcons'
 import ThemeToggle from './components/ThemeToggle.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
 import SiteFooter from './components/SiteFooter.vue'
+import FacebookPageBadge from './components/FacebookPageBadge.vue'
 import HeaderUserMenu from './components/HeaderUserMenu.vue'
 
 const menuOpen = ref(false)
@@ -377,6 +378,8 @@ onBeforeUnmount(() => {
     </main>
 
     <SiteFooter />
+
+    <FacebookPageBadge />
 
     <Teleport to="body">
       <div v-if="authOpen" class="auth-modal-backdrop" @click.self="authOpen = false">

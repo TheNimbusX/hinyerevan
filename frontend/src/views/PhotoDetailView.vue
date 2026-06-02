@@ -333,6 +333,21 @@ async function submitComment() {
           <span>{{ photo.views }} {{ t('views') }}</span>
           <span>{{ photo.comments_count }} {{ t('comments') }}</span>
         </div>
+        <div v-if="photo.facebook?.post_url" class="facebook-post-stats">
+          <p class="facebook-post-stats__label">{{ t('facebookPostStats') }}</p>
+          <p class="facebook-post-stats__counts">
+            {{ photo.facebook.likes || 0 }} {{ t('likes') }},
+            {{ photo.facebook.comments_count || 0 }} {{ t('comments') }}
+          </p>
+          <a
+            class="facebook-post-stats__link"
+            :href="photo.facebook.post_url"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ t('facebookOpenPost') }}
+          </a>
+        </div>
       </div>
     </article>
 
@@ -682,6 +697,43 @@ async function submitComment() {
 
     .like-icon {
       font-size: 16px;
+    }
+  }
+}
+
+.facebook-post-stats {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: $radius-sm;
+  background: rgba(24, 119, 242, 0.08);
+  border: 1px solid rgba(24, 119, 242, 0.18);
+
+  &__label {
+    margin: 0 0 4px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #1877f2;
+  }
+
+  &__counts {
+    margin: 0;
+    color: $ink;
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  &__link {
+    display: inline-block;
+    margin-top: 8px;
+    color: #1877f2;
+    font-size: 13px;
+    font-weight: 600;
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
     }
   }
 }

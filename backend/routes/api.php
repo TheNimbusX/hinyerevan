@@ -4,7 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\ContentController;
-use App\Http\Controllers\Api\FavoriteController;
+use App\Http\Controllers\Api\FacebookController;
 use App\Http\Controllers\Api\FeedbackController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\RatingController;
@@ -65,6 +65,8 @@ Route::get('/pages', [ContentController::class, 'pagesIndex']);
 Route::get('/pages/{alias}', [ContentController::class, 'pageShow']);
 Route::post('/feedback', [FeedbackController::class, 'store']);
 Route::get('/ratings', [RatingController::class, 'index']);
+Route::get('/facebook/page', [FacebookController::class, 'page']);
+Route::get('/facebook/plugin-config', [FacebookController::class, 'pluginConfig']);
 Route::get('/users/{unique}', [UserController::class, 'show']);
 Route::get('/photos/{photo}/comments', [CommentController::class, 'index'])->whereNumber('photo');
 

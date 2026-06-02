@@ -23,6 +23,7 @@ const submitting = ref(false)
 const previewUrl = ref('')
 const mediaTab = ref('photo')
 const publishToFacebook = ref(false)
+const facebookConfigured = ref(true)
 const uploadMapElement = ref(null)
 let uploadMap
 let uploadMapTileLayer
@@ -188,6 +189,12 @@ async function submit() {
 onMounted(async () => {
   await nextTick()
   initUploadMap()
+  try {
+    const page = await api('/facebook/page')
+    facebookConfigured.value = page?.configured !== false
+  } catch {
+    facebookConfigured.value = false
+  }
 })
 
 onBeforeUnmount(() => {
@@ -300,6 +307,9 @@ onBeforeUnmount(() => {
             <input v-model="publishToFacebook" type="checkbox" />
             <span>{{ t('publishToFacebook') }}</span>
           </label>
+          <p v-if="publishToFacebook && !facebookConfigured" class="facebook-config-hint">
+            {{ t('facebookNotConfigured') }}
+          </p>
           <textarea
             v-if="publishToFacebook"
             v-model="form.facebook_comment"
@@ -325,6 +335,16 @@ onBeforeUnmount(() => {
   color: darken($accent, 14%);
   background: rgba($accent, 0.12);
   font-weight: 600;
+  line-height: 1.5;
+}
+
+.facebook-config-hint {
+  margin: -4px 0 8px;
+  padding: 10px 12px;
+  border-radius: $radius-sm;
+  color: darken($accent, 10%);
+  background: rgba($accent, 0.1);
+  font-size: 13px;
   line-height: 1.5;
 }
 
