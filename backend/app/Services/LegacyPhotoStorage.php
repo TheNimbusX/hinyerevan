@@ -245,40 +245,173 @@ class LegacyPhotoStorage
         return $fileId;
     }
 
+    /** Target edge length for legacy user avatars (Retina-safe up to ~256px CSS). */
+    public const USER_AVATAR_TARGET = 512;
+
     /**
-     * Serve path for user avatars: upscale tiny legacy/OAuth files for crisp display.
+     * Serve path for user avatars: upscale/re-encode tiny legacy files from photos/users.
      */
-    public function userAvatarDisplayPath(string $sourcePath): string
+    public function userAvatarDisplayPath(string $sourcePath, int $targetSize = self::USER_AVATAR_TARGET): string
     {
         if (! is_file($sourcePath)) {
             return $sourcePath;
         }
 
-        $info = @getimagesize($sourcePath);
-        if ($info === false) {
+        if (! $this->shouldEnhanceUserAvatar($sourcePath)) {
             return $sourcePath;
         }
 
-        $width = (int) ($info[0] ?? 0);
-        $height = (int) ($info[1] ?? 0);
-        $max = max($width, $height);
-
-        if ($max >= 256) {
-            return $sourcePath;
-        }
-
+        $targetSize = max(128, min(768, $targetSize));
         $cacheDir = storage_path('app/cache/user-avatars');
         File::ensureDirectoryExists($cacheDir);
-        $cacheKey = md5($sourcePath . ':' . filemtime($sourcePath) . ':' . filesize($sourcePath));
+        $cacheKey = md5($sourcePath . ':' . filemtime($sourcePath) . ':' . filesize($sourcePath) . ':' . $targetSize . ':v2');
         $cached = $cacheDir . DIRECTORY_SEPARATOR . $cacheKey . '.jpg';
 
         if (is_file($cached) && filemtime($cached) >= filemtime($sourcePath)) {
             return $cached;
         }
 
-        $this->resize($sourcePath, $cached, 512, 512, true);
+        if ($this->writeEnhancedUserAvatar($sourcePath, $cached, $targetSize)) {
+            return $cached;
+        }
 
-        return is_file($cached) ? $cached : $sourcePath;
+        return $sourcePath;
+    }
+
+    public function shouldEnhanceUserAvatar(string $sourcePath): bool
+    {
+        $info = @getimagesize($sourcePath);
+        if ($info === false) {
+            return false;
+        }
+
+        $width = (int) ($info[0] ?? 0);
+        $height = (int) ($info[1] ?? 0);
+        $max = max($width, $height);
+        $bytes = (int) filesize($sourcePath);
+
+        if ($max < self::USER_AVATAR_TARGET) {
+            return true;
+        }
+
+        // Heavily compressed legacy JPEGs (common in old DB uploads).
+        return $max < 640 && $bytes > 0 && $bytes < 28_000;
+    }
+
+    /**
+     * Overwrite a legacy avatar file on disk with an enhanced square JPEG (irreversible).
+     */
+    public function persistEnhancedUserAvatar(string $sourcePath, int $targetSize = self::USER_AVATAR_TARGET): bool
+    {
+        if (! is_file($sourcePath) || ! $this->shouldEnhanceUserAvatar($sourcePath)) {
+            return false;
+        }
+
+        $tmp = $sourcePath . '.enhance.' . getmypid() . '.jpg';
+        if (! $this->writeEnhancedUserAvatar($sourcePath, $tmp, $targetSize)) {
+            @unlink($tmp);
+
+            return false;
+        }
+
+        $ok = @rename($tmp, $sourcePath);
+        if (! $ok) {
+            $ok = @copy($tmp, $sourcePath);
+            @unlink($tmp);
+        }
+
+        if ($ok) {
+            @touch($sourcePath);
+        }
+
+        return $ok;
+    }
+
+    public function purgeUserAvatarCache(): void
+    {
+        $cacheDir = storage_path('app/cache/user-avatars');
+        if (is_dir($cacheDir)) {
+            File::cleanDirectory($cacheDir);
+        }
+    }
+
+    private function writeEnhancedUserAvatar(string $source, string $target, int $targetSize): bool
+    {
+        $info = @getimagesize($source);
+        if ($info === false) {
+            return false;
+        }
+
+        $image = $this->loadRasterImage($source, (int) $info[2]);
+        if ($image === null) {
+            return false;
+        }
+
+        $width = (int) $info[0];
+        $height = (int) $info[1];
+        $max = max($width, $height);
+        $scale = $max < $targetSize ? $targetSize / $max : 1.0;
+
+        $targetRatio = 1.0;
+        $sourceRatio = $width / max(1, $height);
+
+        if ($sourceRatio > $targetRatio) {
+            $cropH = $height;
+            $cropW = (int) round($height * $targetRatio);
+            $srcX = (int) round(($width - $cropW) / 2);
+            $srcY = 0;
+        } else {
+            $cropW = $width;
+            $cropH = (int) round($width / $targetRatio);
+            $srcX = 0;
+            $srcY = (int) round(($height - $cropH) / 2);
+        }
+
+        $canvas = imagecreatetruecolor($targetSize, $targetSize);
+        imagefill($canvas, 0, 0, imagecolorallocate($canvas, 255, 255, 255));
+        imagealphablending($canvas, true);
+        imagecopyresampled(
+            $canvas,
+            $image,
+            0,
+            0,
+            $srcX,
+            $srcY,
+            $targetSize,
+            $targetSize,
+            $cropW,
+            $cropH,
+        );
+
+        if ($scale > 1.35 && function_exists('imagefilter')) {
+            @imagefilter($canvas, IMG_FILTER_CONTRAST, -8);
+            @imagefilter($canvas, IMG_FILTER_SMOOTH, -2);
+        }
+
+        File::ensureDirectoryExists(dirname($target));
+        $ok = imagejpeg($canvas, $target, 92);
+        imagedestroy($canvas);
+        imagedestroy($image);
+
+        return $ok && is_file($target) && filesize($target) > 0;
+    }
+
+    private function loadRasterImage(string $source, int $type): ?\GdImage
+    {
+        $loader = match ($type) {
+            IMAGETYPE_PNG => 'imagecreatefrompng',
+            IMAGETYPE_WEBP => 'imagecreatefromwebp',
+            IMAGETYPE_GIF => 'imagecreatefromgif',
+            default => 'imagecreatefromjpeg',
+        };
+
+        if (! function_exists($loader)) {
+            return null;
+        }
+
+        $image = @$loader($source);
+
+        return $image instanceof \GdImage ? $image : null;
     }
 
     public function storeUserPhoto(UploadedFile $file, string $salt): string
@@ -387,7 +520,11 @@ class LegacyPhotoStorage
         }
 
         File::ensureDirectoryExists(dirname($target));
-        $save($canvas, $target);
+        if ($save === 'imagejpeg') {
+            imagejpeg($canvas, $target, 90);
+        } else {
+            $save($canvas, $target);
+        }
         imagedestroy($canvas);
         imagedestroy($image);
     }

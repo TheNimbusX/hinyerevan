@@ -153,7 +153,8 @@ export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
   if (!photo) return fallback
 
   if (photo.includes('hinyerevan.com/photos/users/')) {
-    return imageUrl(`/api/photos/file/users/${photo.split('/').pop()}`)
+    const id = photo.split('/').pop()
+    return imageUrl(`/api/photos/file/users/${id}?w=512&v=2`)
   }
 
   if (photo.includes('graph.facebook.com') || photo.includes('fbcdn.net')) {
@@ -177,5 +178,5 @@ export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
     return fallback
   }
 
-  return imageUrl(`/api/photos/file/users/${photo}`)
+  return imageUrl(`/api/photos/file/users/${photo}?w=512&v=2`)
 }

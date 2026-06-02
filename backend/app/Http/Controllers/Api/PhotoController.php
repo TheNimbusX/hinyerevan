@@ -384,9 +384,14 @@ class PhotoController extends Controller
             $path = $storage->absolutePath($candidate, $fileId);
             if (is_file($path) && filesize($path) > 0) {
                 if ($variant === 'users') {
-                    $display = $storage->userAvatarDisplayPath($path);
+                    $target = min(768, max(128, (int) request()->integer('w', LegacyPhotoStorage::USER_AVATAR_TARGET)));
+                    $display = $storage->userAvatarDisplayPath($path, $target);
+                    $headers = [
+                        'Content-Type' => mime_content_type($display) ?: 'image/jpeg',
+                        'Cache-Control' => 'public, max-age=604800',
+                    ];
 
-                    return Response::file($display, ['Content-Type' => mime_content_type($display)]);
+                    return Response::file($display, $headers);
                 }
 
                 // Burn the site watermark into the full-size display variants so
