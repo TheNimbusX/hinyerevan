@@ -78,6 +78,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/comments', [AuthController::class, 'myComments']);
     Route::get('/auth/favorites', [FavoriteController::class, 'index']);
     Route::post('/auth/avatar', [AuthController::class, 'uploadAvatar']);
+    Route::post('/auth/social/link/{provider}/start', [SocialAuthController::class, 'startLink']);
     Route::post('/photos/{photo}/favorite', [FavoriteController::class, 'store'])->whereNumber('photo');
     Route::delete('/photos/{photo}/favorite', [FavoriteController::class, 'destroy'])->whereNumber('photo');
     Route::post('/photos', [PhotoController::class, 'store']);

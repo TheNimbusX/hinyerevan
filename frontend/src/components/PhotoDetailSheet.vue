@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { api, getToken, imageUrl, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { directionLabel, formatDateTime } from '../utils/locale'
+import { formatCommentBody } from '../utils/commentBody'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import DirectionMarker from './DirectionMarker.vue'
 import LikeIcon from './LikeIcon.vue'
@@ -326,7 +327,7 @@ onBeforeUnmount(() => {
                   <RouterLink class="comment-author" :to="userProfilePath(item.author)">
                     {{ userDisplayName(item.author, t) }}
                   </RouterLink>
-                  <p>{{ item.body }}</p>
+                  <p class="comment-body">{{ formatCommentBody(item.body) }}</p>
                 </span>
               </div>
             </section>

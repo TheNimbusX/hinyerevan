@@ -1,4 +1,4 @@
-# HTTPS для OAuth (VK, Google, Apple) и прокси для Яндекса
+# HTTPS для OAuth (VK, Google, Facebook, Instagram) и прокси для Яндекса
 
 ## VK: «Обязателен протокол https»
 
@@ -39,6 +39,10 @@ https://dev.hinyerevan.com/api/auth/social/vkontakte/callback
 
 Сайт открывать по **https://dev.hinyerevan.com**, не по IP.
 
+### Dev из РФ без VPN
+
+Если сайт открывается только с VPN — удалите **AAAA** для `dev` в DNS reg.ru (см. `deploy/REG-DNS-DEV.md`). Иначе трафик уходит на IPv6 хостинга reg.ru, а не на VPS `45.138.25.76`.
+
 ---
 
 ## Яндекс: «сервер не может связаться с login.yandex.ru»
@@ -71,7 +75,25 @@ curl -x "$OAUTH_PROXY" -s -o /dev/null -w "%{http_code} %{time_total}s\n" --max-
 | VK | `/api/auth/social/vkontakte/callback` |
 | Google | `/api/auth/social/google/callback` |
 | Facebook | `/api/auth/social/facebook/callback` |
+| Instagram | `/api/auth/social/instagram/callback` |
 | Yandex | `/api/auth/social/yandex/callback` |
-| OK | `/api/auth/social/odnoklassniki/callback` |
+| OK (legacy, отдельное приложение OK) | `/api/auth/social/odnoklassniki/callback` |
+| OK через VK ID | тот же callback, что VK — см. ниже |
 
 Префикс: `{OAUTH_REDIRECT_BASE}` (с **https** для VK).
+
+---
+
+## Одноклассники (OK)
+
+Создание игр и мини-приложений в старом интерфейсе OK больше не поддерживается — всё через [dev.vk.com](https://dev.vk.com) / [id.vk.com](https://id.vk.com).
+
+**Вход на сайт (как у HinYerevan):** отдельное приложение на ok.ru/devaccess **не обязательно**. В кабинете VK ID (приложение `hinyerevan`, ID `54617594`):
+
+1. **Авторизация** → включить **«Авторизация через Одноклассники»** и **«Авторизация через Mail»** (если нужны отдельные кнопки OK / Mail на сайте).
+2. **Данные для регистрации** → при необходимости включить **«Почта»**, если нужен email при входе (если выключено — scope `email` может не вернуться).
+3. Те же **базовый домен** `hinyerevan.ru` и **Redirect URL**, что для VK.
+
+Ключи: `VK_CLIENT_ID` = ID приложения, `VK_CLIENT_SECRET` = защищённый ключ (не сервисный).
+
+Отдельные `OK_CLIENT_*` в `.env` — только для **старого** OAuth OK (`connect.ok.ru`), не для VK ID.

@@ -8,6 +8,7 @@ import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { applyMapTileLayer, getMapTileLayer } from '../utils/mapTiles'
 import { directionLabel, formatDateTime } from '../utils/locale'
+import { formatCommentBody } from '../utils/commentBody'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import { setPageMeta } from '../utils/seo'
 import DirectionMarker from '../components/DirectionMarker.vue'
@@ -419,7 +420,7 @@ async function submitComment() {
         <RouterLink class="comment-author" :to="userProfilePath(item.author)">
           {{ userDisplayName(item.author, t) }}
         </RouterLink>
-        <p>{{ item.body }}</p>
+        <p class="comment-body">{{ formatCommentBody(item.body) }}</p>
       </span>
     </div>
   </section>
@@ -887,10 +888,12 @@ async function submitComment() {
   @include focus-ring(rgba($primary, 0.4), 2px);
 }
 
-.comment p {
+.comment p,
+.comment-body {
   margin: 4px 0 0;
   font-size: 14px;
   line-height: 1.55;
+  white-space: pre-line;
 }
 
 .action-count {

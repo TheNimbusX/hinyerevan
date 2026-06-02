@@ -68,7 +68,7 @@ class CommentPresenter
 
         return [
             'id' => $comment->id,
-            'body' => $comment->body,
+            'body' => CommentBodyFormatter::display((string) $comment->body),
             'datetime' => optional($comment->datetime)->toISOString(),
             'user_unique' => $comment->user_unique,
             'to' => $comment->to,

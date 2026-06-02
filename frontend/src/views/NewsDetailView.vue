@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { api } from '../api'
 import { useI18n } from '../i18n'
 import { formatDate } from '../utils/locale'
+import { formatCommentBody } from '../utils/commentBody'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import { setPageMeta } from '../utils/seo'
 
@@ -71,7 +72,7 @@ watch(() => route.params.id, load)
         <RouterLink class="comment-author" :to="userProfilePath(entry.author)">
           {{ userDisplayName(entry.author, t) }}
         </RouterLink>
-        <p>{{ entry.body }}</p>
+        <p class="comment-body">{{ formatCommentBody(entry.body) }}</p>
       </span>
     </div>
   </section>

@@ -13,6 +13,14 @@ use Illuminate\Support\Str;
  */
 class SocialAuthService
 {
+    public const DEFAULT_PHOTO = 'http://www.hinyerevan.com/photos/user.png';
+
+    public const LEGACY_USER_PHOTO_PREFIX = 'http://www.hinyerevan.com/photos/users/';
+
+    public function __construct(
+        private readonly LegacyPhotoStorage $photoStorage,
+    ) {}
+
     public const NETWORK_ALIASES = [
         'google' => ['google', 'googleplus'],
         'facebook' => ['facebook'],
@@ -20,7 +28,7 @@ class SocialAuthService
         'vkontakte' => ['vkontakte', 'vk'],
         'odnoklassniki' => ['odnoklassniki', 'ok'],
         'instagram' => ['instagram'],
-        'apple' => ['apple'],
+        'apple' => ['apple'], // legacy DB only — OAuth removed
         'mailru' => ['mailru', 'mail'],
         'twitter' => ['twitter'],
         'linkedin' => ['linkedin'],
@@ -34,7 +42,7 @@ class SocialAuthService
         'vkontakte' => 'vkontakte',
         'odnoklassniki' => 'odnoklassniki',
         'instagram' => 'instagram',
-        'apple' => 'apple',
+        'mailru' => 'mailru',
     ];
 
     public function findExisting(string $driver, string $providerId, ?string $email): ?User
@@ -70,7 +78,7 @@ class SocialAuthService
         }
 
         if ($photo && $this->shouldRefreshPhoto($user->photo)) {
-            $fill['photo'] = $photo;
+            $fill['photo'] = $this->normalizePhoto($this->upgradeAvatarUrl($photo));
         }
 
         if ($fill !== []) {
@@ -101,7 +109,7 @@ class SocialAuthService
             'identity' => $identity ?: trim($firstName . ' ' . $lastName),
             'bdate' => '1970-01-01',
             'sex' => 0,
-            'photo' => $photo ?: 'http://www.hinyerevan.com/photos/user.png',
+            'photo' => $this->normalizePhoto($photo),
             'type' => User::TYPE_USER,
             'password' => md5(Str::random(40)),
             'last_ip' => request()->ip(),
@@ -145,7 +153,7 @@ class SocialAuthService
             'identity' => (string) ($data['identity'] ?? ($data['first_name'] ?? '')),
             'bdate' => $this->uloginBdate($data['bdate'] ?? null),
             'sex' => $this->uloginSex($data['sex'] ?? null),
-            'photo' => (string) ($photo ?: 'http://www.hinyerevan.com/photos/user.png'),
+            'photo' => $this->normalizePhoto($photo ? (string) $photo : null),
             'type' => User::TYPE_USER,
             'password' => md5(Str::random(40)),
             'last_ip' => request()->ip(),
@@ -185,6 +193,124 @@ class SocialAuthService
         }
 
         return str_contains($photo, '/user.png');
+    }
+
+    /**
+     * Legacy users.photo is a short varchar — store OAuth avatars locally, not full URLs.
+     */
+    /** Prefer high-resolution OAuth avatar URLs before downloading. */
+    public function upgradeAvatarUrl(string $url): string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return $url;
+        }
+
+        if (str_contains($url, 'graph.facebook.com') || str_contains($url, 'fbcdn.net')) {
+            $parts = parse_url($url);
+            if (! is_array($parts)) {
+                return $url;
+            }
+
+            parse_str($parts['query'] ?? '', $query);
+            $query['width'] = '320';
+            $query['height'] = '320';
+
+            $base = ($parts['scheme'] ?? 'https') . '://' . ($parts['host'] ?? '');
+            $path = $parts['path'] ?? '';
+
+            return $base . $path . '?' . http_build_query($query);
+        }
+
+        if (str_contains($url, 'googleusercontent.com')) {
+            if (preg_match('/=s\d+-c/', $url)) {
+                return preg_replace('/=s\d+-c/', '=s256-c', $url) ?? $url;
+            }
+
+            return str_contains($url, '?') ? $url . '&sz=256' : $url . '?sz=256';
+        }
+
+        if (str_contains($url, 'userapi.com') || str_contains($url, 'vk-cdn')) {
+            return preg_replace('/photo_\d+/', 'photo_200', $url) ?? $url;
+        }
+
+        return $url;
+    }
+
+    /**
+     * Attach a social provider to a local (hinyerevan) account. Keeps users.unique
+     * so legacy photo ownership (photos.user) stays valid; email+password login still works.
+     */
+    public function linkProviderToUser(
+        User $user,
+        string $driver,
+        string $providerId,
+        ?string $email,
+        ?string $photo,
+    ): User {
+        $conflict = User::query()
+            ->where('id', '!=', $user->id)
+            ->whereIn('network', $this->networkCandidates($driver))
+            ->where('uid', $providerId)
+            ->exists();
+
+        if ($conflict) {
+            throw new \RuntimeException('This social account is already linked to another user.');
+        }
+
+        $fill = [
+            'network' => self::STORAGE_NETWORK[$driver] ?? $driver,
+            'uid' => $providerId,
+        ];
+
+        if (! $user->email && $email) {
+            $fill['email'] = $email;
+        }
+
+        if ($photo) {
+            $fill['photo'] = $this->normalizePhoto($photo);
+        }
+
+        $user->forceFill($fill)->save();
+
+        return $user;
+    }
+
+    public function canLinkSocialAccount(User $user): bool
+    {
+        return mb_strtolower((string) $user->network) === 'hinyerevan';
+    }
+
+    private function normalizePhoto(?string $photo): string
+    {
+        $photo = trim((string) $photo);
+        if ($photo === '' || str_contains($photo, '/user.png')) {
+            return self::DEFAULT_PHOTO;
+        }
+
+        if (str_starts_with($photo, self::LEGACY_USER_PHOTO_PREFIX)) {
+            return substr($photo, strlen(self::LEGACY_USER_PHOTO_PREFIX));
+        }
+
+        if (preg_match('/^[a-f0-9]{32}$/i', $photo)) {
+            return strtolower($photo);
+        }
+
+        if (str_starts_with($photo, 'http://') || str_starts_with($photo, 'https://')) {
+            $fileId = $this->photoStorage->storeUserPhotoFromUrl(
+                $this->upgradeAvatarUrl($photo),
+                (string) config('app.key'),
+            );
+
+            if ($fileId !== null) {
+                // Legacy column is short; store md5 filename only (frontend resolves via /api/photos/file/users/).
+                return $fileId;
+            }
+
+            return self::DEFAULT_PHOTO;
+        }
+
+        return self::DEFAULT_PHOTO;
     }
 
     private function uloginBdate($value): string

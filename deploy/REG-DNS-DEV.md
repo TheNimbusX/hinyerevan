@@ -24,6 +24,30 @@ nslookup dev.hinyerevan.com 8.8.8.8
 
 Должен быть `45.138.25.76`.
 
+## Dev из России без VPN (важно)
+
+Если **prod** (`hinyerevan.ru`) открывается, а **dev** (`dev.hinyerevan.com`) — только с VPN, чаще всего браузер уходит на **IPv6 (AAAA)** в зоне reg.ru, а не на VPS в Нидерландах.
+
+1. В зоне **hinyerevan.com** на reg.ru проверьте запись **`dev`**:
+   - **A** → `45.138.25.76`
+   - **AAAA для `dev` — удалить** (как для `hinyerevan.ru` / `www`, см. `deploy/HINYEREVAN-RU.md`).
+2. Отключите автоматический IPv6 для домена в reg.ru, если AAAA снова появляется.
+3. Проверка с ПК в РФ:
+
+```bash
+nslookup dev.hinyerevan.com 8.8.8.8
+```
+
+Должен быть **только** `45.138.25.76`, **без** `2a00:f940:...`.
+
+4. Открывайте сайт по **https://dev.hinyerevan.com**, не по IP.
+
+**Пока DNS чинится:** временно в `C:\Windows\System32\drivers\etc\hosts`:
+
+```text
+45.138.25.76 dev.hinyerevan.com
+```
+
 ## После появления DNS — на dev-сервере
 
 ```bash

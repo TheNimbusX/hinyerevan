@@ -156,12 +156,21 @@ export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
     return imageUrl(`/api/photos/file/users/${photo.split('/').pop()}`)
   }
 
-  if (photo.startsWith('http://graph.facebook.com/')) {
-    return photo.replace('http://', 'https://')
+  if (photo.includes('graph.facebook.com') || photo.includes('fbcdn.net')) {
+    const https = photo.replace(/^http:\/\//, 'https://')
+    try {
+      const url = new URL(https)
+      url.searchParams.set('width', '320')
+      url.searchParams.set('height', '320')
+      return url.toString()
+    } catch {
+      return https
+    }
   }
 
-  if (photo.startsWith('https://graph.facebook.com/')) {
-    return photo
+  if (photo.includes('googleusercontent.com')) {
+    if (/=s\d+-c/.test(photo)) return photo.replace(/=s\d+-c/, '=s256-c')
+    return photo.includes('?') ? `${photo}&sz=256` : `${photo}?sz=256`
   }
 
   if (photo.startsWith('http')) {

@@ -1,14 +1,16 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
-import { api, imageUrl, safeAvatarUrl, setToken } from '../api'
+import { useRoute, useRouter } from 'vue-router'
+import { api, apiUrl, imageUrl, safeAvatarUrl, setToken } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useI18n } from '../i18n'
+import { formatCommentBody } from '../utils/commentBody'
 import { isAdminUser, parseBirthdate } from '../utils/user'
 import siteLogo from '../assets/logos/Logo2026.png'
 import LikeIcon from '../components/LikeIcon.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { t, currentLanguage } = useI18n()
 const { requireAuth } = useAuthGate()
 
@@ -54,6 +56,19 @@ const avatarInput = ref(null)
 const avatarBusy = ref(false)
 const avatarMessage = ref('')
 const avatarError = ref('')
+
+const socialProviders = ref([])
+const socialLinkBusy = ref(null)
+const socialLinkError = ref('')
+const socialLinkMessage = ref('')
+
+const canLinkSocial = computed(() => (user.value?.network || '').toLowerCase() === 'hinyerevan')
+const linkedNetworkLabel = computed(() => {
+  const id = (user.value?.network || '').toLowerCase()
+  if (!id || id === 'hinyerevan') return ''
+  const found = socialProviders.value.find((p) => p.id === id)
+  return found?.label || id
+})
 
 const memberSince = computed(() => formatDate(stats.value?.member_since))
 
@@ -104,13 +119,15 @@ function goAddPhoto() {
 async function loadAll() {
   loading.value = true
   try {
-    const [me, statData, photos, comments, favorites] = await Promise.all([
+    const [me, statData, photos, comments, favorites, providers] = await Promise.all([
       api('/auth/me'),
       api('/auth/stats').catch(() => stats.value),
       api('/auth/photos?per_page=12').catch(() => ({ data: [] })),
       api('/auth/comments?per_page=12').catch(() => ({ data: [] })),
       api('/auth/favorites?per_page=18').catch(() => ({ data: [] })),
+      api('/auth/social/providers').catch(() => []),
     ])
+    socialProviders.value = providers
     user.value = me
     stats.value = { ...stats.value, ...statData }
     myPhotos.value = photos.data || []
@@ -192,6 +209,21 @@ function pickAvatar() {
   avatarInput.value?.click()
 }
 
+async function startSocialLink(providerId) {
+  socialLinkError.value = ''
+  socialLinkMessage.value = ''
+  socialLinkBusy.value = providerId
+  try {
+    const { redirect_url: redirectUrl } = await api(`/auth/social/link/${providerId}/start`, {
+      method: 'POST',
+    })
+    window.location.href = redirectUrl || apiUrl(`/auth/social/${providerId}/redirect`)
+  } catch (event) {
+    socialLinkError.value = event.message
+    socialLinkBusy.value = null
+  }
+}
+
 async function logout() {
   try {
     await api('/auth/logout', { method: 'POST' })
@@ -202,7 +234,17 @@ async function logout() {
   router.push('/')
 }
 
-onMounted(loadAll)
+onMounted(() => {
+  const tab = route.query.tab
+  if (typeof tab === 'string' && tabs.value.some((item) => item.id === tab)) {
+    activeTab.value = tab
+  }
+  if (route.query.social_linked) {
+    socialLinkMessage.value = t('socialLinked')
+    router.replace({ path: '/profile', query: { tab: 'settings' } })
+  }
+  loadAll()
+})
 watch(currentLanguage, loadAll)
 </script>
 
@@ -334,7 +376,7 @@ watch(currentLanguage, loadAll)
               <RouterLink v-if="comment.photo" class="profile-comment-title" :to="`/photos/${comment.photo.id}`">
                 {{ comment.photo.title }}
               </RouterLink>
-              <p>{{ comment.body }}</p>
+              <p class="comment-body">{{ formatCommentBody(comment.body) }}</p>
               <small>{{ formatDate(comment.datetime) }}</small>
             </div>
           </li>
@@ -446,7 +488,7 @@ watch(currentLanguage, loadAll)
               <RouterLink v-if="comment.photo" class="profile-comment-title" :to="`/photos/${comment.photo.id}`">
                 {{ comment.photo.title }}
               </RouterLink>
-              <p>{{ comment.body }}</p>
+              <p class="comment-body">{{ formatCommentBody(comment.body) }}</p>
               <small>{{ formatDate(comment.datetime) }}</small>
             </div>
           </li>
@@ -505,7 +547,27 @@ watch(currentLanguage, loadAll)
             <span>{{ t('profileUrl') }}</span>
             <input v-model="profileForm.identity" :placeholder="t('profileUrl')" />
           </label>
-          <p v-if="user.network" class="profile-readonly">{{ t('network') }}: {{ user.network }}</p>
+          <p v-if="linkedNetworkLabel" class="profile-readonly">{{ t('linkedVia') }}: {{ linkedNetworkLabel }}</p>
+
+          <div v-if="canLinkSocial && socialProviders.length" class="profile-social-link">
+            <h3>{{ t('linkSocialAccount') }}</h3>
+            <p class="muted-hint">{{ t('linkSocialHint') }}</p>
+            <div class="profile-social-link-grid">
+              <button
+                v-for="provider in socialProviders"
+                :key="provider.id"
+                type="button"
+                class="button button-ghost button-small profile-social-link-btn"
+                :disabled="socialLinkBusy === provider.id"
+                @click="startSocialLink(provider.id)"
+              >
+                {{ socialLinkBusy === provider.id ? t('loading') : provider.label }}
+              </button>
+            </div>
+            <p v-if="socialLinkMessage" class="success-line">{{ socialLinkMessage }}</p>
+            <p v-if="socialLinkError" class="error-line">{{ socialLinkError }}</p>
+          </div>
+
           <div class="form-actions">
             <button class="button" type="submit">{{ t('saveProfile') }}</button>
             <p v-if="profileMessage" class="success-line">{{ profileMessage }}</p>
@@ -1053,11 +1115,13 @@ watch(currentLanguage, loadAll)
     }
   }
 
-  p {
+  p,
+  .comment-body {
     margin: 4px 0 4px;
     font-size: 13px;
     line-height: 1.45;
     color: $ink;
+    white-space: pre-line;
     @include clamp-lines(3);
   }
 
@@ -1243,6 +1307,24 @@ watch(currentLanguage, loadAll)
   margin: 0;
   color: $muted;
   font-size: 13px;
+}
+
+.profile-social-link {
+  display: grid;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid $line;
+
+  h3 {
+    margin: 0;
+    font-size: 15px;
+  }
+}
+
+.profile-social-link-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .profile-form-row {

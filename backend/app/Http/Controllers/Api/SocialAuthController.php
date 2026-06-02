@@ -7,7 +7,9 @@ use App\Models\User;
 use App\Services\LegacySchema;
 use App\Services\SocialAuthService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Laravel\Socialite\Facades\Socialite;
 
 class SocialAuthController extends Controller
@@ -21,8 +23,8 @@ class SocialAuthController extends Controller
         'facebook' => ['label' => 'Facebook', 'color' => '#1877f2'],
         'vkontakte' => ['label' => 'VK', 'color' => '#0077ff'],
         'odnoklassniki' => ['label' => 'OK', 'color' => '#ee8208'],
+        'mailru' => ['label' => 'Mail', 'color' => '#005ff9'],
         'yandex' => ['label' => 'Yandex', 'color' => '#fc3f1d'],
-        'apple' => ['label' => 'Apple', 'color' => '#000000'],
         'instagram' => ['label' => 'Instagram', 'color' => '#e4405f'],
     ];
 
@@ -51,12 +53,25 @@ class SocialAuthController extends Controller
         abort_unless(isset(self::PROVIDERS[$provider]), 404);
         abort_unless($this->isConfigured($provider), 404, 'This provider is not configured.');
 
+        $this->consumeSocialLinkKey($provider);
+
+        if ($provider === 'odnoklassniki' && $this->usesVkIdForOk()) {
+            return $this->vkIdRedirect('ok_ru');
+        }
+
+        if ($provider === 'mailru' && $this->usesVkIdForMail()) {
+            return $this->vkIdRedirect('mail_ru');
+        }
+
+        if ($provider === 'vkontakte') {
+            return $this->vkIdRedirect('vkid');
+        }
+
         $driver = $this->socialiteDriver($provider, $this->usesOAuthSession($provider));
 
         return match ($provider) {
             'facebook' => $driver->scopes(['email', 'public_profile'])->redirect(),
             'yandex' => $driver->scopes(['login:email', 'login:info'])->redirect(),
-            'vkontakte' => $driver->scopes(['email'])->redirect(),
             default => $driver->redirect(),
         };
     }
@@ -75,8 +90,18 @@ class SocialAuthController extends Controller
             return redirect()->away($frontend . '/?social_error=' . urlencode('User database is not connected yet.'));
         }
 
+        $storageNetwork = $provider;
+
         try {
-            $oauthUser = $this->socialiteDriver($provider, $this->usesOAuthSession($provider))->user();
+            if ($provider === 'vkontakte') {
+                $storageNetwork = (string) request()->session()->pull('social_oauth_network', 'vkontakte');
+                if (! isset(self::PROVIDERS[$storageNetwork])) {
+                    $storageNetwork = 'vkontakte';
+                }
+                $oauthUser = $this->socialiteDriver('vkontakte', true)->user();
+            } else {
+                $oauthUser = $this->socialiteDriver($provider, $this->usesOAuthSession($provider))->user();
+            }
         } catch (\Throwable $e) {
             \Log::error('Social login failed', [
                 'provider' => $provider,
@@ -85,20 +110,52 @@ class SocialAuthController extends Controller
             ]);
 
             return redirect()->away(
-                $frontend . '/?social_error=' . urlencode($this->socialErrorMessage($provider, $e)),
+                $frontend . '/?social_error=' . urlencode($this->socialErrorMessage($storageNetwork, $e)),
             );
         }
 
-        $user = $this->resolveOAuthUser($provider, $oauthUser);
+        $linkUserId = request()->session()->pull('social_link_user_id');
+
+        try {
+            if ($linkUserId) {
+                $user = $this->resolveLinkUser((int) $linkUserId, $storageNetwork, $oauthUser);
+            } else {
+                $user = $this->resolveOAuthUser($storageNetwork, $oauthUser);
+            }
+        } catch (\RuntimeException $e) {
+            return redirect()->away($frontend . '/?social_error=' . urlencode($e->getMessage()));
+        }
 
         if ($user->isBlocked()) {
             return redirect()->away($frontend . '/?social_error=' . urlencode('This account is blocked.'));
         }
 
         $user->forceFill(['last_ip' => request()->ip()])->save();
-        $token = $user->createToken('spa-' . $provider)->plainTextToken;
+
+        if ($linkUserId) {
+            return redirect()->away($frontend . '/profile?tab=settings&social_linked=1');
+        }
+
+        $token = $user->createToken('spa-' . $storageNetwork)->plainTextToken;
 
         return redirect()->away($frontend . '/?social_token=' . urlencode($token));
+    }
+
+    /** Begin linking a provider to the logged-in local account (Bearer → one-time redirect key). */
+    public function startLink(Request $request, string $provider)
+    {
+        abort_unless(isset(self::PROVIDERS[$provider]), 404);
+        abort_unless($this->isConfigured($provider), 404, 'This provider is not configured.');
+
+        $user = $request->user();
+        abort_unless($this->socialAuth->canLinkSocialAccount($user), 403, 'Your account already uses social sign-in.');
+
+        $key = Str::random(48);
+        Cache::put('social_link:' . $key, $user->id, now()->addMinutes(15));
+
+        return [
+            'redirect_url' => url('/api/auth/social/' . $provider . '/redirect?link_key=' . urlencode($key)),
+        ];
     }
 
     /**
@@ -155,11 +212,46 @@ class SocialAuthController extends Controller
         ]);
     }
 
+    private function resolveLinkUser(int $userId, string $provider, $oauthUser): User
+    {
+        $user = \App\Models\User::query()->findOrFail($userId);
+        abort_unless($this->socialAuth->canLinkSocialAccount($user), 403);
+
+        $avatar = $oauthUser->getAvatar() ?: null;
+        if ($avatar) {
+            $avatar = $this->socialAuth->upgradeAvatarUrl($avatar);
+        }
+
+        return $this->socialAuth->linkProviderToUser(
+            $user,
+            $provider,
+            (string) $oauthUser->getId(),
+            $oauthUser->getEmail() ?: null,
+            $avatar,
+        );
+    }
+
+    private function consumeSocialLinkKey(string $provider): void
+    {
+        $key = trim((string) request()->query('link_key', ''));
+        if ($key === '') {
+            return;
+        }
+
+        $userId = Cache::pull('social_link:' . $key);
+        if ($userId) {
+            request()->session()->put('social_link_user_id', (int) $userId);
+        }
+    }
+
     private function resolveOAuthUser(string $provider, $oauthUser): User
     {
         $providerId = (string) $oauthUser->getId();
         $email = $oauthUser->getEmail() ?: null;
         $avatar = $oauthUser->getAvatar() ?: null;
+        if ($avatar) {
+            $avatar = $this->socialAuth->upgradeAvatarUrl($avatar);
+        }
 
         $existing = $this->socialAuth->findExisting($provider, $providerId, $email);
 
@@ -184,7 +276,57 @@ class SocialAuthController extends Controller
 
     private function usesOAuthSession(string $provider): bool
     {
-        return $provider === 'vkontakte';
+        return $provider === 'vkontakte'
+            || ($provider === 'odnoklassniki' && $this->usesVkIdForOk())
+            || ($provider === 'mailru' && $this->usesVkIdForMail());
+    }
+
+    /** OK login via VK ID (provider=ok_ru), same app keys and callback as VK. */
+    private function usesVkIdForOk(): bool
+    {
+        return $this->isVkIdConfigured() && ! $this->isLegacyOkConfigured();
+    }
+
+    /** Mail.ru login via VK ID (provider=mail_ru). */
+    private function usesVkIdForMail(): bool
+    {
+        return $this->isVkIdConfigured();
+    }
+
+    private function isVkIdConfigured(): bool
+    {
+        return ! empty(config('services.vkontakte.client_id'))
+            && ! empty(config('services.vkontakte.client_secret'));
+    }
+
+    private function isLegacyOkConfigured(): bool
+    {
+        return ! empty(config('services.odnoklassniki.client_id'))
+            && ! empty(config('services.odnoklassniki.client_secret'))
+            && ! empty(config('services.odnoklassniki.client_public'));
+    }
+
+    private const VK_ID_PROVIDER_NETWORK = [
+        'vkid' => 'vkontakte',
+        'ok_ru' => 'odnoklassniki',
+        'mail_ru' => 'mailru',
+    ];
+
+    private function vkIdRedirect(string $providerParam): \Illuminate\Http\RedirectResponse
+    {
+        request()->session()->put(
+            'social_oauth_network',
+            self::VK_ID_PROVIDER_NETWORK[$providerParam] ?? 'vkontakte',
+        );
+
+        $driver = $this->socialiteDriver('vkontakte', true)
+            ->scopes(['vkid.personal_info', 'email']);
+
+        if ($providerParam !== 'vkid') {
+            $driver = $driver->with(['provider' => $providerParam]);
+        }
+
+        return $driver->redirect();
     }
 
     private function socialiteDriver(string $provider, bool $withSession = false)
@@ -211,18 +353,8 @@ class SocialAuthController extends Controller
     private function isConfigured(string $provider): bool
     {
         return match ($provider) {
-            'odnoklassniki' => ! empty(config('services.odnoklassniki.client_id'))
-                && ! empty(config('services.odnoklassniki.client_secret'))
-                && ! empty(config('services.odnoklassniki.client_public')),
-            'apple' => ! empty(config('services.apple.client_id'))
-                && (
-                    ! empty(config('services.apple.client_secret'))
-                    || (
-                        ! empty(config('services.apple.team_id'))
-                        && ! empty(config('services.apple.key_id'))
-                        && (! empty(config('services.apple.private_key')) || ! empty(config('services.apple.private_key_path')))
-                    )
-                ),
+            'odnoklassniki' => $this->isLegacyOkConfigured() || $this->isVkIdConfigured(),
+            'mailru' => $this->isVkIdConfigured(),
             default => ! empty(config("services.$provider.client_id"))
                 && ! empty(config("services.$provider.client_secret")),
         };

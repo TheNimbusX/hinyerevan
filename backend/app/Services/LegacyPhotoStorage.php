@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 class LegacyPhotoStorage
@@ -250,9 +251,62 @@ class LegacyPhotoStorage
         $target = $this->absolutePath('users', $fileId);
 
         File::ensureDirectoryExists(dirname($target));
-        $file->move(dirname($target), basename($target));
+        $tmp = $file->getRealPath() ?: $file->getPathname();
+        $this->resize($tmp, $target, 512, 512, true);
 
         return $fileId;
+    }
+
+    /**
+     * Download a remote OAuth avatar and store it under photos/users (legacy layout).
+     */
+    public function storeUserPhotoFromUrl(string $url, string $salt): ?string
+    {
+        $url = trim($url);
+        if ($url === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        try {
+            $client = Http::timeout(12);
+            $proxy = trim((string) config('services.oauth.proxy', ''));
+            if ($proxy !== '') {
+                $client = $client->withOptions(['proxy' => $proxy]);
+            }
+
+            $response = $client->get($url);
+            if (! $response->ok()) {
+                return null;
+            }
+
+            $body = $response->body();
+            if (strlen($body) < 200) {
+                return null;
+            }
+
+            $tmp = tempnam(sys_get_temp_dir(), 'oauthavatar_');
+            if ($tmp === false) {
+                return null;
+            }
+
+            file_put_contents($tmp, $body);
+
+            if (@getimagesize($tmp) === false) {
+                @unlink($tmp);
+
+                return null;
+            }
+
+            $fileId = md5('user' . microtime(true) . Str::random(24) . $salt);
+            $target = $this->absolutePath('users', $fileId);
+            File::ensureDirectoryExists(dirname($target));
+            File::copy($tmp, $target);
+            @unlink($tmp);
+
+            return $fileId;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function resize(string $source, string $target, int $maxWidth, int $maxHeight, bool $crop = false): void
