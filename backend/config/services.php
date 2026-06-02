@@ -73,17 +73,6 @@ return [
         'redirect' => env('OK_REDIRECT_URI', rtrim(env('OAUTH_REDIRECT_BASE', 'http://127.0.0.1:8000'), '/') . '/api/auth/social/odnoklassniki/callback'),
     ],
 
-    'apple' => [
-        'client_id' => env('APPLE_CLIENT_ID'),
-        // Optional pre-generated JWT; if empty, built from TEAM_ID + KEY_ID + PRIVATE_KEY.
-        'client_secret' => env('APPLE_CLIENT_SECRET'),
-        'redirect' => env('APPLE_REDIRECT_URI', rtrim(env('OAUTH_REDIRECT_BASE', 'http://127.0.0.1:8000'), '/') . '/api/auth/social/apple/callback'),
-        'team_id' => env('APPLE_TEAM_ID'),
-        'key_id' => env('APPLE_KEY_ID'),
-        'private_key' => env('APPLE_PRIVATE_KEY'),
-        'private_key_path' => env('APPLE_PRIVATE_KEY_PATH'),
-    ],
-
     'instagram' => [
         'client_id' => env('INSTAGRAM_CLIENT_ID'),
         'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),

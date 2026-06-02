@@ -43,8 +43,8 @@ const providerIcons = {
     '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#0077FF" d="M15.07 2H8.93C3.33 2 2 3.33 2 8.93v6.14C2 20.67 3.33 22 8.93 22h6.14c5.6 0 6.93-1.33 6.93-6.93V8.93C22 3.33 20.68 2 15.07 2zm3.5 14.27h-1.46c-.55 0-.72-.44-1.71-1.43-.86-.83-1.24-.94-1.45-.94-.3 0-.39.08-.39.49v1.31c0 .35-.11.56-1.04.56-1.53 0-3.23-.93-4.43-2.65-1.8-2.54-2.3-4.46-2.3-4.85 0-.21.08-.4.49-.4h1.46c.37 0 .51.17.65.55.72 2.08 1.92 3.9 2.42 3.9.18 0 .27-.09.27-.56V11.1c-.06-1.06-.62-1.15-.62-1.53 0-.18.15-.36.39-.36h2.3c.31 0 .42.16.42.53v3.09c0 .31.13.42.22.42.18 0 .33-.11.66-.44 1.02-1.14 1.74-2.9 1.74-2.9.1-.21.27-.4.64-.4h1.46c.44 0 .53.23.44.53-.18.85-1.96 3.37-1.96 3.37-.15.25-.21.36 0 .64.15.21.65.64.98 1.02.61.7 1.08 1.29 1.21 1.7.13.4-.08.61-.49.61z"/></svg>',
   odnoklassniki:
     '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#EE8208" d="M12 11.6a4.8 4.8 0 1 0 0-9.6 4.8 4.8 0 0 0 0 9.6zm0-7a2.2 2.2 0 1 1 0 4.4 2.2 2.2 0 0 1 0-4.4zM14.2 14.8a8 8 0 0 0 2.5-1.04 1.3 1.3 0 1 0-1.38-2.2 5.4 5.4 0 0 1-6.64 0 1.3 1.3 0 1 0-1.38 2.2 8 8 0 0 0 2.5 1.05L7.1 17.9a1.3 1.3 0 0 0 1.84 1.84L12 16.68l3.06 3.06a1.3 1.3 0 1 0 1.84-1.84z"/></svg>',
-  apple:
-    '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M17.05 12.67c-.02-2.17 1.77-3.21 1.85-3.26-1.01-1.47-2.58-1.67-3.13-1.69-1.33-.14-2.6.78-3.27.78-.68 0-1.72-.76-2.83-.74-1.45.02-2.79.84-3.54 2.14-1.51 2.62-.39 6.49 1.08 8.61.72 1.04 1.58 2.2 2.71 2.16 1.09-.04 1.5-.7 2.82-.7 1.32 0 1.69.7 2.82.68 1.17-.02 1.9-1.05 2.61-2.09.82-1.2 1.16-2.36 1.18-2.42-.03-.01-2.27-.87-2.29-3.45zM14.94 4.87c.6-.73 1.01-1.74.9-2.75-.87.04-1.93.58-2.56 1.31-.56.64-1.05 1.67-.92 2.65.97.07 1.96-.49 2.58-1.21z"/></svg>',
+  mailru:
+    '<svg viewBox="0 0 28 28" width="20" height="20" aria-hidden="true" fill="none"><path fill="#0077FF" d="M17.6139 13.9962C17.6139 15.9893 15.9969 17.6064 14.0037 17.6064C12.0106 17.6064 10.3936 15.9893 10.3936 13.9962C10.3936 12.0031 12.0106 10.3861 14.0037 10.3861C15.9969 10.3861 17.6139 12.0107 17.6139 13.9962ZM14.0037 2C7.38514 2 2 7.38515 2 14.0038C2 20.6224 7.38514 26 14.0037 26C16.4256 26 18.7646 25.278 20.7653 23.9091L20.8029 23.8866L19.1858 22.0063L19.1557 22.0213C17.6139 23.0066 15.8389 23.5331 14.0037 23.5331C8.74647 23.5331 4.46694 19.2535 4.46694 13.9962C4.46694 8.73895 8.74647 4.45942 14.0037 4.45942C19.261 4.45942 23.5406 8.73895 23.5406 13.9962C23.5406 14.6807 23.4654 15.3651 23.3149 16.0495C23.0141 17.2905 22.1491 17.6666 21.4948 17.6139C20.8405 17.5613 20.0733 17.095 20.0658 15.9517V13.9962C20.0658 10.6493 17.3431 7.92667 13.9962 7.92667C10.6493 7.92667 7.92666 10.6493 7.92666 13.9962C7.92666 17.3432 10.6493 20.0658 13.9962 20.0658C15.6208 20.0658 17.1476 19.4265 18.2983 18.2758C18.9677 19.3137 20.0583 19.968 21.2993 20.0658C21.4046 20.0733 21.5174 20.0809 21.6227 20.0809C22.4951 20.0809 23.3601 19.7875 24.0595 19.261C24.7816 18.712 25.3156 17.9223 25.6089 16.9746C25.654 16.8242 25.7443 16.4707 25.7443 16.4707V16.4557C25.9172 15.696 26 14.9364 26 13.9962C26.0075 7.38515 20.6224 2 14.0037 2Z"/></svg>',
   instagram:
     '<svg viewBox="0 0 24 24" width="20" height="20"><defs><linearGradient id="ig" x1="0%" y1="100%" x2="100%" y2="0%"><stop offset="0%" stop-color="#FD5949"/><stop offset="50%" stop-color="#D6249F"/><stop offset="100%" stop-color="#285AEB"/></linearGradient></defs><rect x="2" y="2" width="20" height="20" rx="5" fill="url(#ig)"/><circle cx="12" cy="12" r="4.2" fill="none" stroke="#fff" stroke-width="1.6"/><circle cx="17.4" cy="6.6" r="1.1" fill="#fff"/></svg>',
 }
@@ -421,7 +421,6 @@ onBeforeUnmount(() => {
               @click="socialLogin(provider.id)"
             >
               <span class="auth-social__icon" v-html="providerIcon(provider.id)"></span>
-              <span class="auth-social__label">{{ provider.label }}</span>
             </button>
           </div>
           <p v-else class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
@@ -1080,9 +1079,10 @@ onBeforeUnmount(() => {
 }
 
 .auth-social {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
-  gap: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
   margin-bottom: 14px;
 }
 
@@ -1095,24 +1095,28 @@ onBeforeUnmount(() => {
 }
 
 .auth-social__btn {
-  display: flex;
-  flex-direction: column;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  min-height: 72px;
-  padding: 10px 8px;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
   border: 1px solid $line;
-  border-radius: 12px;
+  border-radius: 8px;
   background: $surface;
   color: $ink;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
 
   .auth-social__icon {
     display: inline-flex;
-    width: 24px;
-    height: 24px;
+    width: 22px;
+    height: 22px;
   }
 
   .auth-social__icon svg {
@@ -1121,28 +1125,23 @@ onBeforeUnmount(() => {
     height: 100%;
   }
 
-  .auth-social__label {
-    font-size: 11px;
-    font-weight: 600;
-    line-height: 1.2;
-  }
-
   &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+    transform: translateY(-1px);
+    border-color: $muted-soft;
+    box-shadow: 0 4px 12px rgba(20, 24, 34, 0.1);
   }
 
   &:disabled {
-    opacity: 0.65;
+    opacity: 0.55;
     cursor: wait;
   }
 
-  &.is-loading .auth-social__label::after {
-    content: '…';
-  }
+  &.is-loading {
+    pointer-events: none;
 
-  &--apple {
-    color: $ink;
+    .auth-social__icon {
+      opacity: 0.45;
+    }
   }
 }
 

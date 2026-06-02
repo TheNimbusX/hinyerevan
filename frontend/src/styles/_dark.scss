@@ -596,10 +596,16 @@
   .auth-social__btn {
     background: #1e2330;
     border-color: #2a313d;
+    color: #e7ebf3;
 
-    &:hover {
+    &:hover:not(:disabled) {
       border-color: #4a5470;
+      box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
     }
+  }
+
+  .auth-social-empty {
+    color: #98a0ae;
   }
 
   // ---------- Action chips on photo detail ----------------------

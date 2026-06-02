@@ -18,7 +18,10 @@ class VkIdProvider extends VkontakteProvider
 
     protected $usesPKCE = true;
 
-    protected $scopes = ['email'];
+    /** VK ID scopes are space-separated (not comma like legacy VK OAuth). */
+    protected $scopeSeparator = ' ';
+
+    protected $scopes = ['vkid.personal_info', 'email'];
 
     protected function getAuthUrl($state): string
     {
