@@ -1,6 +1,6 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { localizedApi } from '../api'
+import { imageUrl, localizedApi } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel } from '../utils/locale'
