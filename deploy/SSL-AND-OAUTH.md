@@ -39,9 +39,10 @@ https://dev.hinyerevan.com/api/auth/social/vkontakte/callback
 
 Сайт открывать по **https://dev.hinyerevan.com**, не по IP.
 
-### Dev из РФ без VPN
+### Dev (`hinyerevan.ru`) из РФ без VPN
 
-Если сайт открывается только с VPN — удалите **AAAA** для `dev` в DNS reg.ru (см. `deploy/REG-DNS-DEV.md`). Иначе трафик уходит на IPv6 хостинга reg.ru, а не на VPS `45.138.25.76`.
+Dev = **`https://hinyerevan.ru`**. Если без VPN не открывается, а с VPN — да: см. **`deploy/RU-ACCESS.md`** (прокси Cloudflare или nginx на reg.ru).  
+Удалять AAAA нужно только у **`@`** и **`www`**, если они есть (не у mail/ftp).
 
 ---
 
