@@ -42,8 +42,14 @@ Route::post('/auth/register', [AuthController::class, 'register']);
 
 Route::get('/auth/social/providers', [SocialAuthController::class, 'providers']);
 Route::post('/auth/social/ulogin', [SocialAuthController::class, 'ulogin']);
-Route::get('/auth/social/{provider}/redirect', [SocialAuthController::class, 'redirect']);
-Route::get('/auth/social/{provider}/callback', [SocialAuthController::class, 'callback']);
+
+Route::middleware([
+    \Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse::class,
+    \Illuminate\Session\Middleware\StartSession::class,
+])->group(function () {
+    Route::get('/auth/social/{provider}/redirect', [SocialAuthController::class, 'redirect']);
+    Route::get('/auth/social/{provider}/callback', [SocialAuthController::class, 'callback']);
+});
 
 Route::get('/photos/random', [PhotoController::class, 'random']);
 Route::get('/photos/markers', [PhotoController::class, 'markers']);

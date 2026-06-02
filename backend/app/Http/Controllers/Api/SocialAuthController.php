@@ -51,11 +51,12 @@ class SocialAuthController extends Controller
         abort_unless(isset(self::PROVIDERS[$provider]), 404);
         abort_unless($this->isConfigured($provider), 404, 'This provider is not configured.');
 
-        $driver = $this->socialiteDriver($provider)->stateless();
+        $driver = $this->socialiteDriver($provider, $this->usesOAuthSession($provider));
 
         return match ($provider) {
             'facebook' => $driver->scopes(['email', 'public_profile'])->redirect(),
             'yandex' => $driver->scopes(['login:email', 'login:info'])->redirect(),
+            'vkontakte' => $driver->scopes(['email'])->redirect(),
             default => $driver->redirect(),
         };
     }
@@ -75,7 +76,7 @@ class SocialAuthController extends Controller
         }
 
         try {
-            $oauthUser = $this->socialiteDriver($provider)->stateless()->user();
+            $oauthUser = $this->socialiteDriver($provider, $this->usesOAuthSession($provider))->user();
         } catch (\Throwable $e) {
             \Log::error('Social login failed', [
                 'provider' => $provider,
@@ -181,7 +182,12 @@ class SocialAuthController extends Controller
         );
     }
 
-    private function socialiteDriver(string $provider)
+    private function usesOAuthSession(string $provider): bool
+    {
+        return $provider === 'vkontakte';
+    }
+
+    private function socialiteDriver(string $provider, bool $withSession = false)
     {
         $driver = Socialite::driver($provider);
 
@@ -194,6 +200,10 @@ class SocialAuthController extends Controller
             $clientOptions['proxy'] = $proxy;
         }
         $driver->setHttpClient(new \GuzzleHttp\Client($clientOptions));
+
+        if (! $withSession) {
+            $driver->stateless();
+        }
 
         return $driver;
     }
