@@ -1,13 +1,14 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, imageUrl, safeAvatarUrl } from '../api'
+import { localizedApi, imageUrl, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
+import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { setPageMeta } from '../utils/seo'
 
 const route = useRoute()
 const router = useRouter()
-const { t, currentLanguage } = useI18n()
+const { t } = useI18n()
 const user = ref(null)
 const photos = ref([])
 const meta = ref(null)
@@ -24,12 +25,19 @@ function avatar() {
   return safeAvatarUrl(user.value?.photo)
 }
 
-async function load() {
-  loading.value = true
-  photos.value = []
+function photosPath(page = 1) {
+  if (!user.value?.unique) return ''
+  return `/photos?user=${user.value.unique}&per_page=18${page > 1 ? `&page=${page}` : ''}`
+}
+
+async function load({ soft = false } = {}) {
+  if (!soft) {
+    loading.value = true
+    photos.value = []
+  }
   try {
-    user.value = await api(`/users/${route.params.unique}`)
-    const payload = await api(`/photos?user=${user.value.unique}&per_page=18`)
+    user.value = await localizedApi(`/users/${route.params.unique}`)
+    const payload = await localizedApi(photosPath())
     photos.value = payload.data || []
     meta.value = payload
     setPageMeta({
@@ -39,8 +47,10 @@ async function load() {
       path: route.fullPath,
     })
   } catch {
-    user.value = null
-    setPageMeta({ title: t('userNotFound'), path: route.fullPath, noindex: true })
+    if (!soft) {
+      user.value = null
+      setPageMeta({ title: t('userNotFound'), path: route.fullPath, noindex: true })
+    }
   } finally {
     loading.value = false
   }
@@ -50,9 +60,7 @@ async function loadMore() {
   if (!meta.value || meta.value.current_page >= meta.value.last_page || loadingMore.value) return
   loadingMore.value = true
   try {
-    const payload = await api(
-      `/photos?user=${user.value.unique}&per_page=18&page=${meta.value.current_page + 1}`,
-    )
+    const payload = await localizedApi(photosPath(meta.value.current_page + 1))
     photos.value = [...photos.value, ...(payload.data || [])]
     meta.value = payload
   } finally {
@@ -64,8 +72,18 @@ function openOnMap() {
   router.push({ path: '/', query: { user: user.value.unique } })
 }
 
-onMounted(load)
-watch(() => route.params.unique, load)
+useLanguageReload(() => load({ soft: true }))
+
+useLocalizedReady(async ({ path }) => {
+  const listPath = photosPath()
+  if (!user.value || !listPath || path !== listPath) return
+  const payload = await localizedApi(path)
+  photos.value = payload.data || []
+  meta.value = payload
+})
+
+onMounted(() => load())
+watch(() => route.params.unique, () => load())
 </script>
 
 <template>

@@ -139,9 +139,13 @@ class PhotoController extends Controller
         ]);
 
         $lang = $this->translator->targetLanguage($request->query('lang'));
-        $data = $this->serialize($photo, true, $lang);
-        $data['author_other_photos'] = $this->otherPhotosByAuthor($photo, $lang);
-        $data['nearby_photos'] = $this->nearbyPhotos($photo, 6, 0.012, $lang);
+        $lightTranslate = $request->query('translate') === 'main';
+        $commentLang = ($lang && ! $lightTranslate) ? $lang : null;
+        $relatedLang = $lightTranslate ? null : $lang;
+
+        $data = $this->serialize($photo, true, $lang, $commentLang);
+        $data['author_other_photos'] = $this->otherPhotosByAuthor($photo, $relatedLang);
+        $data['nearby_photos'] = $this->nearbyPhotos($photo, 6, 0.012, $relatedLang);
         $data['author_stats'] = $this->authorStats($photo);
         $data['is_favorite'] = $this->isFavorite($request, $photo->id);
 
@@ -439,7 +443,7 @@ class PhotoController extends Controller
         return $photo;
     }
 
-    private function serialize(Photo $photo, bool $includeComments = false, ?string $lang = null): array
+    private function serialize(Photo $photo, bool $includeComments = false, ?string $lang = null, ?string $commentLang = null): array
     {
         $title = $lang
             ? $this->translator->translate($photo->title, $lang)
@@ -466,10 +470,11 @@ class PhotoController extends Controller
         ];
 
         if ($includeComments) {
+            $effectiveCommentLang = $commentLang ?? $lang;
             $data['comments'] = CommentPresenter::serializeFlat(
                 $photo->comments->sortBy('datetime')->values(),
                 $this->translator,
-                $lang,
+                $effectiveCommentLang,
             );
         }
 

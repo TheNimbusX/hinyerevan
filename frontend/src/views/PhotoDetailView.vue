@@ -64,6 +64,19 @@ function authorAvatar(author) {
   return safeAvatarUrl(author?.photo)
 }
 
+async function loadTranslatedComments() {
+  if (currentLanguage.value === 'hy' || !photo.value) return
+  const commentsPath = `/photos/${route.params.id}/comments`
+  try {
+    const comments = await localizedApi(commentsPath, { ttl: 30 * 60 * 1000 })
+    if (photo.value) {
+      photo.value = { ...photo.value, comments }
+    }
+  } catch {
+    // keep Armenian comments on failure
+  }
+}
+
 async function load({ soft = false } = {}) {
   if (!soft) {
     loading.value = true
@@ -73,7 +86,7 @@ async function load({ soft = false } = {}) {
   }
 
   try {
-    const data = await localizedApi(`/photos/${route.params.id}`)
+    const data = await localizedApi(`/photos/${route.params.id}`, { ttl: 30 * 60 * 1000 })
     photo.value = data
     isFavorite.value = Boolean(photo.value?.is_favorite)
     detailImageSrc.value = imageUrl(photo.value.images.large || photo.value.images.original || photo.value.images.thumb)
@@ -84,6 +97,7 @@ async function load({ soft = false } = {}) {
       path: route.fullPath,
       type: 'article',
     })
+    void loadTranslatedComments()
   } catch (event) {
     if (!soft) {
       photo.value = null
@@ -103,15 +117,25 @@ async function load({ soft = false } = {}) {
 
 async function applyLocalized({ path }) {
   const photoPath = `/photos/${route.params.id}`
-  if (path !== photoPath) return
-  photo.value = await localizedApi(photoPath)
-  setPageMeta({
-    title: photo.value.title,
-    description: `${photo.value.year} — ${photo.value.title}`,
-    image: imageUrl(photo.value.images.large || photo.value.images.thumb),
-    path: route.fullPath,
-    type: 'article',
-  })
+  const commentsPath = `/photos/${route.params.id}/comments`
+  if (path === photoPath) {
+    photo.value = await localizedApi(photoPath, { ttl: 30 * 60 * 1000 })
+    setPageMeta({
+      title: photo.value.title,
+      description: `${photo.value.year} — ${photo.value.title}`,
+      image: imageUrl(photo.value.images.large || photo.value.images.thumb),
+      path: route.fullPath,
+      type: 'article',
+    })
+    void loadTranslatedComments()
+    return
+  }
+  if (path === commentsPath && photo.value) {
+    photo.value = {
+      ...photo.value,
+      comments: await localizedApi(commentsPath, { ttl: 30 * 60 * 1000 }),
+    }
+  }
 }
 
 function fallbackToThumb() {

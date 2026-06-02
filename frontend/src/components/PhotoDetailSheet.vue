@@ -1,7 +1,8 @@
 <script setup>
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { api, getToken, imageUrl, safeAvatarUrl } from '../api'
+import { api, getToken, imageUrl, localizedApi, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
+import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { formatCommentBody } from '../utils/commentBody'
 import { userDisplayName, userProfilePath } from '../utils/user'
@@ -31,24 +32,66 @@ const isAuthenticated = computed(() => Boolean(getToken()))
 const photoDirectionLabel = computed(() => (photo.value ? directionLabel(photo.value.direction, t) : ''))
 const addedLabel = computed(() => (photo.value ? formatDateTime(photo.value.datetime, currentLanguage.value) : ''))
 
-async function load(id) {
-  loading.value = true
-  error.value = ''
-  photo.value = null
-  lightboxOpen.value = false
-  comment.value = ''
-  commentError.value = ''
+async function loadTranslatedComments(id) {
+  if (currentLanguage.value === 'hy' || !photo.value) return
+  const commentsPath = `/photos/${id}/comments`
   try {
-    const data = await api(`/photos/${id}`)
+    const comments = await localizedApi(commentsPath, { ttl: 30 * 60 * 1000 })
+    if (photo.value) {
+      photo.value = { ...photo.value, comments }
+    }
+  } catch {
+    // keep Armenian comments on failure
+  }
+}
+
+async function load(id, { soft = false } = {}) {
+  if (!soft) {
+    loading.value = true
+    error.value = ''
+    photo.value = null
+    lightboxOpen.value = false
+    comment.value = ''
+    commentError.value = ''
+  }
+  try {
+    const data = await localizedApi(`/photos/${id}`, { ttl: 30 * 60 * 1000 })
     photo.value = data
     isFavorite.value = Boolean(data?.is_favorite)
     detailImageSrc.value = imageUrl(data.images.large || data.images.original || data.images.thumb)
+    void loadTranslatedComments(id)
   } catch (e) {
-    error.value = e?.message || t('loading')
+    if (!soft) {
+      error.value = e?.message || t('loading')
+    }
   } finally {
     loading.value = false
   }
 }
+
+async function applyLocalized({ path }) {
+  const id = props.photoId
+  if (id == null) return
+  const photoPath = `/photos/${id}`
+  const commentsPath = `/photos/${id}/comments`
+  if (path === photoPath) {
+    photo.value = await localizedApi(photoPath, { ttl: 30 * 60 * 1000 })
+    void loadTranslatedComments(id)
+    return
+  }
+  if (path === commentsPath && photo.value) {
+    photo.value = {
+      ...photo.value,
+      comments: await localizedApi(commentsPath, { ttl: 30 * 60 * 1000 }),
+    }
+  }
+}
+
+useLanguageReload(() => {
+  if (props.photoId != null) load(props.photoId, { soft: true })
+})
+
+useLocalizedReady(applyLocalized)
 
 watch(
   () => props.photoId,

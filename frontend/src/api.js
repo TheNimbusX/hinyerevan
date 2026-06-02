@@ -9,13 +9,21 @@ export function apiUrl(path) {
   return `${API_URL}${path}`
 }
 
-export function withLang(path) {
+export function withLang(path, { translateScope } = {}) {
   const lang = getUiLanguage()
   if (lang === 'hy') {
     return path
   }
   const separator = path.includes('?') ? '&' : '?'
-  return `${path}${separator}lang=${encodeURIComponent(lang)}`
+  let localized = `${path}${separator}lang=${encodeURIComponent(lang)}`
+  if (translateScope === 'main') {
+    localized += '&translate=main'
+  }
+  return localized
+}
+
+function isPhotoDetailPath(path) {
+  return /^\/photos\/\d+$/.test(path.split('?')[0])
 }
 
 export function getToken() {
@@ -66,8 +74,9 @@ function writeCacheEntry(key, payload) {
   }
 }
 
-function queueLocalizedRefresh(path, lang, cacheKey, ttl) {
-  void api(path)
+function queueLocalizedRefresh(path, lang, cacheKey) {
+  const translateScope = isPhotoDetailPath(path) ? 'main' : undefined
+  void api(path, { translateScope })
     .then((payload) => {
       writeCacheEntry(cacheKey, payload)
       window.dispatchEvent(
@@ -120,7 +129,9 @@ export async function api(path, options = {}) {
   }
 
   const localizedPath =
-    options.skipLang || (options.method || 'GET').toUpperCase() !== 'GET' ? path : withLang(path)
+    options.skipLang || (options.method || 'GET').toUpperCase() !== 'GET'
+      ? path
+      : withLang(path, { translateScope: options.translateScope })
 
   const controller = new AbortController()
   const timeoutMs = options.timeoutMs ?? 45000
