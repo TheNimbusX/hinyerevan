@@ -13,7 +13,11 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use App\Mail\PasswordResetMail;
 
 class AuthController extends Controller
 {
@@ -163,6 +167,90 @@ class AuthController extends Controller
         $user->forceFill(['password' => md5($data['password'])])->save();
 
         return response()->noContent();
+    }
+
+    public function forgotPassword(Request $request)
+    {
+        abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
+
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:190'],
+        ]);
+
+        $message = 'If an account with this email exists, we sent password reset instructions.';
+
+        $user = User::query()->where('email', $data['email'])->first();
+        if (! $user || $user->isBlocked()) {
+            return ['message' => $message];
+        }
+
+        $token = Str::random(64);
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $user->email],
+            ['token' => hash('sha256', $token), 'created_at' => now()],
+        );
+
+        $frontendUrl = rtrim((string) config('app.frontend_url'), '/');
+        $resetUrl = $frontendUrl . '/reset-password?' . http_build_query([
+            'token' => $token,
+            'email' => $user->email,
+        ]);
+
+        try {
+            Mail::to($user->email)->send(new PasswordResetMail($user, $resetUrl));
+        } catch (\Throwable $exception) {
+            Log::error('Password reset mail failed', [
+                'email' => $user->email,
+                'message' => $exception->getMessage(),
+            ]);
+
+            if (config('app.debug')) {
+                throw ValidationException::withMessages([
+                    'email' => 'Could not send email. Check mail settings.',
+                ]);
+            }
+        }
+
+        return ['message' => $message];
+    }
+
+    public function resetPassword(Request $request)
+    {
+        abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
+
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:190'],
+            'token' => ['required', 'string', 'min:32'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ]);
+
+        $record = DB::table('password_reset_tokens')->where('email', $data['email'])->first();
+        $tokenValid = $record
+            && hash_equals((string) $record->token, hash('sha256', $data['token']));
+        $expired = ! $record?->created_at
+            || now()->diffInMinutes($record->created_at) > 60;
+
+        if (! $tokenValid || $expired) {
+            if ($record && $expired) {
+                DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
+            }
+
+            throw ValidationException::withMessages([
+                'email' => 'This reset link is invalid or has expired.',
+            ]);
+        }
+
+        $user = User::query()->where('email', $data['email'])->first();
+        if (! $user || $user->isBlocked()) {
+            throw ValidationException::withMessages([
+                'email' => 'This reset link is invalid or has expired.',
+            ]);
+        }
+
+        $user->forceFill(['password' => md5($data['password'])])->save();
+        DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
+
+        return ['message' => 'Password updated. You can sign in with your new password.'];
     }
 
     public function logout(Request $request)

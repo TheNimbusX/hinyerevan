@@ -32,6 +32,8 @@ const authForm = ref({
   password_confirmation: '',
   recaptcha_token: '',
 })
+const forgotEmail = ref('')
+const forgotMessage = ref('')
 const socialProviders = ref([])
 const socialRedirecting = ref(null)
 function providerIcon(id) {
@@ -207,8 +209,32 @@ function shareSite() {
 function openAuth(mode = 'login') {
   authMode.value = mode
   authError.value = ''
+  forgotMessage.value = ''
   authOpen.value = true
   closeMenu()
+}
+
+async function submitForgotPassword() {
+  authError.value = ''
+  forgotMessage.value = ''
+  try {
+    const payload = await api('/auth/forgot-password', {
+      method: 'POST',
+      body: { email: forgotEmail.value.trim() },
+    })
+    forgotMessage.value = payload?.message || t('forgotPasswordSent')
+  } catch (event) {
+    authError.value = event.message
+  }
+}
+
+function showForgotPassword() {
+  authMode.value = 'forgot'
+  authError.value = ''
+  forgotMessage.value = ''
+  if (String(authForm.value.login).includes('@')) {
+    forgotEmail.value = authForm.value.login.trim()
+  }
 }
 
 function requireAuthForUpload() {
@@ -387,16 +413,16 @@ onBeforeUnmount(() => {
           <button class="auth-close" type="button" @click="authOpen = false" :aria-label="t('cancel')" />
 
           <header class="auth-modal__head">
-            <h2>{{ authMode === 'login' ? t('signIn') : t('createAccount') }}</h2>
-            <p>{{ authMode === 'login' ? t('loginIntro') : t('registerIntro') }}</p>
+            <h2>{{ authMode === 'forgot' ? t('forgotPasswordTitle') : authMode === 'login' ? t('signIn') : t('createAccount') }}</h2>
+            <p>{{ authMode === 'forgot' ? t('forgotPasswordIntro') : authMode === 'login' ? t('loginIntro') : t('registerIntro') }}</p>
           </header>
 
-          <div class="auth-tabs">
+          <div v-if="authMode !== 'forgot'" class="auth-tabs">
             <button type="button" :class="{ on: authMode === 'login' }" @click="authMode = 'login'">{{ t('login') }}</button>
             <button type="button" :class="{ on: authMode === 'register' }" @click="authMode = 'register'">{{ t('register') }}</button>
           </div>
 
-          <div v-if="socialProviders.length" class="auth-social">
+          <div v-if="authMode !== 'forgot' && socialProviders.length" class="auth-social">
             <button
               v-for="provider in socialProviders"
               :key="provider.id"
@@ -410,11 +436,19 @@ onBeforeUnmount(() => {
               <span class="auth-social__icon" v-html="providerIcon(provider.id)"></span>
             </button>
           </div>
-          <p v-else class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
+          <p v-else-if="authMode !== 'forgot'" class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
 
-          <p v-if="socialProviders.length" class="auth-divider"><span>{{ t('orContinueWithEmail') }}</span></p>
+          <p v-if="authMode !== 'forgot' && socialProviders.length" class="auth-divider"><span>{{ t('orContinueWithEmail') }}</span></p>
 
-          <form class="auth-form" @submit.prevent="submitAuth">
+          <form v-if="authMode === 'forgot'" class="auth-form" @submit.prevent="submitForgotPassword">
+            <input v-model="forgotEmail" type="email" :placeholder="t('email')" required />
+            <p v-if="forgotMessage" class="success">{{ forgotMessage }}</p>
+            <p v-if="authError" class="error">{{ authError }}</p>
+            <button class="button" type="submit">{{ t('sendResetLink') }}</button>
+            <button class="link-button auth-forgot-back" type="button" @click="authMode = 'login'">{{ t('backToLogin') }}</button>
+          </form>
+
+          <form v-else class="auth-form" @submit.prevent="submitAuth">
             <input v-if="authMode === 'login'" v-model="authForm.login" :placeholder="t('usernameOrEmail')" required />
             <template v-else>
               <label class="register-field">
@@ -471,6 +505,14 @@ onBeforeUnmount(() => {
               </label>
             </template>
             <input v-model="authForm.password" type="password" :placeholder="t('password')" required />
+            <button
+              v-if="authMode === 'login'"
+              type="button"
+              class="link-button auth-forgot-link"
+              @click="showForgotPassword"
+            >
+              {{ t('forgotPassword') }}
+            </button>
             <template v-if="authMode === 'register'">
               <input
                 v-model="authForm.password_confirmation"
@@ -1178,6 +1220,20 @@ onBeforeUnmount(() => {
     color: #b42318;
     font-size: 13px;
   }
+
+  .success {
+    margin: 0;
+    color: $success;
+    font-size: 13px;
+  }
+}
+
+.auth-forgot-link,
+.auth-forgot-back {
+  justify-self: start;
+  margin: -2px 0 0;
+  padding: 0;
+  font-size: 13px;
 }
 
 .register-field {
