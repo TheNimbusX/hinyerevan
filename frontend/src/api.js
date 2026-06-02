@@ -1,4 +1,4 @@
-import { getUiLanguage, translateApiPayload } from './utils/browserTranslate'
+import { getUiLanguage } from './utils/browserTranslate'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
 const TOKEN_KEY = 'hinyerevan_token'
@@ -7,6 +7,15 @@ const CACHE_PREFIX = 'hinyerevan:api-cache:'
 /** Absolute URL to a backend endpoint — used for full-page OAuth redirects. */
 export function apiUrl(path) {
   return `${API_URL}${path}`
+}
+
+export function withLang(path) {
+  const lang = getUiLanguage()
+  if (lang === 'hy') {
+    return path
+  }
+  const separator = path.includes('?') ? '&' : '?'
+  return `${path}${separator}lang=${encodeURIComponent(lang)}`
 }
 
 export function getToken() {
@@ -41,7 +50,8 @@ export async function api(path, options = {}) {
     headers.Authorization = `Bearer ${token}`
   }
 
-  const localizedPath = path
+  const localizedPath =
+    options.skipLang || (options.method || 'GET').toUpperCase() !== 'GET' ? path : withLang(path)
 
   const controller = new AbortController()
   const timeoutMs = options.timeoutMs ?? 45000
@@ -99,11 +109,6 @@ export async function api(path, options = {}) {
     clearApiCache()
   }
 
-  const lang = getUiLanguage()
-  if (lang !== 'hy' && payload && (options.method || 'GET').toUpperCase() === 'GET' && !options.skipTranslate) {
-    return translateApiPayload(payload, lang, path)
-  }
-
   return payload
 }
 
@@ -122,7 +127,7 @@ export async function cachedApi(path, options = {}) {
     localStorage.removeItem(cacheKey)
   }
 
-  const payload = await api(path, { skipTranslate: false })
+  const payload = await api(path)
   try {
     localStorage.setItem(cacheKey, JSON.stringify({ savedAt: now, payload }))
   } catch {
