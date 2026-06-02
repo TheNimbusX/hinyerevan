@@ -24,7 +24,6 @@ async function load() {
 }
 
 onMounted(load)
-watch(currentLanguage, load)
 </script>
 
 <template>

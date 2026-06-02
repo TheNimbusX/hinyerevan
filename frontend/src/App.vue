@@ -314,7 +314,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="app-shell">
-    <header class="site-header">
+    <header class="site-header notranslate">
       <div class="site-header-inner">
         <RouterLink class="brand" to="/" @click="closeMenu">
           <img class="brand-logo" :src="siteLogo" alt="HinYerevan" />
@@ -1030,7 +1030,7 @@ onBeforeUnmount(() => {
     justify-self: center;
     align-self: center;
     display: flex;
-    margin-top: -2px;
+    margin-top: -5px;
   }
 
   &:hover {

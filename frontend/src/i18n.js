@@ -33,6 +33,7 @@ const messages = {
     linkedVia: 'Մուտք',
     unique: 'Unique ID',
     language: 'Լեզու',
+    browserTranslateHint: 'Մենյուն և կոճակները փոխվում են այստեղ։ Լուսանկարների և նորությունների տext-ը թարգմանելու համար օգտագործեք բրաուզերի «Translate page»։',
     tagline: 'Հին Երևանի լուսանկարներ',
     metaDescriptionDefault: 'Հին Երևանի լուսանկարների արխիվ և քարտեզ. Ուսումնասիրեք քաղաքի պատկերները ըստ տարիների, հեղինակների և վայրերի։',
     pageTitleHome: 'Քարտեզ',
@@ -309,6 +310,7 @@ const messages = {
     linkedVia: 'Вход через',
     unique: 'Unique ID',
     language: 'Язык',
+    browserTranslateHint: 'Меню переключается здесь. Тексты фото и новостей — через перевод страницы в браузере (Chrome: иконка в адресной строке).',
     tagline: 'Фотографии старого Еревана',
     metaDescriptionDefault: 'Архив и карта фотографий старого Еревана. Исследуйте снимки города по годам, авторам и местам.',
     pageTitleHome: 'Карта',
@@ -584,6 +586,7 @@ const messages = {
     linkedVia: 'Signed in via',
     unique: 'Unique ID',
     language: 'Language',
+    browserTranslateHint: 'Menu switches here. Photo and news text: use browser Translate page (Chrome icon in the address bar).',
     tagline: 'Old Yerevan photos',
     metaDescriptionDefault: 'Archive and map of old Yerevan photographs. Explore the city by year, author, and location.',
     pageTitleHome: 'Map',
@@ -852,8 +855,8 @@ export function setLanguage(language) {
 
   currentLanguage.value = language
   localStorage.setItem(STORAGE_KEY, language)
-  document.documentElement.lang = language
-  clearApiCache()
+  // Content in DB is Armenian — keep hy so Chrome/Edge/Safari can offer page translation.
+  document.documentElement.lang = 'hy'
   window.dispatchEvent(new CustomEvent('hinyerevan:language-changed', { detail: { language } }))
 }
 

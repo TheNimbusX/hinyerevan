@@ -32,19 +32,7 @@ async function loadRandom() {
   }
 }
 
-// On language change we keep the SAME photo and only refresh its translated
-// title — switching languages should not shuffle to a new random photo.
-async function refreshTranslation() {
-  if (!photo.value) return
-  try {
-    photo.value = await api(`/photos/${photo.value.id}`)
-  } catch {
-    // Keep the current photo if the refresh fails; labels still re-localise.
-  }
-}
-
 onMounted(loadRandom)
-watch(currentLanguage, refreshTranslation)
 </script>
 
 <template>

@@ -54,7 +54,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="language-switcher">
+  <div ref="root" class="language-switcher notranslate">
     <!-- Mobile drawer: fixed-height segmented control, no dropdown -->
     <div class="language-segmented" role="listbox" :aria-label="t('language')">
       <button
@@ -71,6 +71,7 @@ onBeforeUnmount(() => {
         <span>{{ language.label }}</span>
       </button>
     </div>
+    <p v-if="currentLanguage !== 'hy'" class="language-browser-hint">{{ t('browserTranslateHint') }}</p>
 
     <!-- Desktop header: compact dropdown -->
     <div class="language-dropdown" :class="{ open }">
@@ -112,6 +113,20 @@ onBeforeUnmount(() => {
 <style lang="scss">
 .language-switcher {
   position: relative;
+}
+
+.language-browser-hint {
+  display: none;
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.45;
+  color: $muted;
+
+  @include mq-down($bp-md) {
+    .header-menu & {
+      display: block;
+    }
+  }
 }
 
 // ---------- Mobile: always-visible 3-way switch (inside burger drawer) ----

@@ -514,20 +514,6 @@ watch([theme, currentLanguage], () => {
 })
 watch(activeYearRange, scheduleMarkerSync, { deep: true })
 
-async function reloadLocalizedContent() {
-  try {
-    const markerData = await api(markersEndpoint())
-    markers.value = Array.isArray(markerData) ? markerData : []
-    rebuildMarkerRegistry()
-    applyMarkerYearBounds(false)
-    syncMarkersToFilter()
-  } catch {
-    // keep current markers on transient errors
-  }
-
-  loadSecondaryContent()
-}
-
 async function reloadMarkersForFilter() {
   loadFilteredUserLabel()
   markersLoading.value = true
@@ -550,7 +536,10 @@ async function reloadMarkersForFilter() {
 
 watch([userFilter, reviewFilter], reloadMarkersForFilter)
 
-watch(currentLanguage, reloadLocalizedContent)
+watch(currentLanguage, () => {
+  rebuildMarkerRegistry()
+  syncMarkersToFilter()
+})
 watch(yearRange, ([from, to]) => {
   const normalized = normalizedRange(from, to)
 

@@ -5,20 +5,11 @@ export function apiUrl(path) {
   return `${API_URL}${path}`
 }
 const TOKEN_KEY = 'hinyerevan_token'
-const LANGUAGE_KEY = 'hinyerevan_language'
 const CACHE_PREFIX = 'hinyerevan:api-cache:'
 
-function getRequestLang() {
-  return localStorage.getItem(LANGUAGE_KEY) || 'hy'
-}
-
-/** Append ?lang= for non-Armenian UI (backend translates dynamic content). */
+/** Legacy no-op: UI language is client-side; content uses browser translate. */
 export function withLang(path) {
-  const lang = getRequestLang()
-  if (lang === 'hy') return path
-  if (/[?&]lang=/.test(path)) return path
-  const separator = path.includes('?') ? '&' : '?'
-  return `${path}${separator}lang=${encodeURIComponent(lang)}`
+  return path
 }
 
 export function getToken() {

@@ -73,7 +73,6 @@ async function load() {
 
 onMounted(load)
 watch(() => route.params.alias, load)
-watch(currentLanguage, load)
 </script>
 
 <template>

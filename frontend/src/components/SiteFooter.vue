@@ -7,7 +7,7 @@ const year = new Date().getFullYear()
 </script>
 
 <template>
-  <footer class="site-footer">
+  <footer class="site-footer notranslate">
     <div class="site-footer-inner">
       <div class="footer-brand">
         <img class="footer-logo" :src="siteLogo" alt="HinYerevan" />

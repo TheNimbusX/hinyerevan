@@ -48,7 +48,6 @@ async function submitComment() {
 }
 
 onMounted(load)
-watch(currentLanguage, load)
 watch(() => route.params.id, load)
 </script>
 

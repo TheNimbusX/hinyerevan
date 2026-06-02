@@ -103,7 +103,7 @@ return [
     | translate.driver: mymemory (free, no key) | libretranslate (self-host or libretranslate.com)
     */
     'translate' => [
-        'enabled' => env('TRANSLATE_ENABLED', true),
+        'enabled' => env('TRANSLATE_ENABLED', false),
         'driver' => env('TRANSLATE_DRIVER', 'mymemory'),
         'source' => env('TRANSLATE_SOURCE', 'hy'),
         'max_api_calls_per_request' => (int) env('TRANSLATE_MAX_API_CALLS', 24),

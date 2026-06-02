@@ -60,12 +60,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => observer?.disconnect())
-
-watch(currentLanguage, () => {
-  photos.value = []
-  meta.value = null
-  load()
-})
 </script>
 
 <template>

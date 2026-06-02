@@ -253,7 +253,6 @@ onMounted(() => {
   }
   loadAll()
 })
-watch(currentLanguage, loadAll)
 </script>
 
 <template>

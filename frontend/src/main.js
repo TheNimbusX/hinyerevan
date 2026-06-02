@@ -8,7 +8,7 @@ import { setupLeaflet } from './utils/leafletSetup'
 
 setupLeaflet()
 
-document.documentElement.lang = currentLanguage.value || 'hy'
+document.documentElement.lang = 'hy'
 
 const app = createApp(App)
 app.use(router)

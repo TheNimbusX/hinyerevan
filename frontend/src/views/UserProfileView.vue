@@ -66,7 +66,6 @@ function openOnMap() {
 
 onMounted(load)
 watch(() => route.params.unique, load)
-watch(currentLanguage, load)
 </script>
 
 <template>

@@ -217,10 +217,6 @@ watch(() => route.params.id, () => {
   load()
 })
 
-watch(currentLanguage, () => {
-  load()
-})
-
 watch([theme, currentLanguage], () => {
   if (!miniMap) return
   miniMapTileLayer = applyMapTileLayer(miniMap, miniMapTileLayer, 'google', theme.value, currentLanguage.value)
