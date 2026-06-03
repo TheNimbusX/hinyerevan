@@ -16,6 +16,11 @@ class FacebookGraphClient
         return $this->client()->get($this->url($path), $query);
     }
 
+    public function getUrl(string $url): Response
+    {
+        return $this->client()->get($url);
+    }
+
     public function post(string $path, array $form = []): Response
     {
         $path = ltrim($path, '/');

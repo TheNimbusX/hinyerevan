@@ -96,6 +96,11 @@ function queueLocalizedRefresh(path, lang, cacheKey) {
 
 /** Fast Armenian payload first, translated version loads in the background when needed. */
 export async function localizedApi(path, options = {}) {
+  const basePath = path.split('?')[0]
+  if (getToken() && isPhotoDetailPath(basePath)) {
+    return api(path, { translateScope: options.translateScope })
+  }
+
   const ttl = options.ttl ?? 10 * 60 * 1000
   const lang = getUiLanguage()
   const cacheKey = options.cacheKey || `${CACHE_PREFIX}${lang}:${path}`

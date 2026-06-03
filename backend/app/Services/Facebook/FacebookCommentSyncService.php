@@ -42,15 +42,8 @@ class FacebookCommentSyncService
                 return;
             }
 
-            $rows = $response->json('data') ?? [];
             $seen = [];
-
-            foreach ($rows as $row) {
-                if (! is_array($row)) {
-                    continue;
-                }
-                $this->ingestCommentRow($photo, $row, $seen);
-            }
+            $this->ingestStreamPages($photo, $postId, $token, $response, $seen);
 
             $this->syncNestedReplies($photo, $postId, $token, $seen);
 
@@ -65,6 +58,33 @@ class FacebookCommentSyncService
                 'photo_id' => $photo->id,
                 'message' => $e->getMessage(),
             ]);
+        }
+    }
+
+    /**
+     * @param  list<string>  $seen
+     */
+    private function ingestStreamPages(Photo $photo, string $postId, string $token, $response, array &$seen): void
+    {
+        $guard = 0;
+
+        while ($response && $guard < 8) {
+            $guard++;
+            foreach ($response->json('data') ?? [] as $row) {
+                if (is_array($row)) {
+                    $this->ingestCommentRow($photo, $row, $seen);
+                }
+            }
+
+            $next = $response->json('paging.next');
+            if (! is_string($next) || $next === '') {
+                break;
+            }
+
+            $response = $this->graph->getUrl($next);
+            if (! $response->ok()) {
+                break;
+            }
         }
     }
 

@@ -102,17 +102,27 @@ async function refreshPhotoFacebookMeta() {
   }
 }
 
-async function loadTranslatedComments() {
-  if (currentLanguage.value === 'hy' || !photo.value) return
+async function loadFreshComments() {
+  if (!photo.value) return
   const commentsPath = `/photos/${route.params.id}/comments`
   try {
-    const comments = await localizedApi(commentsPath, { ttl: 30 * 60 * 1000 })
-    if (photo.value) {
-      photo.value = { ...photo.value, comments }
+    clearApiCacheForPath(commentsPath)
+    const comments = await api(commentsPath)
+    photo.value = {
+      ...photo.value,
+      comments,
+      comments_count: Math.max(photo.value.comments_count || 0, countComments(comments)),
     }
   } catch {
-    // keep Armenian comments on failure
+    // keep embedded comments from photo payload
   }
+}
+
+function countComments(threads) {
+  if (!Array.isArray(threads)) return 0
+  const walk = (items) =>
+    items.reduce((sum, item) => sum + 1 + walk(item.replies || []), 0)
+  return walk(threads)
 }
 
 async function load({ soft = false } = {}) {
@@ -135,8 +145,7 @@ async function load({ soft = false } = {}) {
       path: route.fullPath,
       type: 'article',
     })
-    void loadTranslatedComments()
-    void refreshPhotoFacebookMeta()
+    void loadFreshComments()
   } catch (event) {
     if (!soft) {
       photo.value = null
@@ -157,8 +166,18 @@ async function load({ soft = false } = {}) {
 async function applyLocalized({ path }) {
   const photoPath = `/photos/${route.params.id}`
   const commentsPath = `/photos/${route.params.id}/comments`
-  if (path === photoPath) {
-    photo.value = await localizedApi(photoPath, { ttl: 30 * 60 * 1000 })
+  if (path === photoPath && photo.value) {
+    const patch = getToken()
+      ? await api(photoPath, { translateScope: 'main' })
+      : await localizedApi(photoPath, { ttl: 30 * 60 * 1000 })
+    photo.value = {
+      ...patch,
+      comments: photo.value.comments,
+      comments_count: photo.value.comments_count,
+    }
+    if (getToken()) {
+      isFavorite.value = Boolean(patch.is_favorite)
+    }
     setPageMeta({
       title: photo.value.title,
       description: `${photo.value.year} — ${photo.value.title}`,
@@ -166,14 +185,10 @@ async function applyLocalized({ path }) {
       path: route.fullPath,
       type: 'article',
     })
-    void loadTranslatedComments()
     return
   }
   if (path === commentsPath && photo.value) {
-    photo.value = {
-      ...photo.value,
-      comments: await localizedApi(commentsPath, { ttl: 30 * 60 * 1000 }),
-    }
+    await loadFreshComments()
   }
 }
 
@@ -369,9 +384,20 @@ async function postComment({ replyTo, body }) {
 
 async function submitComment() {
   error.value = ''
-  const ok = await postComment({ replyTo: null, body: comment.value })
+    const ok = await postComment({ replyTo: null, body: comment.value })
   if (ok) comment.value = ''
 }
+
+watch(isAuthenticated, () => {
+  if (photo.value) {
+    clearApiCacheForPath(`/photos/${route.params.id}`)
+    void fetchPhotoDetail(route.params.id).then((data) => {
+      if (!data || data.id !== photo.value?.id) return
+      photo.value = { ...photo.value, ...data, comments: photo.value.comments }
+      isFavorite.value = Boolean(data.is_favorite)
+    })
+  }
+})
 </script>
 
 <template>

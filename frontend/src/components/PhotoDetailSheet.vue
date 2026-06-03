@@ -70,16 +70,21 @@ async function refreshPhotoFacebookMeta(id) {
   }
 }
 
-async function loadTranslatedComments(id) {
-  if (currentLanguage.value === 'hy' || !photo.value) return
+async function loadFreshComments(id) {
+  if (!photo.value) return
   const commentsPath = `/photos/${id}/comments`
   try {
-    const comments = await localizedApi(commentsPath, { ttl: 30 * 60 * 1000 })
-    if (photo.value) {
-      photo.value = { ...photo.value, comments }
+    clearApiCacheForPath(commentsPath)
+    const comments = await api(commentsPath)
+    const count = (items) =>
+      (items || []).reduce((sum, item) => sum + 1 + count(item.replies || []), 0)
+    photo.value = {
+      ...photo.value,
+      comments,
+      comments_count: Math.max(photo.value.comments_count || 0, count(comments)),
     }
   } catch {
-    // keep Armenian comments on failure
+    // keep embedded comments
   }
 }
 
@@ -97,8 +102,7 @@ async function load(id, { soft = false } = {}) {
     photo.value = data
     isFavorite.value = Boolean(data?.is_favorite)
     detailImageSrc.value = imageUrl(data.images.large || data.images.original || data.images.thumb)
-    void loadTranslatedComments(id)
-    void refreshPhotoFacebookMeta(id)
+    void loadFreshComments(id)
   } catch (e) {
     if (!soft) {
       error.value = e?.message || t('loading')
@@ -113,16 +117,22 @@ async function applyLocalized({ path }) {
   if (id == null) return
   const photoPath = `/photos/${id}`
   const commentsPath = `/photos/${id}/comments`
-  if (path === photoPath) {
-    photo.value = await localizedApi(photoPath, { ttl: 30 * 60 * 1000 })
-    void loadTranslatedComments(id)
+  if (path === photoPath && photo.value) {
+    const patch = getToken()
+      ? await api(photoPath, { translateScope: 'main' })
+      : await localizedApi(photoPath, { ttl: 30 * 60 * 1000 })
+    photo.value = {
+      ...patch,
+      comments: photo.value.comments,
+      comments_count: photo.value.comments_count,
+    }
+    if (getToken()) {
+      isFavorite.value = Boolean(patch.is_favorite)
+    }
     return
   }
   if (path === commentsPath && photo.value) {
-    photo.value = {
-      ...photo.value,
-      comments: await localizedApi(commentsPath, { ttl: 30 * 60 * 1000 }),
-    }
+    await loadFreshComments(id)
   }
 }
 

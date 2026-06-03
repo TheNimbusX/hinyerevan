@@ -524,16 +524,16 @@ class PhotoController extends Controller
             return;
         }
 
-        $cacheKey = 'facebook_sync_photo_' . $photo->id;
-        if (Cache::has($cacheKey)) {
-            return;
-        }
-
         try {
             $fresh = $photo->fresh() ?? $photo;
-            $this->facebookPublish->syncPostStats($fresh);
+            // Comments: always sync on page open (user expects near-real-time FB thread).
             $this->facebookComments->syncForPhoto($fresh);
-            Cache::put($cacheKey, true, now()->addSeconds(45));
+
+            $statsKey = 'facebook_stats_photo_' . $photo->id;
+            if (! Cache::has($statsKey)) {
+                $this->facebookPublish->syncPostStats($fresh);
+                Cache::put($statsKey, true, now()->addSeconds(20));
+            }
         } catch (\Throwable) {
             // non-fatal for page load
         }
