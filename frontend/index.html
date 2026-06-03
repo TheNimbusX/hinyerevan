@@ -30,10 +30,126 @@
         } catch (e) {
           document.documentElement.lang = 'hy'
         }
+        // Mark when the splash started so the app can keep it visible for a brief minimum.
+        window.__splashStart = Date.now()
       })()
     </script>
+    <style>
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 99999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #0d1018;
+        transition:
+          opacity 0.55s ease,
+          visibility 0.55s ease;
+      }
+      html[data-theme='light'] #app-splash {
+        background: #ffffff;
+      }
+      #app-splash.app-splash--hide {
+        opacity: 0;
+        visibility: hidden;
+      }
+      .app-splash__stage {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 180px;
+        height: 180px;
+        transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      #app-splash.app-splash--hide .app-splash__stage {
+        transform: scale(1.12);
+      }
+      .app-splash__ring {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        border: 2px solid rgba(41, 79, 179, 0.18);
+        border-top-color: #294fb3;
+        animation: splashSpin 1s linear infinite;
+      }
+      html[data-theme='dark'] .app-splash__ring {
+        border-color: rgba(120, 150, 240, 0.18);
+        border-top-color: #8aa5ec;
+      }
+      .app-splash__glow {
+        position: absolute;
+        width: 150px;
+        height: 150px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(41, 79, 179, 0.28), transparent 70%);
+        animation: splashPulse 1.8s ease-in-out infinite;
+      }
+      .app-splash__logo {
+        position: relative;
+        width: 96px;
+        height: auto;
+        animation:
+          splashPop 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) both,
+          splashFloat 2.6s ease-in-out 0.85s infinite;
+        filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.35));
+      }
+      @keyframes splashPop {
+        0% {
+          opacity: 0;
+          transform: scale(0.55);
+        }
+        60% {
+          opacity: 1;
+          transform: scale(1.08);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      @keyframes splashFloat {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
+      }
+      @keyframes splashPulse {
+        0%,
+        100% {
+          transform: scale(0.85);
+          opacity: 0.5;
+        }
+        50% {
+          transform: scale(1.05);
+          opacity: 0.9;
+        }
+      }
+      @keyframes splashSpin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .app-splash__logo,
+        .app-splash__glow,
+        .app-splash__ring {
+          animation: none;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash" role="status" aria-label="HinYerevan">
+      <div class="app-splash__stage">
+        <span class="app-splash__glow" aria-hidden="true"></span>
+        <span class="app-splash__ring" aria-hidden="true"></span>
+        <img class="app-splash__logo" src="/Logo2026.png" alt="HinYerevan" />
+      </div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
