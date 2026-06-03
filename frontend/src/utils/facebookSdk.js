@@ -51,8 +51,8 @@ export function loadFacebookSdk(appId, locale = 'ru_RU') {
   return sdkPromise
 }
 
-export function parseFacebookXfbml() {
+export function parseFacebookXfbml(root) {
   if (window.FB?.XFBML?.parse) {
-    window.FB.XFBML.parse()
+    window.FB.XFBML.parse(root || undefined)
   }
 }

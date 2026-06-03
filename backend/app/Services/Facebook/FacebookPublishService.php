@@ -10,6 +10,7 @@ class FacebookPublishService
     public function __construct(
         private readonly FacebookGraphClient $graph,
         private readonly FacebookPageService $pages,
+        private readonly FacebookCommentSyncService $commentSync,
     ) {}
 
     public function isConfigured(): bool
@@ -113,6 +114,8 @@ class FacebookPublishService
                 'facebook_post_url' => (string) ($data['permalink_url'] ?? $photo->facebook_post_url),
                 'facebook_synced_at' => now(),
             ])->save();
+
+            $this->commentSync->syncForPhoto($photo->fresh());
         } catch (\Throwable $e) {
             Log::warning('Facebook stats sync failed', ['photo_id' => $photo->id, 'message' => $e->getMessage()]);
         }

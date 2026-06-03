@@ -8,6 +8,8 @@ use App\Models\Photo;
 use App\Models\PhotoView;
 use App\Services\CommentPresenter;
 use App\Services\DemoData;
+use App\Models\PhotoFacebookComment;
+use App\Services\Facebook\FacebookCommentSyncService;
 use App\Services\Facebook\FacebookPublishService;
 use App\Services\LegacyPhotoStorage;
 use App\Services\LegacySchema;
@@ -27,6 +29,7 @@ class PhotoController extends Controller
     public function __construct(
         private TranslationService $translator,
         private FacebookPublishService $facebookPublish,
+        private FacebookCommentSyncService $facebookComments,
     ) {
     }
 
@@ -470,16 +473,42 @@ class PhotoController extends Controller
             'facebook' => $this->serializeFacebook($photo),
         ];
 
+        $siteLikes = (int) ($photo->likes_count ?? 0);
+        $fbLikes = (int) ($photo->facebook_likes ?? 0);
+        $siteComments = (int) ($photo->comments_count ?? 0);
+        $fbComments = $photo->facebook_post_id
+            ? PhotoFacebookComment::query()->where('photo_id', $photo->id)->count()
+            : 0;
+
+        $data['likes_total'] = $siteLikes + $fbLikes;
+        $data['site_likes_count'] = $siteLikes;
+        $data['comments_count'] = $siteComments + $fbComments;
+
         if ($includeComments) {
             $effectiveCommentLang = $commentLang ?? $lang;
-            $data['comments'] = CommentPresenter::serializeFlat(
-                $photo->comments->sortBy('datetime')->values(),
-                $this->translator,
-                $effectiveCommentLang,
-            );
+            $data['comments'] = $this->mergedComments($photo, $effectiveCommentLang);
         }
 
         return $data;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function mergedComments(Photo $photo, ?string $lang): array
+    {
+        $site = CommentPresenter::serializeFlat(
+            $photo->comments->sortBy('datetime')->values(),
+            $this->translator,
+            $lang,
+        );
+        $facebook = $this->facebookComments->serializedForPhoto($photo->id, $this->translator, $lang);
+
+        return collect($site)
+            ->concat($facebook)
+            ->sortBy(fn (array $row) => $row['datetime'] ?? '')
+            ->values()
+            ->all();
     }
 
     private function serializeAuthor($author): ?array
@@ -506,12 +535,15 @@ class PhotoController extends Controller
             return null;
         }
 
+        $storedComments = PhotoFacebookComment::query()->where('photo_id', $photo->id)->count();
+
         return [
             'pending' => (bool) $photo->facebook_publish_pending,
+            'published' => (bool) $photo->facebook_post_id,
             'post_id' => $photo->facebook_post_id,
             'post_url' => $photo->facebook_post_url,
             'likes' => (int) ($photo->facebook_likes ?? 0),
-            'comments_count' => (int) ($photo->facebook_comments_count ?? 0),
+            'comments_count' => max((int) ($photo->facebook_comments_count ?? 0), $storedComments),
             'synced_at' => optional($photo->facebook_synced_at)->toISOString(),
         ];
     }

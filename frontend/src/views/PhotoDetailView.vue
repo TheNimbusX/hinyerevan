@@ -17,6 +17,7 @@ import { setPageMeta } from '../utils/seo'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
 import YoutubeEmbed from '../components/YoutubeEmbed.vue'
+import FacebookPublishedBadge from '../components/FacebookPublishedBadge.vue'
 
 const route = useRoute()
 const photo = ref(null)
@@ -43,6 +44,8 @@ const photoDirectionLabel = computed(() =>
 const addedLabel = computed(() =>
   photo.value ? formatDateTime(photo.value.datetime, currentLanguage.value) : '',
 )
+const displayLikes = computed(() => photo.value?.likes_total ?? photo.value?.likes_count ?? 0)
+const siteLikes = computed(() => photo.value?.site_likes_count ?? photo.value?.likes_count ?? 0)
 
 function openLightbox() {
   lightboxOpen.value = true
@@ -200,8 +203,15 @@ async function toggleFavorite() {
   const previous = isFavorite.value
   isFavorite.value = !previous
 
+  const delta = previous ? -1 : 1
+  if (photo.value.site_likes_count !== undefined) {
+    photo.value.site_likes_count = Math.max(0, (photo.value.site_likes_count || 0) + delta)
+  }
   if (photo.value.likes_count !== undefined) {
-    photo.value.likes_count = Math.max(0, (photo.value.likes_count || 0) + (previous ? -1 : 1))
+    photo.value.likes_count = Math.max(0, (photo.value.likes_count || 0) + delta)
+  }
+  if (photo.value.likes_total !== undefined) {
+    photo.value.likes_total = Math.max(0, (photo.value.likes_total || 0) + delta)
   }
 
   try {
@@ -212,8 +222,15 @@ async function toggleFavorite() {
     }
   } catch (e) {
     isFavorite.value = previous
+    const undo = -delta
+    if (photo.value.site_likes_count !== undefined) {
+      photo.value.site_likes_count = Math.max(0, (photo.value.site_likes_count || 0) + undo)
+    }
     if (photo.value.likes_count !== undefined) {
-      photo.value.likes_count = Math.max(0, (photo.value.likes_count || 0) + (previous ? 1 : -1))
+      photo.value.likes_count = Math.max(0, (photo.value.likes_count || 0) + undo)
+    }
+    if (photo.value.likes_total !== undefined) {
+      photo.value.likes_total = Math.max(0, (photo.value.likes_total || 0) + undo)
     }
     error.value = e.message
   } finally {
@@ -337,7 +354,7 @@ async function submitComment() {
           >
             <LikeIcon :filled="isFavorite" />
             <span class="action-label">{{ isFavorite ? t('unlike') : t('like') }}</span>
-            <span v-if="photo.likes_count > 0" class="action-count">{{ photo.likes_count }}</span>
+            <span v-if="siteLikes > 0" class="action-count">{{ siteLikes }}</span>
           </button>
           <button
             type="button"
@@ -368,25 +385,14 @@ async function submitComment() {
           </svg>
           <span>{{ t('addedOn') }}: {{ addedLabel }}</span>
         </p>
+        <FacebookPublishedBadge :facebook="photo.facebook" />
         <div class="detail-stats">
-          <span class="like-pill"><LikeIcon /> {{ photo.likes_count || 0 }} {{ t('likes') }}</span>
+          <span class="like-pill">
+            <LikeIcon /> {{ displayLikes }} {{ t('likes') }}
+            <small v-if="photo.facebook?.likes" class="like-pill__fb">({{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})</small>
+          </span>
           <span>{{ photo.views }} {{ t('views') }}</span>
           <span>{{ photo.comments_count }} {{ t('comments') }}</span>
-        </div>
-        <div v-if="photo.facebook?.post_url" class="facebook-post-stats">
-          <p class="facebook-post-stats__label">{{ t('facebookPostStats') }}</p>
-          <p class="facebook-post-stats__counts">
-            {{ photo.facebook.likes || 0 }} {{ t('likes') }},
-            {{ photo.facebook.comments_count || 0 }} {{ t('comments') }}
-          </p>
-          <a
-            class="facebook-post-stats__link"
-            :href="photo.facebook.post_url"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ t('facebookOpenPost') }}
-          </a>
         </div>
       </div>
     </article>
@@ -476,12 +482,30 @@ async function submitComment() {
     <button v-else class="button comment-login-prompt" type="button" @click="promptLogin">
       {{ t('loginToComment') }}
     </button>
-    <div v-for="item in photo.comments || []" :key="item.id" class="comment">
-      <img class="comment-avatar" :src="authorAvatar(item.author)" :alt="userDisplayName(item.author, t)" />
+    <p v-if="isAuthenticated" class="facebook-comments-note muted-hint">{{ t('facebookReplyOnSiteOnly') }}</p>
+    <div
+      v-for="item in photo.comments || []"
+      :key="item.id"
+      class="comment"
+      :class="{ 'comment--facebook': item.source === 'facebook' }"
+    >
+      <img
+        v-if="item.source !== 'facebook'"
+        class="comment-avatar"
+        :src="authorAvatar(item.author)"
+        :alt="userDisplayName(item.author, t)"
+      />
+      <span v-else class="comment-avatar comment-avatar--fb" aria-hidden="true">f</span>
       <span>
-        <RouterLink class="comment-author" :to="userProfilePath(item.author)">
+        <RouterLink
+          v-if="item.source !== 'facebook' && item.author?.unique"
+          class="comment-author"
+          :to="userProfilePath(item.author)"
+        >
           {{ userDisplayName(item.author, t) }}
         </RouterLink>
+        <span v-else class="comment-author">{{ userDisplayName(item.author, t) }}</span>
+        <span v-if="item.source === 'facebook'" class="comment-source">{{ t('facebookCommentBadge') }}</span>
         <p class="comment-body">{{ formatCommentBody(item.body) }}</p>
       </span>
     </div>
@@ -724,6 +748,47 @@ async function submitComment() {
       font-size: 16px;
     }
   }
+}
+
+.like-pill__fb {
+  margin-left: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: $muted;
+}
+
+.facebook-comments-note {
+  margin: 0 0 12px;
+  font-size: 13px;
+}
+
+.comment--facebook {
+  background: rgba(24, 119, 242, 0.06);
+  border-radius: $radius-sm;
+  padding: 10px;
+}
+
+.comment-avatar--fb {
+  display: grid;
+  place-items: center;
+  background: #1877f2;
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  text-transform: lowercase;
+}
+
+.comment-source {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: $radius-pill;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #1877f2;
+  background: rgba(24, 119, 242, 0.12);
 }
 
 .facebook-post-stats {

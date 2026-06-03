@@ -8,14 +8,17 @@ use App\Models\NewsItem;
 use App\Models\Photo;
 use App\Services\CommentPresenter;
 use App\Services\DemoData;
+use App\Services\Facebook\FacebookCommentSyncService;
 use App\Services\LegacySchema;
 use App\Services\TranslationService;
 use Illuminate\Http\Request;
 
 class CommentController extends Controller
 {
-    public function __construct(private TranslationService $translator)
-    {
+    public function __construct(
+        private TranslationService $translator,
+        private FacebookCommentSyncService $facebookComments,
+    ) {
     }
 
     private function newsPostId(int $news): string
@@ -34,20 +37,28 @@ class CommentController extends Controller
             return DemoData::findPhoto($photo)['comments'] ?? [];
         }
 
-        $photo = Photo::query()->findOrFail($photo);
-        abort_unless($photo->id > 0 && $photo->published, 404);
+        $photoModel = Photo::query()->findOrFail($photo);
+        abort_unless($photoModel->id > 0 && $photoModel->published, 404);
 
         $comments = Comment::query()
             ->with(['author:id,unique,uid,first_name,last_name,photo,identity,email', 'replies.author:id,unique,uid,first_name,last_name,photo,identity,email'])
             ->alive()
-            ->where('post_id', $photo->id)
+            ->where('post_id', $photoModel->id)
             ->where(function ($query) {
                 $query->whereNull('to')->orWhere('to', 0);
             })
             ->oldest('datetime')
             ->get();
 
-        return CommentPresenter::serializeFlat($comments, $this->translator, $this->lang($request));
+        $lang = $this->lang($request);
+        $site = CommentPresenter::serializeFlat($comments, $this->translator, $lang);
+        $facebook = $this->facebookComments->serializedForPhoto($photoModel->id, $this->translator, $lang);
+
+        return collect($site)
+            ->concat($facebook)
+            ->sortBy(fn (array $row) => $row['datetime'] ?? '')
+            ->values()
+            ->all();
     }
 
     public function store(Request $request, int $photo)
