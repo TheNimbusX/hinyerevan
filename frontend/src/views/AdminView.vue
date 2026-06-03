@@ -30,8 +30,6 @@ let observer
 
 const newsEditorOpen = ref(false)
 const newsForm = ref(emptyNewsForm())
-const pageEditorOpen = ref(false)
-const pageForm = ref(emptyPageForm())
 const userEditorId = ref(null)
 const userDetailId = ref(null)
 const userPassword = ref('')
@@ -44,12 +42,25 @@ const shownCount = computed(() => rows.value.length)
 const totalCount = computed(() => meta.value?.total ?? rows.value.length)
 const isPaginatedTab = computed(() => ['photos', 'users', 'news', 'feedback'].includes(tab.value))
 
+const tabs = computed(() => [
+  { id: 'photos', label: t('photos'), icon: '🖼', badge: pendingCount.value },
+  { id: 'users', label: t('users'), icon: '👤', badge: 0 },
+  { id: 'news', label: t('news'), icon: '📰', badge: 0 },
+  { id: 'feedback', label: t('feedback'), icon: '✉️', badge: feedbackUnreadCount.value },
+])
+
+const tabDescription = computed(
+  () =>
+    ({
+      photos: t('adminTabPhotosDesc'),
+      users: t('adminTabUsersDesc'),
+      news: t('adminTabNewsDesc'),
+      feedback: t('adminTabFeedbackDesc'),
+    })[tab.value] || '',
+)
+
 function emptyNewsForm() {
   return { id: null, title: '', content: '', date: '', published: true }
-}
-
-function emptyPageForm() {
-  return { id: null, title: '', alias: '', content: '' }
 }
 
 function formatNewsDateInput(value) {
@@ -100,7 +111,7 @@ function listEndpoint(page = 1) {
   if (tab.value === 'feedback') {
     return `/admin/feedback?per_page=${PER_PAGE}&page=${page}`
   }
-  return '/admin/pages'
+  return `/admin/photos?per_page=${PER_PAGE}&page=${page}`
 }
 
 async function loadTab(nextTab = tab.value, { append = false, page = 1 } = {}) {
@@ -120,12 +131,6 @@ async function loadTab(nextTab = tab.value, { append = false, page = 1 } = {}) {
   }
 
   try {
-    if (nextTab === 'pages' && !append) {
-      rows.value = await api('/admin/pages')
-      meta.value = null
-      return
-    }
-
     const payload = await api(listEndpoint(page))
 
     rows.value = append ? [...rows.value, ...(payload.data || [])] : payload.data || []
@@ -175,7 +180,6 @@ function removeRow(id) {
 
 function closeEditors() {
   newsEditorOpen.value = false
-  pageEditorOpen.value = false
   userEditorId.value = null
   userPassword.value = ''
   feedbackDetailId.value = null
@@ -344,7 +348,6 @@ async function saveUserPassword(user) {
 }
 
 function openNewsEditor(item = null) {
-  pageEditorOpen.value = false
   if (!item) {
     newsForm.value = emptyNewsForm()
     newsForm.value.date = formatNewsDateInput()
@@ -403,44 +406,8 @@ async function deleteNewsItem() {
   }
 }
 
-function openPageEditor(item) {
-  newsEditorOpen.value = false
-  pageForm.value = {
-    id: item.id,
-    title: item.title || '',
-    alias: item.alias || '',
-    content: item.content || '',
-  }
-  pageEditorOpen.value = true
-}
-
-async function savePage() {
-  busyId.value = pageForm.value.id || 'page'
-  actionError.value = ''
-  const body = {
-    title: pageForm.value.title.trim(),
-    alias: pageForm.value.alias.trim(),
-    content: pageForm.value.content,
-  }
-
-  try {
-    await api(`/admin/pages/${pageForm.value.id}`, { method: 'PUT', body })
-    pageEditorOpen.value = false
-    await loadTab('pages')
-  } catch (event) {
-    actionError.value = event.message
-  } finally {
-    busyId.value = null
-  }
-}
-
 function openPhoto(photo) {
   router.push(`/photos/${photo.id}`)
-}
-
-function pagePublicPath(alias) {
-  if (alias === 'feedback') return '/feedback'
-  return `/pages/${alias}`
 }
 
 function setupObserver() {
@@ -482,31 +449,52 @@ watch([hasMore, loading], async () => {
   <section class="admin">
     <header class="admin__head">
       <h1>{{ t('moderationConsole') }}</h1>
-      <p v-if="stats" class="admin__stats">
-        {{ pendingCount }} {{ t('pending').toLowerCase() }} ·
-        {{ stats.photos_published }} {{ t('published').toLowerCase() }} ·
-        {{ stats.photos_total }} {{ t('totalPhotos').toLowerCase() }} ·
-        {{ stats.users_total }} {{ t('users').toLowerCase() }}
-      </p>
+      <div v-if="stats" class="admin__stat-cards">
+        <div class="admin__stat-card admin__stat-card--accent">
+          <strong>{{ pendingCount }}</strong>
+          <span>{{ t('pending') }}</span>
+        </div>
+        <div class="admin__stat-card">
+          <strong>{{ stats.photos_published }}</strong>
+          <span>{{ t('published') }}</span>
+        </div>
+        <div class="admin__stat-card">
+          <strong>{{ stats.photos_total }}</strong>
+          <span>{{ t('totalPhotos') }}</span>
+        </div>
+        <div class="admin__stat-card">
+          <strong>{{ stats.users_total }}</strong>
+          <span>{{ t('users') }}</span>
+        </div>
+        <div v-if="feedbackUnreadCount" class="admin__stat-card admin__stat-card--accent">
+          <strong>{{ feedbackUnreadCount }}</strong>
+          <span>{{ t('feedback') }}</span>
+        </div>
+      </div>
     </header>
 
     <nav class="admin__tabs">
-      <button type="button" :class="{ on: tab === 'photos' }" @click="loadTab('photos')">
-        {{ t('photos') }}<template v-if="pendingCount"> ({{ pendingCount }})</template>
-      </button>
-      <button type="button" :class="{ on: tab === 'users' }" @click="loadTab('users')">{{ t('users') }}</button>
-      <button type="button" :class="{ on: tab === 'news' }" @click="loadTab('news')">{{ t('news') }}</button>
-      <button type="button" :class="{ on: tab === 'pages' }" @click="loadTab('pages')">{{ t('pages') }}</button>
-      <button type="button" :class="{ on: tab === 'feedback' }" @click="loadTab('feedback')">
-        {{ t('feedback') }}<template v-if="feedbackUnreadCount"> ({{ feedbackUnreadCount }})</template>
+      <button
+        v-for="item in tabs"
+        :key="item.id"
+        type="button"
+        class="admin__tab"
+        :class="{ on: tab === item.id }"
+        @click="loadTab(item.id)"
+      >
+        <span class="admin__tab-icon" aria-hidden="true">{{ item.icon }}</span>
+        <span>{{ item.label }}</span>
+        <span v-if="item.badge" class="admin__tab-badge">{{ item.badge }}</span>
       </button>
     </nav>
 
+    <p v-if="tabDescription" class="admin__desc">{{ tabDescription }}</p>
+
     <div v-if="tab === 'photos'" class="admin__subtabs">
-      <button type="button" :class="{ on: photoFilter === 'pending' }" @click="setPhotoFilter('pending')">{{ t('pending') }}</button>
-      <button type="button" :class="{ on: photoFilter === 'published' }" @click="setPhotoFilter('published')">{{ t('published') }}</button>
-      <button type="button" :class="{ on: photoFilter === 'review' }" @click="setPhotoFilter('review')">{{ t('adminNeedsReview') }}</button>
-      <button type="button" :class="{ on: photoFilter === 'all' }" @click="setPhotoFilter('all')">{{ t('allPhotos') }}</button>
+      <button type="button" class="admin__chip" :class="{ on: photoFilter === 'pending' }" @click="setPhotoFilter('pending')">{{ t('pending') }}</button>
+      <button type="button" class="admin__chip" :class="{ on: photoFilter === 'published' }" @click="setPhotoFilter('published')">{{ t('published') }}</button>
+      <button type="button" class="admin__chip" :class="{ on: photoFilter === 'review' }" @click="setPhotoFilter('review')">{{ t('adminNeedsReview') }}</button>
+      <button type="button" class="admin__chip" :class="{ on: photoFilter === 'all' }" @click="setPhotoFilter('all')">{{ t('allPhotos') }}</button>
     </div>
 
     <div v-if="tab === 'users'" class="admin__bar">
@@ -544,29 +532,6 @@ watch([hasMore, loading], async () => {
         <button v-if="newsForm.id" type="button" class="admin__btn admin__btn--danger" :disabled="!!busyId" @click="deleteNewsItem">
           {{ t('adminDelete') }}
         </button>
-      </div>
-    </section>
-
-    <section v-if="pageEditorOpen" class="admin__box admin__form">
-      <h2>{{ t('adminEditPage') }}</h2>
-      <label class="admin__field">
-        <span>{{ t('adminNewsTitle') }}</span>
-        <input v-model="pageForm.title" class="admin__input" type="text" required />
-      </label>
-      <label class="admin__field">
-        <span>{{ t('adminPageAlias') }}</span>
-        <input v-model="pageForm.alias" class="admin__input" type="text" required />
-      </label>
-      <label class="admin__field">
-        <span>{{ t('adminPageContent') }}</span>
-        <textarea v-model="pageForm.content" class="admin__input admin__textarea" rows="14" />
-      </label>
-      <div class="admin__form-actions">
-        <button type="button" class="admin__btn" :disabled="!!busyId" @click="savePage">{{ t('save') }}</button>
-        <button type="button" class="admin__btn admin__btn--plain" @click="pageEditorOpen = false">{{ t('cancel') }}</button>
-        <a v-if="pageForm.alias" class="admin__link" :href="pagePublicPath(pageForm.alias)" target="_blank" rel="noopener">
-          {{ t('adminOpenOnSite') }}
-        </a>
       </div>
     </section>
 
@@ -610,26 +575,20 @@ watch([hasMore, loading], async () => {
               </td>
               <td>{{ row.year }}</td>
               <td class="admin__actions">
-                <template v-if="!row.published">
-                  <button type="button" class="admin__link" :disabled="busyId === row.id" @click="approvePhoto(row, true)">
+                <div class="admin__act-group">
+                  <button v-if="!row.published" type="button" class="admin__act admin__act--ok" :disabled="busyId === row.id" @click="approvePhoto(row, true)">
                     {{ t('approve') }}
                   </button>
-                </template>
-                <template v-else>
-                  <button type="button" class="admin__link" :disabled="busyId === row.id" @click="approvePhoto(row, false)">
+                  <button v-else type="button" class="admin__act" :disabled="busyId === row.id" @click="approvePhoto(row, false)">
                     {{ t('unpublish') }}
                   </button>
-                </template>
-                <template v-if="row.needs_location_review">
-                  ·
-                  <button type="button" class="admin__link admin__link--review" :disabled="busyId === row.id" @click="markLocated(row)">
+                  <button v-if="row.needs_location_review" type="button" class="admin__act admin__act--review" :disabled="busyId === row.id" @click="markLocated(row)">
                     {{ t('markLocated') }}
                   </button>
-                </template>
-                ·
-                <button type="button" class="admin__link admin__link--danger" :disabled="busyId === row.id" @click="deletePhoto(row)">
-                  {{ t('adminDelete') }}
-                </button>
+                  <button type="button" class="admin__act admin__act--danger" :disabled="busyId === row.id" @click="deletePhoto(row)">
+                    {{ t('adminDelete') }}
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>
@@ -670,9 +629,10 @@ watch([hasMore, loading], async () => {
                 </select>
               </td>
               <td>
-                <button type="button" class="admin__link" @click="toggleUserDetail(row)">{{ t('adminEdit') }}</button>
-                ·
-                <button type="button" class="admin__link" @click="toggleUserEditor(row)">{{ t('changePassword') }}</button>
+                <div class="admin__act-group">
+                  <button type="button" class="admin__act" @click="toggleUserDetail(row)">{{ t('adminEdit') }}</button>
+                  <button type="button" class="admin__act" @click="toggleUserEditor(row)">{{ t('changePassword') }}</button>
+                </div>
               </td>
             </template>
 
@@ -681,8 +641,16 @@ watch([hasMore, loading], async () => {
                 <button type="button" class="admin__link admin__link--title" @click="openNewsEditor(row)">{{ row.title }}</button>
                 <div class="admin__muted">{{ formatDate(row.date, currentLanguage) }}</div>
               </td>
-              <td>{{ row.published ? t('published') : t('pending') }}</td>
-              <td></td>
+              <td>
+                <span class="admin__badge" :class="row.published ? 'admin__badge--ok' : 'admin__badge--wait'">
+                  {{ row.published ? t('published') : t('pending') }}
+                </span>
+              </td>
+              <td>
+                <div class="admin__act-group">
+                  <button type="button" class="admin__act" @click="openNewsEditor(row)">{{ t('adminEdit') }}</button>
+                </div>
+              </td>
             </template>
 
             <template v-else-if="tab === 'feedback'">
@@ -697,33 +665,23 @@ watch([hasMore, loading], async () => {
                 <p v-if="feedbackDetailId === row.id" class="admin__feedback-body">{{ row.content }}</p>
                 <p v-else class="admin__feedback-preview">{{ row.content }}</p>
               </td>
-              <td>{{ row.read ? '—' : t('pending') }}</td>
+              <td>
+                <span v-if="!row.read" class="admin__badge admin__badge--wait">{{ t('pending') }}</span>
+                <span v-else class="admin__muted">—</span>
+              </td>
               <td class="admin__actions">
-                <a class="admin__link" :href="feedbackMailto(row)">{{ t('adminFeedbackReply') }}</a>
-                <template v-if="!row.read">
-                  ·
-                  <button type="button" class="admin__link" :disabled="busyId === row.id" @click="markFeedbackRead(row)">
+                <div class="admin__act-group">
+                  <a class="admin__act admin__act--ok" :href="feedbackMailto(row)">{{ t('adminFeedbackReply') }}</a>
+                  <button v-if="!row.read" type="button" class="admin__act" :disabled="busyId === row.id" @click="markFeedbackRead(row)">
                     {{ t('adminFeedbackMarkRead') }}
                   </button>
-                </template>
-                ·
-                <button type="button" class="admin__link admin__link--danger" :disabled="busyId === row.id" @click="deleteFeedback(row)">
-                  {{ t('adminDelete') }}
-                </button>
+                  <button type="button" class="admin__act admin__act--danger" :disabled="busyId === row.id" @click="deleteFeedback(row)">
+                    {{ t('adminDelete') }}
+                  </button>
+                </div>
               </td>
             </template>
 
-            <template v-else>
-              <td colspan="2">
-                <strong>{{ row.title }}</strong>
-                <div class="admin__muted">/{{ row.alias }}</div>
-              </td>
-              <td colspan="2">
-                <button type="button" class="admin__link" @click="openPageEditor(row)">{{ t('adminEdit') }}</button>
-                ·
-                <a class="admin__link" :href="pagePublicPath(row.alias)" target="_blank" rel="noopener">{{ t('adminOpenOnSite') }}</a>
-              </td>
-            </template>
           </tr>
           </tbody>
         </table>
@@ -762,41 +720,141 @@ watch([hasMore, loading], async () => {
   }
 }
 
-.admin__stats {
-  margin: 0;
-  color: $muted;
-  font-size: 13px;
-}
-
-.admin__tabs,
-.admin__subtabs {
+.admin__stat-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 16px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin: 0;
+}
 
-  button {
-    padding: 0;
-    border: 0;
-    background: none;
+.admin__stat-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 78px;
+  padding: 8px 12px;
+  border: 1px solid $line;
+  border-radius: $radius-md;
+  background: $surface-soft;
+
+  strong {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  span {
     color: $muted;
-    font: inherit;
-    font-size: 14px;
-    cursor: pointer;
+    font-size: 11px;
+    font-weight: 500;
+  }
 
-    &.on {
-      color: $ink;
-      font-weight: 600;
-      text-decoration: underline;
-      text-underline-offset: 3px;
+  &--accent {
+    border-color: rgba($accent, 0.35);
+    background: rgba($accent, 0.08);
+
+    strong {
+      color: $accent-dark;
     }
   }
 }
 
+.admin__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.admin__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border: 1px solid $line;
+  border-radius: $radius-pill;
+  background: $surface;
+  color: $muted;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  @include interactive((background, color, border-color, box-shadow));
+
+  &:hover {
+    color: $ink;
+    border-color: rgba($primary, 0.4);
+  }
+
+  &.on {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(135deg, $primary, $primary-dark);
+    box-shadow: 0 6px 14px rgba($primary, 0.26);
+  }
+}
+
+.admin__tab-icon {
+  font-size: 15px;
+  line-height: 1;
+}
+
+.admin__tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: $radius-pill;
+  background: $accent;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+
+  .admin__tab.on & {
+    background: rgba(255, 255, 255, 0.28);
+  }
+}
+
+.admin__desc {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-left: 3px solid rgba($primary, 0.5);
+  border-radius: 0 $radius-sm $radius-sm 0;
+  background: $primary-soft;
+  color: $primary-dark;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .admin__subtabs {
-  margin-top: -4px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid $line;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.admin__chip {
+  padding: 6px 13px;
+  border: 1px solid $line;
+  border-radius: $radius-pill;
+  background: $surface;
+  color: $muted;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  @include interactive((background, color, border-color));
+
+  &:hover {
+    color: $ink;
+  }
+
+  &.on {
+    color: $primary-dark;
+    border-color: rgba($primary, 0.5);
+    background: $primary-soft;
+  }
 }
 
 .admin__bar {
@@ -878,8 +936,85 @@ watch([hasMore, loading], async () => {
 }
 
 .admin__actions {
-  white-space: nowrap;
   font-size: 13px;
+}
+
+.admin__act-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.admin__act {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 11px;
+  border: 1px solid $line;
+  border-radius: $radius-pill;
+  background: $surface;
+  color: $ink;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  @include interactive((background, color, border-color));
+
+  &:hover {
+    border-color: rgba($primary, 0.45);
+    background: $primary-soft;
+  }
+
+  &--ok {
+    color: $success;
+    border-color: rgba($success, 0.4);
+
+    &:hover {
+      background: rgba($success, 0.1);
+    }
+  }
+
+  &--review {
+    color: $review-color-dark;
+    border-color: rgba($review-color, 0.45);
+
+    &:hover {
+      background: rgba($review-color, 0.1);
+    }
+  }
+
+  &--danger {
+    color: #b3261e;
+    border-color: rgba(#b3261e, 0.35);
+
+    &:hover {
+      background: rgba(#b3261e, 0.08);
+    }
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.admin__badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: $radius-pill;
+  font-size: 11px;
+  font-weight: 600;
+
+  &--ok {
+    color: $success;
+    background: rgba($success, 0.12);
+  }
+
+  &--wait {
+    color: $accent-dark;
+    background: rgba($accent, 0.14);
+  }
 }
 
 .admin__muted {
