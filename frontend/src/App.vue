@@ -1080,21 +1080,32 @@ onBeforeUnmount(() => {
   right: 12px;
   width: 32px;
   height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border: 1px solid $line;
   border-radius: 50%;
   color: $muted;
   background: $surface-soft;
   cursor: pointer;
   padding: 0;
-  line-height: 1;
+
+  // Cross drawn from two centered bars — always pixel-perfect, regardless of font metrics.
+  &::before,
+  &::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14px;
+    height: 1.7px;
+    border-radius: 2px;
+    background: currentColor;
+  }
 
   &::before {
-    content: "×";
-    font-size: 22px;
-    line-height: 1;
+    transform: translate(-50%, -50%) rotate(45deg);
+  }
+
+  &::after {
+    transform: translate(-50%, -50%) rotate(-45deg);
   }
 
   &:hover {

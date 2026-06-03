@@ -1021,7 +1021,8 @@
 
   .facebook-comment,
   .check-line {
-    color: #c5cad6;
+    // base `.check-line` sets color with !important, so we must match it here
+    color: #c5cad6 !important;
   }
 
   // ---------- Admin ---------------------------------------------
