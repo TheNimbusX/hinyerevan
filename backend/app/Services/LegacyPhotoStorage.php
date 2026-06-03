@@ -478,6 +478,66 @@ class LegacyPhotoStorage
         }
     }
 
+    /** Re-fetch a Facebook avatar at most this often (their lookaside URLs rotate, pics rarely change). */
+    private const FB_AVATAR_TTL_DAYS = 7;
+
+    /**
+     * Download and locally cache a Facebook commenter avatar so it survives the
+     * expiry baked into platform-lookaside URLs. Keyed by the stable FB user id,
+     * so repeated syncs reuse one file. Returns the local file id (served via
+     * /api/photos/file/users/{id}) or null on failure.
+     */
+    public function storeFacebookAvatar(string $url, string $facebookUserId): ?string
+    {
+        $url = trim($url);
+        $facebookUserId = trim($facebookUserId);
+        if ($url === '' || $facebookUserId === '' || ! filter_var($url, FILTER_VALIDATE_URL)) {
+            return null;
+        }
+
+        $fileId = 'fb' . md5($facebookUserId);
+        $target = $this->absolutePath('users', $fileId);
+
+        // Reuse a recent copy instead of re-downloading on every sync.
+        if (is_file($target) && filesize($target) > 0
+            && (time() - filemtime($target)) < self::FB_AVATAR_TTL_DAYS * 86400) {
+            return $fileId;
+        }
+
+        try {
+            // Direct fetch — the OAuth proxy is for Yandex and must not touch fbsbx.com.
+            $response = Http::timeout(12)->get($url);
+            if (! $response->ok()) {
+                return null;
+            }
+
+            $body = $response->body();
+            if (strlen($body) < 200) {
+                return null;
+            }
+
+            $tmp = tempnam(sys_get_temp_dir(), 'fbavatar_');
+            if ($tmp === false) {
+                return null;
+            }
+
+            file_put_contents($tmp, $body);
+            if (@getimagesize($tmp) === false) {
+                @unlink($tmp);
+
+                return null;
+            }
+
+            File::ensureDirectoryExists(dirname($target));
+            $this->resize($tmp, $target, 256, 256, true);
+            @unlink($tmp);
+
+            return is_file($target) && filesize($target) > 0 ? $fileId : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
     private function resize(string $source, string $target, int $maxWidth, int $maxHeight, bool $crop = false): void
     {
         [$width, $height, $type] = getimagesize($source);

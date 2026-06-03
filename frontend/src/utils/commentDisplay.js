@@ -1,4 +1,4 @@
-import { safeAvatarUrl } from '../api'
+import { imageUrl, safeAvatarUrl } from '../api'
 
 export function commentInitials(name) {
   const parts = String(name || '')
@@ -17,7 +17,9 @@ export function commentAvatarUrl(item) {
   if (!item) return ''
   if (item.source === 'facebook') {
     const picture = item.author?.picture
-    return typeof picture === 'string' && picture ? picture : ''
+    if (typeof picture !== 'string' || !picture) return ''
+    // Locally cached avatars are stored as a relative /api path.
+    return picture.startsWith('/') ? imageUrl(picture) : picture
   }
   return safeAvatarUrl(item.author?.photo)
 }

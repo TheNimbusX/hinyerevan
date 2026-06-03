@@ -6,7 +6,7 @@ $app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
 
 $g = app(App\Services\Facebook\FacebookGraphClient::class);
 $id = trim((string) config('services.facebook.page_id'));
-$tok = trim((string) config('services.facebook.page_access_token'));
+$tok = trim((string) (getenv('FBTOK') ?: config('services.facebook.page_access_token')));
 
 echo "page_id=$id token_len=" . strlen($tok) . PHP_EOL;
 

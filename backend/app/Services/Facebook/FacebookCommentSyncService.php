@@ -5,6 +5,7 @@ namespace App\Services\Facebook;
 use App\Models\Comment;
 use App\Models\Photo;
 use App\Models\PhotoFacebookComment;
+use App\Services\LegacyPhotoStorage;
 use App\Services\TranslationService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -12,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class FacebookCommentSyncService
 {
     /** Stream returns flat list; parent must be requested as `parent` (not parent{id}). */
-    private const COMMENT_FIELDS = 'id,message,created_time,from{name,picture},parent';
+    private const COMMENT_FIELDS = 'id,message,created_time,from{id,name,picture},parent';
 
     /** Avoid hammering Graph when one page view touches several endpoints. */
     private const THROTTLE_SECONDS = 15;
@@ -22,6 +23,7 @@ class FacebookCommentSyncService
 
     public function __construct(
         private readonly FacebookGraphClient $graph,
+        private readonly LegacyPhotoStorage $photoStorage,
     ) {}
 
     /**
@@ -202,7 +204,7 @@ class FacebookCommentSyncService
                 [
                     'parent_facebook_comment_id' => $parentId !== '' ? $parentId : null,
                     'author_name' => $authorName !== '' ? $authorName : 'Facebook',
-                    'author_picture' => $this->extractPictureUrl($row['from'] ?? null),
+                    'author_picture' => $this->resolveAuthorPicture($row['from'] ?? null),
                     'body' => $message,
                     'commented_at' => isset($row['created_time']) ? $row['created_time'] : null,
                     'synced_at' => now(),
@@ -231,6 +233,31 @@ class FacebookCommentSyncService
     }
 
     /**
+     * Resolve the avatar to persist: prefer a locally cached copy (so it survives
+     * the lookaside URL expiry), falling back to the raw remote URL if the
+     * download fails. Returns null for default silhouettes (frontend shows initials).
+     *
+     * @param  array<string, mixed>|null  $from
+     */
+    private function resolveAuthorPicture(?array $from): ?string
+    {
+        $remote = $this->extractPictureUrl($from);
+        if ($remote === null) {
+            return null;
+        }
+
+        $facebookUserId = is_array($from) ? trim((string) ($from['id'] ?? '')) : '';
+        if ($facebookUserId !== '') {
+            $fileId = $this->photoStorage->storeFacebookAvatar($remote, $facebookUserId);
+            if ($fileId !== null) {
+                return '/api/photos/file/users/' . $fileId;
+            }
+        }
+
+        return $remote;
+    }
+
+    /**
      * @param  array<string, mixed>|null  $from
      */
     private function extractPictureUrl(?array $from): ?string
@@ -245,6 +272,11 @@ class FacebookCommentSyncService
         }
 
         if (! is_array($picture)) {
+            return null;
+        }
+
+        // A default silhouette is not worth caching — let the UI render initials.
+        if (($picture['data']['is_silhouette'] ?? false) === true) {
             return null;
         }
 
