@@ -11,8 +11,8 @@ import { applyMapTileLayer, getMapTileLayer } from '../utils/mapTiles'
 import { getDirectionIcon } from '../utils/mapMarkerIcons'
 import { setupLeaflet } from '../utils/leafletSetup'
 import { directionLabel, formatDateTime } from '../utils/locale'
-import { commentDisplayName } from '../utils/commentDisplay'
 import { buildCommentPostBody } from '../utils/commentPost'
+import { appendCommentToThreads } from '../utils/commentTree'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import PhotoCommentThread from '../components/PhotoCommentThread.vue'
 import { setPageMeta } from '../utils/seo'
@@ -25,7 +25,9 @@ const route = useRoute()
 const photo = ref(null)
 const detailImageSrc = ref('')
 const comment = ref('')
-const replyTo = ref(null)
+const commentSubmitting = ref(false)
+const commentPostError = ref('')
+const replyResetKey = ref(0)
 const error = ref('')
 const loading = ref(true)
 const isFavorite = ref(false)
@@ -49,6 +51,16 @@ const addedLabel = computed(() =>
 )
 const displayLikes = computed(() => photo.value?.likes_total ?? photo.value?.likes_count ?? 0)
 const siteLikes = computed(() => photo.value?.site_likes_count ?? photo.value?.likes_count ?? 0)
+const siteOnlyLikes = computed(() => Math.max(0, displayLikes.value - (photo.value?.facebook?.likes || 0)))
+
+async function fetchPhotoDetail(id) {
+  const path = `/photos/${id}`
+  if (getToken()) {
+    clearApiCacheForPath(path)
+    return api(path, { translateScope: 'main' })
+  }
+  return localizedApi(path, { ttl: 30 * 60 * 1000 })
+}
 
 function openLightbox() {
   lightboxOpen.value = true
@@ -112,7 +124,7 @@ async function load({ soft = false } = {}) {
   }
 
   try {
-    const data = await localizedApi(`/photos/${route.params.id}`, { ttl: 30 * 60 * 1000 })
+    const data = await fetchPhotoDetail(route.params.id)
     photo.value = data
     isFavorite.value = Boolean(photo.value?.is_favorite)
     detailImageSrc.value = imageUrl(photo.value.images.large || photo.value.images.original || photo.value.images.thumb)
@@ -242,11 +254,8 @@ async function toggleFavorite() {
     const res = previous
       ? await api(`/photos/${photo.value.id}/favorite`, { method: 'DELETE' })
       : await api(`/photos/${photo.value.id}/favorite`, { method: 'POST' })
-    if (res?.likes_total != null) {
-      photo.value.likes_total = res.likes_total
-      photo.value.likes_count = res.likes_count ?? photo.value.likes_count
-      photo.value.site_likes_count = res.site_likes_count ?? photo.value.site_likes_count
-    }
+    applyLikeCounts(res)
+    clearApiCacheForPath(`/photos/${photo.value.id}`)
   } catch (e) {
     isFavorite.value = previous
     const undo = -delta
@@ -318,43 +327,50 @@ function promptLogin() {
   window.dispatchEvent(new CustomEvent('hinyerevan:open-auth', { detail: { mode: 'login' } }))
 }
 
-function setReplyTarget(item) {
-  replyTo.value = item
+function applyLikeCounts(res) {
+  if (!photo.value || !res) return
+  if (res.likes_total != null) photo.value.likes_total = res.likes_total
+  if (res.likes_count != null) photo.value.likes_count = res.likes_count
+  if (res.site_likes_count != null) photo.value.site_likes_count = res.site_likes_count
 }
 
-function cancelReply() {
-  replyTo.value = null
-}
-
-const commentPlaceholder = computed(() =>
-  replyTo.value ? t('writeReply') : t('writeComment'),
-)
-
-const replyToLabel = computed(() =>
-  replyTo.value ? t('replyingTo', { name: commentDisplayName(replyTo.value, t) }) : '',
-)
-
-async function submitComment() {
-  error.value = ''
+async function postComment({ replyTo, body }) {
+  commentPostError.value = ''
   if (!isAuthenticated.value) {
     promptLogin()
     return
   }
+  commentSubmitting.value = true
   try {
-    await api(`/photos/${route.params.id}/comments`, {
+    const created = await api(`/photos/${route.params.id}/comments`, {
       method: 'POST',
-      body: buildCommentPostBody(comment.value, replyTo.value),
+      body: buildCommentPostBody(body, replyTo),
     })
-    comment.value = ''
-    replyTo.value = null
-    await load()
+    const threads = appendCommentToThreads(photo.value.comments || [], created, replyTo)
+    photo.value = {
+      ...photo.value,
+      comments: threads,
+      comments_count: (photo.value.comments_count || 0) + 1,
+    }
+    clearApiCacheForPath(`/photos/${route.params.id}/comments`)
+    replyResetKey.value += 1
+    return true
   } catch (event) {
     if (event.status === 401) {
       promptLogin()
-      return
+      return false
     }
-    error.value = event.message
+    commentPostError.value = event.message
+    return false
+  } finally {
+    commentSubmitting.value = false
   }
+}
+
+async function submitComment() {
+  error.value = ''
+  const ok = await postComment({ replyTo: null, body: comment.value })
+  if (ok) comment.value = ''
 }
 </script>
 
@@ -433,7 +449,12 @@ async function submitComment() {
         <div class="detail-stats">
           <span class="like-pill">
             <LikeIcon /> {{ displayLikes }} {{ t('likes') }}
-            <small v-if="photo.facebook?.likes" class="like-pill__fb">({{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})</small>
+            <small v-if="photo.facebook?.likes" class="like-pill__fb">
+              <template v-if="siteOnlyLikes > 0">
+                ({{ siteOnlyLikes }} + {{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})
+              </template>
+              <template v-else>({{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})</template>
+            </small>
           </span>
           <span class="views-pill">
             {{ photo.views }} {{ t('views') }}
@@ -523,15 +544,9 @@ async function submitComment() {
 
   <section v-if="photo" class="panel">
     <h2>{{ t('comments') }}</h2>
-    <form v-if="isAuthenticated" class="comment-form" @submit.prevent="submitComment">
-      <p v-if="replyTo" class="comment-reply-banner">
-        <span>{{ replyToLabel }}</span>
-        <button type="button" class="comment-reply-banner__cancel" @click="cancelReply">
-          {{ t('cancelReply') }}
-        </button>
-      </p>
-      <textarea v-model="comment" :placeholder="commentPlaceholder" required />
-      <button class="button" type="submit">{{ t('postComment') }}</button>
+    <form v-if="isAuthenticated" class="comment-form comment-form--root" @submit.prevent="submitComment">
+      <textarea v-model="comment" :placeholder="t('writeComment')" :disabled="commentSubmitting" required />
+      <button class="button" type="submit" :disabled="commentSubmitting">{{ t('postComment') }}</button>
       <p v-if="error" class="error">{{ error }}</p>
     </form>
     <button v-else class="button comment-login-prompt" type="button" @click="promptLogin">
@@ -544,8 +559,10 @@ async function submitComment() {
       :t="t"
       :lang="currentLanguage"
       :is-authenticated="isAuthenticated"
-      :reply-to-id="replyTo?.id ?? null"
-      @reply="setReplyTarget"
+      :submitting="commentSubmitting"
+      :reply-reset-key="replyResetKey"
+      :post-error="commentPostError"
+      @submit="postComment"
     />
   </section>
 

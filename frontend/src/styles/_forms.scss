@@ -7,6 +7,16 @@
   gap: 10px;
 }
 
+.comment-form--root {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+
+  textarea {
+    min-height: 72px;
+  }
+}
+
 .filter-bar {
   display: flex;
   flex-wrap: wrap;

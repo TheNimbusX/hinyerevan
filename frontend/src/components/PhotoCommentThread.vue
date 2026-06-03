@@ -1,11 +1,13 @@
 <script setup>
+import { ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
+import FacebookMarkIcon from './FacebookMarkIcon.vue'
 import { formatCommentBody } from '../utils/commentBody'
 import { commentAvatarUrl, commentDisplayName, commentInitials } from '../utils/commentDisplay'
 import { formatDateTime } from '../utils/locale'
 import { userProfilePath } from '../utils/user'
 
-defineProps({
+const props = defineProps({
   threads: {
     type: Array,
     default: () => [],
@@ -22,25 +24,74 @@ defineProps({
     type: Boolean,
     default: false,
   },
-  replyToId: {
-    type: [String, Number],
-    default: null,
-  },
   nested: {
     type: Boolean,
     default: false,
   },
+  submitting: {
+    type: Boolean,
+    default: false,
+  },
+  replyResetKey: {
+    type: Number,
+    default: 0,
+  },
+  postError: {
+    type: String,
+    default: '',
+  },
 })
 
-const emit = defineEmits(['reply'])
+const emit = defineEmits(['submit'])
+
+const activeReplyId = ref(null)
+const replyDraft = ref('')
+const inlineError = ref('')
+
+watch(
+  () => props.replyResetKey,
+  () => {
+    activeReplyId.value = null
+    replyDraft.value = ''
+    inlineError.value = ''
+  },
+)
 
 function canReply(item) {
   return item.source === 'site' || item.source === 'facebook'
 }
 
-function onReply(item) {
-  emit('reply', item)
+function toggleReply(item) {
+  if (!props.isAuthenticated) return
+  if (activeReplyId.value === item.id) {
+    activeReplyId.value = null
+    replyDraft.value = ''
+    return
+  }
+  activeReplyId.value = item.id
+  replyDraft.value = ''
+  inlineError.value = ''
 }
+
+function cancelInlineReply() {
+  activeReplyId.value = null
+  replyDraft.value = ''
+  inlineError.value = ''
+}
+
+function submitInline(item) {
+  const body = replyDraft.value.trim()
+  if (!body || props.submitting) return
+  inlineError.value = ''
+  emit('submit', { replyTo: item, body })
+}
+
+watch(
+  () => props.postError,
+  (message) => {
+    if (message) inlineError.value = message
+  },
+)
 </script>
 
 <template>
@@ -58,7 +109,7 @@ function onReply(item) {
             loading="lazy"
           />
           <span
-            v-if="!commentAvatarUrl(item)"
+            v-else
             class="comment-row__initials"
             :class="{ 'comment-row__initials--fb': item.source === 'facebook' }"
           >
@@ -77,7 +128,13 @@ function onReply(item) {
                 {{ commentDisplayName(item, t) }}
               </RouterLink>
               <span v-else class="comment-row__author">{{ commentDisplayName(item, t) }}</span>
-              <span v-if="item.source === 'facebook'" class="comment-row__badge">{{ t('facebookCommentBadge') }}</span>
+              <span
+                v-if="item.source === 'facebook'"
+                class="comment-row__fb-icon"
+                :title="t('facebookCommentBadge')"
+              >
+                <FacebookMarkIcon :size="14" />
+              </span>
               <time v-if="item.datetime" class="comment-row__time" :datetime="item.datetime">
                 {{ formatDateTime(item.datetime, lang) }}
               </time>
@@ -86,15 +143,38 @@ function onReply(item) {
               v-if="canReply(item) && isAuthenticated"
               type="button"
               class="comment-row__reply-btn"
-              :aria-pressed="replyToId === item.id"
-              @click="onReply(item)"
+              :aria-expanded="activeReplyId === item.id"
+              @click="toggleReply(item)"
             >
-              {{ t('reply') }}
+              {{ activeReplyId === item.id ? t('cancelReply') : t('reply') }}
             </button>
           </header>
           <p class="comment-row__body">{{ formatCommentBody(item.body) }}</p>
         </div>
       </article>
+
+      <form
+        v-if="activeReplyId === item.id && isAuthenticated"
+        class="comment-inline-reply"
+        @submit.prevent="submitInline(item)"
+      >
+        <textarea
+          v-model="replyDraft"
+          rows="2"
+          :placeholder="t('writeReply')"
+          :disabled="submitting"
+          required
+        />
+        <div class="comment-inline-reply__actions">
+          <button class="button" type="submit" :disabled="submitting || !replyDraft.trim()">
+            {{ t('postComment') }}
+          </button>
+          <button type="button" class="link-button" :disabled="submitting" @click="cancelInlineReply">
+            {{ t('cancel') }}
+          </button>
+        </div>
+        <p v-if="inlineError" class="error comment-inline-reply__error">{{ inlineError }}</p>
+      </form>
 
       <PhotoCommentThread
         v-if="item.replies?.length"
@@ -102,9 +182,11 @@ function onReply(item) {
         :t="t"
         :lang="lang"
         :is-authenticated="isAuthenticated"
-        :reply-to-id="replyToId"
+        :submitting="submitting"
+        :reply-reset-key="replyResetKey"
+        :post-error="postError"
         nested
-        @reply="emit('reply', $event)"
+        @submit="emit('submit', $event)"
       />
     </li>
   </ul>
@@ -116,32 +198,32 @@ function onReply(item) {
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 14px;
+  gap: 12px;
 
   &--nested {
-    margin-top: 10px;
-    margin-left: 20px;
-    padding-left: 14px;
-    border-left: 2px solid rgba(0, 0, 0, 0.08);
-    gap: 12px;
+    margin-top: 8px;
+    margin-left: 16px;
+    padding-left: 12px;
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    gap: 10px;
   }
 }
 
 .comment-row {
   display: grid;
-  grid-template-columns: 40px minmax(0, 1fr);
-  gap: 10px 12px;
+  grid-template-columns: 36px minmax(0, 1fr);
+  gap: 8px 10px;
   align-items: start;
 
   &--facebook .comment-row__main {
-    background: rgba(24, 119, 242, 0.06);
-    border: 1px solid rgba(24, 119, 242, 0.12);
+    background: rgba(24, 119, 242, 0.05);
+    border: 1px solid rgba(24, 119, 242, 0.1);
   }
 }
 
 .comment-row__avatar {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   overflow: hidden;
   background: #e4e6eb;
@@ -160,7 +242,7 @@ function onReply(item) {
   place-items: center;
   width: 100%;
   height: 100%;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
   color: #fff;
   background: linear-gradient(145deg, #6b7280, #4b5563);
@@ -172,9 +254,9 @@ function onReply(item) {
 
 .comment-row__main {
   min-width: 0;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.04);
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.035);
 }
 
 .comment-row__head {
@@ -182,20 +264,20 @@ function onReply(item) {
   align-items: flex-start;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .comment-row__meta {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 6px;
   min-width: 0;
 }
 
 .comment-row__author {
-  font-weight: 700;
-  font-size: 14px;
+  font-weight: 600;
+  font-size: 13px;
   color: inherit;
   text-decoration: none;
 
@@ -204,19 +286,13 @@ function onReply(item) {
   }
 }
 
-.comment-row__badge {
-  padding: 1px 6px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: #1877f2;
-  background: rgba(24, 119, 242, 0.14);
+.comment-row__fb-icon {
+  display: inline-flex;
+  line-height: 0;
 }
 
 .comment-row__time {
-  font-size: 12px;
+  font-size: 11px;
   color: #65676b;
 }
 
@@ -233,10 +309,6 @@ function onReply(item) {
   &:hover {
     text-decoration: underline;
   }
-
-  &[aria-pressed='true'] {
-    text-decoration: underline;
-  }
 }
 
 .comment-row__body {
@@ -245,5 +317,57 @@ function onReply(item) {
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
+}
+
+.comment-inline-reply {
+  margin: 6px 0 0 46px;
+  display: grid;
+  gap: 8px;
+
+  textarea {
+    width: 100%;
+    min-height: 56px;
+    padding: 8px 10px;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 14px;
+    resize: vertical;
+    background: transparent;
+    color: inherit;
+  }
+}
+
+.comment-inline-reply__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.comment-inline-reply__error {
+  margin: 0;
+  font-size: 13px;
+}
+</style>
+
+<style lang="scss">
+[data-theme='dark'] {
+  .comment-thread--nested {
+    border-left-color: rgba(255, 255, 255, 0.12);
+  }
+
+  .comment-row__main {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .comment-row--facebook .comment-row__main {
+    background: rgba(24, 119, 242, 0.12);
+    border-color: rgba(24, 119, 242, 0.22);
+  }
+
+  .comment-inline-reply textarea {
+    border-color: rgba(255, 255, 255, 0.14);
+  }
 }
 </style>

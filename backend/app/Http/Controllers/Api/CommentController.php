@@ -114,10 +114,11 @@ class CommentController extends Controller
 
         $comment->load('author:id,unique,uid,first_name,last_name,photo,identity,email');
 
-        return response()->json(
-            CommentPresenter::serializeFlat(collect([$comment]), $this->translator, $this->lang($request))[0],
-            201,
-        );
+        $payload = CommentPresenter::serializeFlat(collect([$comment]), $this->translator, $this->lang($request))[0];
+        $payload['source'] = 'site';
+        $payload['replies'] = [];
+
+        return response()->json($payload, 201);
     }
 
     public function newsIndex(Request $request, int $news)

@@ -4,8 +4,8 @@ import { api, clearApiCacheForPath, getToken, imageUrl, localizedApi, safeAvatar
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel, formatDateTime } from '../utils/locale'
-import { commentDisplayName } from '../utils/commentDisplay'
 import { buildCommentPostBody } from '../utils/commentPost'
+import { appendCommentToThreads } from '../utils/commentTree'
 import { userDisplayName } from '../utils/user'
 import PhotoCommentThread from './PhotoCommentThread.vue'
 import DirectionMarker from './DirectionMarker.vue'
@@ -24,7 +24,9 @@ const loading = ref(false)
 const error = ref('')
 const comment = ref('')
 const commentError = ref('')
-const replyTo = ref(null)
+const commentSubmitting = ref(false)
+const commentPostError = ref('')
+const replyResetKey = ref(0)
 const isFavorite = ref(false)
 const favoritePending = ref(false)
 const shareNotice = ref('')
@@ -37,6 +39,16 @@ const photoDirectionLabel = computed(() => (photo.value ? directionLabel(photo.v
 const addedLabel = computed(() => (photo.value ? formatDateTime(photo.value.datetime, currentLanguage.value) : ''))
 const displayLikes = computed(() => photo.value?.likes_total ?? photo.value?.likes_count ?? 0)
 const siteLikes = computed(() => photo.value?.site_likes_count ?? photo.value?.likes_count ?? 0)
+const siteOnlyLikes = computed(() => Math.max(0, displayLikes.value - (photo.value?.facebook?.likes || 0)))
+
+async function fetchPhotoDetail(id) {
+  const path = `/photos/${id}`
+  if (getToken()) {
+    clearApiCacheForPath(path)
+    return api(path, { translateScope: 'main' })
+  }
+  return localizedApi(path, { ttl: 30 * 60 * 1000 })
+}
 
 async function refreshPhotoFacebookMeta(id) {
   const photoPath = `/photos/${id}`
@@ -79,10 +91,9 @@ async function load(id, { soft = false } = {}) {
     lightboxOpen.value = false
     comment.value = ''
     commentError.value = ''
-    replyTo.value = null
   }
   try {
-    const data = await localizedApi(`/photos/${id}`, { ttl: 30 * 60 * 1000 })
+    const data = await fetchPhotoDetail(id)
     photo.value = data
     isFavorite.value = Boolean(data?.is_favorite)
     detailImageSrc.value = imageUrl(data.images.large || data.images.original || data.images.thumb)
@@ -187,11 +198,10 @@ async function toggleFavorite() {
 
   try {
     const res = await api(`/photos/${photo.value.id}/favorite`, { method: previous ? 'DELETE' : 'POST' })
-    if (res?.likes_total != null) {
-      photo.value.likes_total = res.likes_total
-      photo.value.likes_count = res.likes_count ?? photo.value.likes_count
-      photo.value.site_likes_count = res.site_likes_count ?? photo.value.site_likes_count
-    }
+    if (res?.likes_total != null) photo.value.likes_total = res.likes_total
+    if (res?.likes_count != null) photo.value.likes_count = res.likes_count
+    if (res?.site_likes_count != null) photo.value.site_likes_count = res.site_likes_count
+    clearApiCacheForPath(`/photos/${photo.value.id}`)
   } catch (e) {
     isFavorite.value = previous
     const undo = -delta
@@ -233,36 +243,36 @@ async function sharePhoto() {
   }
 }
 
-function setReplyTarget(item) {
-  replyTo.value = item
+async function postComment({ replyTo, body }) {
+  commentPostError.value = ''
+  if (!photo.value) return false
+  commentSubmitting.value = true
+  try {
+    const created = await api(`/photos/${photo.value.id}/comments`, {
+      method: 'POST',
+      body: buildCommentPostBody(body, replyTo),
+    })
+    const threads = appendCommentToThreads(photo.value.comments || [], created, replyTo)
+    photo.value = {
+      ...photo.value,
+      comments: threads,
+      comments_count: (photo.value.comments_count || 0) + 1,
+    }
+    clearApiCacheForPath(`/photos/${photo.value.id}/comments`)
+    replyResetKey.value += 1
+    return true
+  } catch (e) {
+    commentPostError.value = e.message
+    return false
+  } finally {
+    commentSubmitting.value = false
+  }
 }
-
-function cancelReply() {
-  replyTo.value = null
-}
-
-const commentPlaceholder = computed(() =>
-  replyTo.value ? t('writeReply') : t('writeComment'),
-)
-
-const replyToLabel = computed(() =>
-  replyTo.value ? t('replyingTo', { name: commentDisplayName(replyTo.value, t) }) : '',
-)
 
 async function submitComment() {
   commentError.value = ''
-  if (!photo.value) return
-  try {
-    await api(`/photos/${photo.value.id}/comments`, {
-      method: 'POST',
-      body: buildCommentPostBody(comment.value, replyTo.value),
-    })
-    comment.value = ''
-    replyTo.value = null
-    await load(photo.value.id)
-  } catch (e) {
-    commentError.value = e.message
-  }
+  const ok = await postComment({ replyTo: null, body: comment.value })
+  if (ok) comment.value = ''
 }
 
 function handleKey(event) {
@@ -374,7 +384,10 @@ onBeforeUnmount(() => {
                     <span class="like-pill">
                       <LikeIcon /> {{ displayLikes }} {{ t('likes') }}
                       <small v-if="photo.facebook?.likes" class="like-pill__fb">
-                        ({{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})
+                        <template v-if="siteOnlyLikes > 0">
+                          ({{ siteOnlyLikes }} + {{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})
+                        </template>
+                        <template v-else>({{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})</template>
                       </small>
                     </span>
                     <span class="views-pill">
@@ -434,15 +447,9 @@ onBeforeUnmount(() => {
 
             <section class="sheet-comments">
               <h3>{{ t('comments') }}</h3>
-              <form v-if="isAuthenticated" class="comment-form" @submit.prevent="submitComment">
-                <p v-if="replyTo" class="comment-reply-banner">
-                  <span>{{ replyToLabel }}</span>
-                  <button type="button" class="comment-reply-banner__cancel" @click="cancelReply">
-                    {{ t('cancelReply') }}
-                  </button>
-                </p>
-                <textarea v-model="comment" :placeholder="commentPlaceholder" required />
-                <button class="button" type="submit">{{ t('postComment') }}</button>
+              <form v-if="isAuthenticated" class="comment-form comment-form--root" @submit.prevent="submitComment">
+                <textarea v-model="comment" :placeholder="t('writeComment')" :disabled="commentSubmitting" required />
+                <button class="button" type="submit" :disabled="commentSubmitting">{{ t('postComment') }}</button>
                 <p v-if="commentError" class="error">{{ commentError }}</p>
               </form>
               <p v-if="isAuthenticated" class="facebook-comments-note muted-hint">{{ t('facebookReplyOnSiteOnly') }}</p>
@@ -452,8 +459,10 @@ onBeforeUnmount(() => {
                 :t="t"
                 :lang="currentLanguage"
                 :is-authenticated="isAuthenticated"
-                :reply-to-id="replyTo?.id ?? null"
-                @reply="setReplyTarget"
+                :submitting="commentSubmitting"
+                :reply-reset-key="replyResetKey"
+                :post-error="commentPostError"
+                @submit="postComment"
               />
             </section>
           </template>

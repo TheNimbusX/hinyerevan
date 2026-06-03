@@ -243,6 +243,10 @@
   .filter-bar input,
   .stack-form input,
   .stack-form select,
+  .comment-form--root {
+    border-bottom-color: #2a313d;
+  }
+
   .comment-form textarea,
   .profile-form input {
     background: #1c212c;
