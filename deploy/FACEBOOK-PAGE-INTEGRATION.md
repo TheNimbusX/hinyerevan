@@ -4,6 +4,8 @@
 
 Приложение Meta (OAuth вход): `802992039416856` — см. также [`deploy/SSL-AND-OAUTH.md`](SSL-AND-OAUTH.md).
 
+**Тестовая страница (своя, без босса):** [`deploy/FACEBOOK-TEST-PAGE.md`](FACEBOOK-TEST-PAGE.md) — создание паблика, токен, `php artisan facebook:diagnose`.
+
 ## Что делает сайт
 
 | Функция | URL / API |
