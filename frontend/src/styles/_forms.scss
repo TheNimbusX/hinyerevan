@@ -23,11 +23,11 @@
   appearance: none;
   -webkit-appearance: none;
   flex: 0 0 auto;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   margin: 0;
   border: 1.5px solid $line;
-  border-radius: 5px;
+  border-radius: 4px;
   background: $surface;
   display: grid;
   place-content: center;
@@ -38,8 +38,8 @@
 
   &::before {
     content: '';
-    width: 5px;
-    height: 9px;
+    width: 4px;
+    height: 7px;
     margin-top: -1px;
     border: solid #fff;
     border-width: 0 2px 2px 0;
