@@ -10,6 +10,9 @@ const { t } = useI18n()
 const stats = ref(null)
 const plugin = ref(null)
 const loading = ref(true)
+const pluginReady = ref(false)
+const pluginFailed = ref(false)
+const embedHref = ref('')
 
 const fbLocale = computed(() => {
   const lang = currentLanguage.value
@@ -18,7 +21,17 @@ const fbLocale = computed(() => {
   return 'ru_RU'
 })
 
-const followUrl = computed(() => stats.value?.page_url || 'https://www.facebook.com/HinYerevanCom/')
+const followUrl = computed(() => embedHref.value || stats.value?.page_url || 'https://www.facebook.com/HinYerevanCom/')
+
+function schedulePluginCheck() {
+  window.setTimeout(() => {
+    const root = plugin.value
+    const iframe = root?.querySelector('iframe')
+    if (!iframe) {
+      pluginFailed.value = true
+    }
+  }, 4500)
+}
 
 onMounted(async () => {
   try {
@@ -27,19 +40,29 @@ onMounted(async () => {
       api('/facebook/plugin-config'),
     ])
     stats.value = pageStats
+    embedHref.value = config?.page_url || pageStats?.page_url || ''
     setPageMeta({
       title: t('facebookPage'),
       description: t('facebookPageIntro'),
       path: '/facebook',
     })
 
-    if (config?.app_id && config?.page_url) {
-      await loadFacebookSdk(config.app_id, fbLocale.value)
-      await nextTick()
-      parseFacebookXfbml()
+    if (config?.app_id && embedHref.value) {
+      const ok = await loadFacebookSdk(config.app_id, fbLocale.value)
+      if (ok) {
+        pluginReady.value = true
+        await nextTick()
+        parseFacebookXfbml(plugin.value)
+        schedulePluginCheck()
+      } else {
+        pluginFailed.value = true
+      }
+    } else {
+      pluginFailed.value = true
     }
   } catch {
     stats.value = { page_url: 'https://www.facebook.com/HinYerevanCom/', configured: false }
+    pluginFailed.value = true
   } finally {
     loading.value = false
   }
@@ -51,8 +74,9 @@ onMounted(async () => {
     <header class="facebook-page__head">
       <p class="eyebrow">Facebook</p>
       <h1>{{ stats?.name || 'HinYerevan' }}</h1>
-      <p v-if="stats?.followers_count" class="facebook-page__stats">
-        {{ t('facebookFollowers') }}: <strong>{{ stats.followers_count.toLocaleString() }}</strong>
+      <p v-if="stats?.followers_count != null" class="facebook-page__stats">
+        {{ t('facebookFollowers') }}:
+        <strong>{{ (stats.followers_count || stats.fan_count || 0).toLocaleString() }}</strong>
       </p>
       <p class="facebook-page__intro">{{ t('facebookPageIntro') }}</p>
       <a
@@ -69,6 +93,7 @@ onMounted(async () => {
 
     <div v-else ref="plugin" class="facebook-page__plugin">
       <div
+        v-if="pluginReady && !pluginFailed"
         class="fb-page"
         :data-href="followUrl"
         data-tabs="timeline"
@@ -79,6 +104,12 @@ onMounted(async () => {
         data-hide-cover="false"
         data-show-facepile="true"
       />
+      <div v-else class="facebook-page__fallback">
+        <p>{{ t('facebookEmbedUnavailable') }}</p>
+        <a class="button" :href="followUrl" target="_blank" rel="noopener noreferrer">
+          {{ t('facebookOpenPage') }}
+        </a>
+      </div>
     </div>
 
     <p class="facebook-page__hint muted-hint">{{ t('facebookEmbedHint') }}</p>
@@ -124,6 +155,21 @@ onMounted(async () => {
   overflow: hidden;
   border-radius: $radius-lg;
   background: $surface-soft;
+}
+
+.facebook-page__fallback {
+  display: grid;
+  gap: 16px;
+  place-items: center;
+  padding: 48px 24px;
+  text-align: center;
+  color: $muted;
+
+  p {
+    margin: 0;
+    max-width: 36ch;
+    line-height: 1.5;
+  }
 }
 
 .facebook-page__loading {

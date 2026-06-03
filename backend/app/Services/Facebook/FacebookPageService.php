@@ -66,12 +66,25 @@ class FacebookPageService
         });
     }
 
+    public function pluginAppId(): string
+    {
+        return (string) (config('services.facebook.plugin_app_id') ?: config('services.facebook.client_id') ?: '');
+    }
+
     public function pluginConfig(): array
     {
+        $pageUrl = $this->pageUrl();
+        if ($this->isConfigured()) {
+            $stats = $this->publicStats();
+            if (! empty($stats['page_url'])) {
+                $pageUrl = (string) $stats['page_url'];
+            }
+        }
+
         return [
-            'app_id' => $this->appId(),
-            'page_url' => $this->pageUrl(),
-            'configured' => $this->appId() !== '' && $this->pageUrl() !== '',
+            'app_id' => $this->pluginAppId(),
+            'page_url' => $pageUrl,
+            'configured' => $this->pluginAppId() !== '' && $pageUrl !== '',
         ];
     }
 

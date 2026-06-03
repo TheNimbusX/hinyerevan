@@ -55,6 +55,8 @@ return [
         'page_url' => env('FACEBOOK_PAGE_URL', 'https://www.facebook.com/HinYerevanCom/'),
         'page_access_token' => env('FACEBOOK_PAGE_ACCESS_TOKEN'),
         'app_id' => env('FACEBOOK_APP_ID', env('FACEBOOK_CLIENT_ID')),
+        // Page Plugin / JS SDK — Consumer app with hinyerevan.ru in Meta settings (not HinYerevanPage)
+        'plugin_app_id' => env('FACEBOOK_PLUGIN_APP_ID', env('FACEBOOK_CLIENT_ID')),
         // Secret of the Meta app that issued the page token (HinYerevanPage), for token exchange
         'app_secret' => env('FACEBOOK_APP_SECRET'),
         // Optional; leave empty on VPS — OAUTH_PROXY is for Yandex and breaks graph.facebook.com

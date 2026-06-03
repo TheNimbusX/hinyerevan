@@ -360,7 +360,8 @@ class SocialAuthController extends Controller
             'timeout' => 20,
         ];
         $proxy = trim((string) config('services.oauth.proxy', ''));
-        if ($proxy !== '') {
+        // Meta Graph works direct from VPS; proxy breaks Facebook/Instagram OAuth token exchange
+        if ($proxy !== '' && ! in_array($provider, ['facebook', 'instagram'], true)) {
             $clientOptions['proxy'] = $proxy;
         }
         $driver->setHttpClient(new \GuzzleHttp\Client($clientOptions));
@@ -395,6 +396,15 @@ class SocialAuthController extends Controller
         )) {
             return 'Вход через Яндекс: сервер не может связаться с login.yandex.ru (часто блокируют IP датацентров). '
                 .'Добавьте в backend/.env OAUTH_PROXY= socks5://… или http://… — прокси/VPN с доступом к Яндексу, затем php artisan config:cache.';
+        }
+
+        if ($provider === 'facebook' && (
+            str_contains($msg, 'graph.facebook.com')
+            || str_contains($msg, 'SSL connection timeout')
+            || str_contains($msg, 'Connection timed out')
+        )) {
+            return 'Вход через Facebook: сервер не смог обменять код на токен. '
+                .'Проверьте redirect URI в Meta и что для Facebook не используется OAUTH_PROXY.';
         }
 
         return 'Could not sign in with '.$label.'.';

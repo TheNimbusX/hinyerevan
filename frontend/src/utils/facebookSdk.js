@@ -1,24 +1,29 @@
 let sdkPromise = null
+let sdkAppId = null
 
 export function loadFacebookSdk(appId, locale = 'ru_RU') {
   if (typeof window === 'undefined' || !appId) {
     return Promise.resolve(false)
   }
 
-  if (window.FB) {
+  if (window.FB && sdkAppId === appId) {
     return Promise.resolve(true)
   }
 
-  if (sdkPromise) {
+  if (sdkPromise && sdkAppId === appId) {
     return sdkPromise
   }
+
+  sdkAppId = appId
+  sdkPromise = null
 
   sdkPromise = new Promise((resolve) => {
     window.fbAsyncInit = function fbAsyncInit() {
       window.FB.init({
         appId,
+        cookie: false,
         xfbml: true,
-        version: 'v19.0',
+        version: 'v22.0',
       })
       resolve(true)
     }
