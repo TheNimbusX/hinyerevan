@@ -52,6 +52,8 @@ class FacebookCommentSyncService
                 $this->ingestCommentRow($photo, $row, $seen);
             }
 
+            $this->syncNestedReplies($photo, $postId, $token, $seen);
+
             if ($seen !== []) {
                 PhotoFacebookComment::query()
                     ->where('photo_id', $photo->id)
@@ -69,7 +71,52 @@ class FacebookCommentSyncService
     /**
      * @param  list<string>  $seen
      */
-    private function ingestCommentRow(Photo $photo, array $row, array &$seen): void
+    private function syncNestedReplies(Photo $photo, string $postId, string $token, array &$seen): void
+    {
+        $roots = PhotoFacebookComment::query()
+            ->where('photo_id', $photo->id)
+            ->where(function ($query) use ($postId) {
+                $query->whereNull('parent_facebook_comment_id')
+                    ->orWhere('parent_facebook_comment_id', $postId);
+            })
+            ->pluck('facebook_comment_id');
+
+        foreach ($roots as $rootId) {
+            $this->fetchCommentChildren($photo, $postId, (string) $rootId, $token, $seen);
+        }
+    }
+
+    /**
+     * @param  list<string>  $seen
+     */
+    private function fetchCommentChildren(Photo $photo, string $postId, string $parentCommentId, string $token, array &$seen): void
+    {
+        $response = $this->graph->get($parentCommentId . '/comments', [
+            'fields' => self::COMMENT_FIELDS,
+            'limit' => 100,
+            'access_token' => $token,
+        ]);
+
+        if (! $response->ok()) {
+            return;
+        }
+
+        foreach ($response->json('data') ?? [] as $row) {
+            if (! is_array($row)) {
+                continue;
+            }
+            $this->ingestCommentRow($photo, $row, $seen, $parentCommentId);
+            $childId = (string) ($row['id'] ?? '');
+            if ($childId !== '') {
+                $this->fetchCommentChildren($photo, $postId, $childId, $token, $seen);
+            }
+        }
+    }
+
+    /**
+     * @param  list<string>  $seen
+     */
+    private function ingestCommentRow(Photo $photo, array $row, array &$seen, ?string $fallbackParentId = null): void
     {
         $fbId = (string) ($row['id'] ?? '');
         $message = trim((string) ($row['message'] ?? ''));
@@ -77,10 +124,16 @@ class FacebookCommentSyncService
             return;
         }
 
-        $seen[] = $fbId;
+        if (! in_array($fbId, $seen, true)) {
+            $seen[] = $fbId;
+        }
+
         $authorName = trim((string) ($row['from']['name'] ?? 'Facebook'));
         $parentId = trim((string) ($row['parent']['id'] ?? ''));
         $postId = trim((string) $photo->facebook_post_id);
+        if ($parentId === '' && $fallbackParentId !== null && $fallbackParentId !== $fbId) {
+            $parentId = $fallbackParentId;
+        }
         if ($parentId === $fbId || $parentId === $postId) {
             $parentId = '';
         }
