@@ -129,7 +129,7 @@ class FacebookCommentSyncService
         }
 
         $authorName = trim((string) ($row['from']['name'] ?? 'Facebook'));
-        $parentId = trim((string) ($row['parent']['id'] ?? ''));
+        $parentId = $this->extractParentCommentId($row['parent'] ?? null);
         $postId = trim((string) $photo->facebook_post_id);
         if ($parentId === '' && $fallbackParentId !== null && $fallbackParentId !== $fbId) {
             $parentId = $fallbackParentId;
@@ -152,6 +152,18 @@ class FacebookCommentSyncService
                 'synced_at' => now(),
             ],
         );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $parent
+     */
+    private function extractParentCommentId(?array $parent): string
+    {
+        if (! is_array($parent)) {
+            return '';
+        }
+
+        return trim((string) ($parent['id'] ?? ''));
     }
 
     /**
@@ -197,9 +209,9 @@ class FacebookCommentSyncService
         foreach ($rows as $row) {
             $parentId = trim((string) ($row->parent_facebook_comment_id ?? ''));
             if ($parentId !== '' && isset($nodes[$parentId])) {
-                $nodes[$parentId]['replies'][] = $nodes[$row->facebook_comment_id];
+                $nodes[$parentId]['replies'][] = &$nodes[$row->facebook_comment_id];
             } else {
-                $roots[] = $nodes[$row->facebook_comment_id];
+                $roots[] = &$nodes[$row->facebook_comment_id];
             }
         }
 
