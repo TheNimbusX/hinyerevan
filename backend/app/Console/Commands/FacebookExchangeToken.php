@@ -21,7 +21,7 @@ class FacebookExchangeToken extends Command
         $short = trim($this->argument('token'));
 
         if ($appId === '' || $appSecret === '') {
-            $this->error('Set FACEBOOK_APP_ID + FACEBOOK_APP_SECRET in .env (secret from HinYerevanPage app 443529411008579 → Settings → Basic), or pass --app-secret=');
+            $this->error('Set FACEBOOK_APP_ID + FACEBOOK_APP_SECRET in .env (secret from HinYerevanPage app 4435294110080579 → Settings → Basic), or pass --app-secret=');
 
             return self::FAILURE;
         }
@@ -36,7 +36,7 @@ class FacebookExchangeToken extends Command
         if (! $response->ok()) {
             $this->error('Exchange failed: HTTP ' . $response->status());
             $this->line($response->body());
-            $this->comment('Use App ID + App Secret of the same Meta app that issued this token (HinYerevanPage 443529411008579, not Consumer 802992039416856).');
+            $this->comment('Use App ID + App Secret of the same Meta app that issued this token (HinYerevanPage 4435294110080579, not Consumer 802992039416856).');
 
             return self::FAILURE;
         }

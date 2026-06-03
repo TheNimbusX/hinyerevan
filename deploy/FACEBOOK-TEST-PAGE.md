@@ -145,9 +145,9 @@ FACEBOOK_PAGE_ACCESS_TOKEN=... # токен из нового app
 
 ### 3.3 Long-lived token (~60 дней)
 
-**Важно:** обмен делается через приложение **HinYerevanPage** (`443529411008579`), не через Consumer `802992039416856`.
+**Важно:** обмен делается через приложение **HinYerevanPage** (`4435294110080579`), не через Consumer `802992039416856`.
 
-1. [developers.facebook.com/apps/443529411008579/settings/basic](https://developers.facebook.com/apps/443529411008579/settings/basic/) → **Секрет приложения** → Показать → скопировать.
+1. [developers.facebook.com/apps/4435294110080579/settings/basic](https://developers.facebook.com/apps/4435294110080579/settings/basic/) → **Секрет приложения** → Показать → скопировать.
 2. В `.env`: `FACEBOOK_APP_SECRET=...` (только для HinYerevanPage).
 3. На VPS:
 
@@ -177,7 +177,7 @@ FACEBOOK_CLIENT_SECRET=...
 FACEBOOK_PAGE_ID=1051690344704492
 FACEBOOK_PAGE_URL=https://www.facebook.com/profile.php?id=1051690344704492
 FACEBOOK_PAGE_ACCESS_TOKEN=EAA...long...
-FACEBOOK_APP_ID=443529411008579
+FACEBOOK_APP_ID=4435294110080579
 FACEBOOK_APP_SECRET=...   # secret HinYerevanPage, не Consumer
 FACEBOOK_PLUGIN_APP_ID=802992039416856
 ```
