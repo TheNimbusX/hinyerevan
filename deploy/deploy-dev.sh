@@ -12,6 +12,9 @@ php artisan migrate --force
 # so root-owned cache files become writable WITHOUT wiping the translation cache.
 chown -R www-data:www-data storage bootstrap/cache || true
 find storage -type d -exec chmod 775 {} \; || true
+# .env must be writable by the scheduler user so facebook:refresh-token can
+# persist the rotated Page token.
+chown www-data:www-data .env || true
 cd ../frontend
 npm ci --silent 2>/dev/null || npm install --silent
 npm run build --silent

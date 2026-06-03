@@ -13,6 +13,10 @@ CRON_FILE=/etc/cron.d/hinyerevan-scheduler
 touch "$LOG_FILE"
 chown www-data:www-data "$LOG_FILE"
 
+# facebook:refresh-token (run by the scheduler as www-data) rewrites .env with the
+# rotated Page token, so .env must be writable by that user.
+chown www-data:www-data "$APP_DIR/.env" 2>/dev/null || true
+
 cat > "$CRON_FILE" <<EOF
 # HinYerevan Laravel scheduler — runs every minute, dispatches due jobs
 # (Facebook post-stats sync runs everyFiveMinutes via Console/Kernel.php).

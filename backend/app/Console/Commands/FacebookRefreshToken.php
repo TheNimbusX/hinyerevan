@@ -105,7 +105,12 @@ class FacebookRefreshToken extends Command
             return self::SUCCESS;
         }
 
-        $this->writeEnvToken($fresh);
+        try {
+            $this->writeEnvToken($fresh);
+        } catch (\Throwable $e) {
+            return $this->fail('Got a fresh Facebook token but could not write .env: ' . $e->getMessage() . ' (ensure .env is writable by the scheduler user, e.g. chown www-data .env).');
+        }
+
         // Rebuild the cached config so the new token is used on the next request.
         Artisan::call('config:cache');
 
@@ -141,6 +146,9 @@ class FacebookRefreshToken extends Command
         $path = base_path('.env');
         if (! is_file($path)) {
             throw new \RuntimeException('.env not found at ' . $path);
+        }
+        if (! is_writable($path)) {
+            throw new \RuntimeException('.env is not writable by ' . (function_exists('posix_getpwuid') ? (posix_getpwuid(posix_geteuid())['name'] ?? 'current user') : 'current user'));
         }
 
         $contents = (string) file_get_contents($path);
