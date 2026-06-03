@@ -119,7 +119,7 @@ class FacebookPublishService
             }
             $photo->forceFill($fill)->save();
 
-            $this->commentSync->syncForPhoto($photo->fresh());
+            $this->commentSync->syncForPhoto($photo->fresh(), true);
 
             $storedComments = PhotoFacebookComment::query()
                 ->where('photo_id', $photo->id)

@@ -5,6 +5,7 @@ namespace App\Services\Facebook;
 use App\Models\Photo;
 use App\Models\PhotoFacebookComment;
 use App\Services\TranslationService;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class FacebookCommentSyncService
@@ -12,16 +13,32 @@ class FacebookCommentSyncService
     /** Stream returns flat list; parent must be requested as `parent` (not parent{id}). */
     private const COMMENT_FIELDS = 'id,message,created_time,from{name,picture},parent';
 
+    /** Avoid hammering Graph when one page view touches several endpoints. */
+    private const THROTTLE_SECONDS = 15;
+
     public function __construct(
         private readonly FacebookGraphClient $graph,
     ) {}
 
-    public function syncForPhoto(Photo $photo): void
+    public function syncForPhoto(Photo $photo, bool $force = false): void
     {
         $token = trim((string) config('services.facebook.page_access_token', ''));
         if (! $photo->facebook_post_id || $token === '') {
             return;
         }
+
+        $throttleKey = 'fb_comments_sync_' . $photo->id;
+        if (! $force) {
+            try {
+                if (Cache::has($throttleKey)) {
+                    return;
+                }
+                Cache::put($throttleKey, true, now()->addSeconds(self::THROTTLE_SECONDS));
+            } catch (\Throwable) {
+                // Cache unavailable — proceed without throttling rather than skip the sync.
+            }
+        }
+
         $postId = trim((string) $photo->facebook_post_id);
 
         try {
@@ -44,8 +61,6 @@ class FacebookCommentSyncService
 
             $seen = [];
             $this->ingestStreamPages($photo, $postId, $token, $response, $seen);
-
-            $this->syncNestedReplies($photo, $postId, $token, $seen);
 
             if ($seen !== []) {
                 PhotoFacebookComment::query()
@@ -91,51 +106,6 @@ class FacebookCommentSyncService
     /**
      * @param  list<string>  $seen
      */
-    private function syncNestedReplies(Photo $photo, string $postId, string $token, array &$seen): void
-    {
-        $roots = PhotoFacebookComment::query()
-            ->where('photo_id', $photo->id)
-            ->where(function ($query) use ($postId) {
-                $query->whereNull('parent_facebook_comment_id')
-                    ->orWhere('parent_facebook_comment_id', $postId);
-            })
-            ->pluck('facebook_comment_id');
-
-        foreach ($roots as $rootId) {
-            $this->fetchCommentChildren($photo, $postId, (string) $rootId, $token, $seen);
-        }
-    }
-
-    /**
-     * @param  list<string>  $seen
-     */
-    private function fetchCommentChildren(Photo $photo, string $postId, string $parentCommentId, string $token, array &$seen): void
-    {
-        $response = $this->graph->get($parentCommentId . '/comments', [
-            'fields' => self::COMMENT_FIELDS,
-            'limit' => 100,
-            'access_token' => $token,
-        ]);
-
-        if (! $response->ok()) {
-            return;
-        }
-
-        foreach ($response->json('data') ?? [] as $row) {
-            if (! is_array($row)) {
-                continue;
-            }
-            $this->ingestCommentRow($photo, $row, $seen, $parentCommentId);
-            $childId = (string) ($row['id'] ?? '');
-            if ($childId !== '') {
-                $this->fetchCommentChildren($photo, $postId, $childId, $token, $seen);
-            }
-        }
-    }
-
-    /**
-     * @param  list<string>  $seen
-     */
     private function ingestCommentRow(Photo $photo, array $row, array &$seen, ?string $fallbackParentId = null): void
     {
         $fbId = (string) ($row['id'] ?? '');
@@ -158,20 +128,29 @@ class FacebookCommentSyncService
             $parentId = '';
         }
 
-        PhotoFacebookComment::query()->updateOrCreate(
-            [
+        try {
+            PhotoFacebookComment::query()->updateOrCreate(
+                [
+                    'photo_id' => $photo->id,
+                    'facebook_comment_id' => $fbId,
+                ],
+                [
+                    'parent_facebook_comment_id' => $parentId !== '' ? $parentId : null,
+                    'author_name' => $authorName !== '' ? $authorName : 'Facebook',
+                    'author_picture' => $this->extractPictureUrl($row['from'] ?? null),
+                    'body' => $message,
+                    'commented_at' => isset($row['created_time']) ? $row['created_time'] : null,
+                    'synced_at' => now(),
+                ],
+            );
+        } catch (\Throwable $e) {
+            // One malformed row must never abort the whole batch.
+            Log::warning('Facebook comment row ingest failed', [
                 'photo_id' => $photo->id,
                 'facebook_comment_id' => $fbId,
-            ],
-            [
-                'parent_facebook_comment_id' => $parentId !== '' ? $parentId : null,
-                'author_name' => $authorName !== '' ? $authorName : 'Facebook',
-                'author_picture' => $this->extractPictureUrl($row['from'] ?? null),
-                'body' => $message,
-                'commented_at' => isset($row['created_time']) ? $row['created_time'] : null,
-                'synced_at' => now(),
-            ],
-        );
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     /**

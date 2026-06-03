@@ -14,45 +14,58 @@ function matchesReplyTarget(item, replyTo) {
   return item.id === replyTo.id
 }
 
+function sortByDate(list) {
+  return [...list].sort((a, b) => String(a.datetime || '').localeCompare(String(b.datetime || '')))
+}
+
+/**
+ * Insert `node` under the matching parent. Returns `{ threads, inserted }`.
+ */
 function insertReply(threads, replyTo, node) {
   let inserted = false
 
   const next = threads.map((item) => {
-    if (matchesReplyTarget(item, replyTo)) {
+    if (!inserted && matchesReplyTarget(item, replyTo)) {
       inserted = true
-      return {
-        ...item,
-        replies: [...(item.replies || []), node],
-      }
+      return { ...item, replies: sortByDate([...(item.replies || []), node]) }
     }
 
-    if (item.replies?.length) {
-      const replies = insertReply(item.replies, replyTo, node)
-      if (replies !== item.replies) {
+    if (!inserted && item.replies?.length) {
+      const result = insertReply(item.replies, replyTo, node)
+      if (result.inserted) {
         inserted = true
-        return { ...item, replies }
+        return { ...item, replies: result.threads }
       }
     }
 
     return item
   })
 
-  return inserted ? next : threads
+  return { threads: next, inserted }
 }
 
 /**
+ * Append a freshly-created comment into an existing thread tree (immutably).
+ * - No reply target → appended at root (sorted by date).
+ * - Reply target → nested under the matching comment; falls back to root if not found.
+ *
  * @param {Array<object>|undefined} threads
  * @param {object} comment
- * @param {CommentTarget|null} replyTo
+ * @param {object|null} replyTo
  */
 export function appendCommentToThreads(threads, comment, replyTo = null) {
   const node = normalizeCreatedComment(comment)
-  const list = Array.isArray(threads) ? [...threads] : []
+  const list = Array.isArray(threads) ? threads : []
 
   if (!replyTo) {
-    return [...list, node].sort((a, b) => String(a.datetime || '').localeCompare(String(b.datetime || '')))
+    return sortByDate([...list, node])
   }
 
-  const updated = insertReply(list, replyTo, node)
-  return updated.length === list.length ? [...list, node] : updated
+  const { threads: updated, inserted } = insertReply(list, replyTo, node)
+  return inserted ? updated : sortByDate([...list, node])
+}
+
+export function countComments(threads) {
+  if (!Array.isArray(threads)) return 0
+  return threads.reduce((sum, item) => sum + 1 + countComments(item.replies || []), 0)
 }

@@ -40,30 +40,42 @@ class FacebookPageService
             return $base;
         }
 
-        return Cache::remember('facebook:page:stats', now()->addMinutes(45), function () use ($base) {
-            try {
-                $response = $this->graph->get($this->pageId(), [
-                    'fields' => 'name,followers_count,fan_count,link',
-                    'access_token' => $this->pageAccessToken(),
-                ]);
+        // Cache layer must never take down the endpoint (e.g. a read-only cache dir).
+        try {
+            return Cache::remember('facebook:page:stats', now()->addMinutes(45), fn () => $this->fetchStats($base));
+        } catch (\Throwable) {
+            return $this->fetchStats($base);
+        }
+    }
 
-                if (! $response->ok()) {
-                    return $base;
-                }
+    /**
+     * @param  array{name: string, followers_count: int, fan_count: int, page_url: string, configured: bool}  $base
+     * @return array{name: string, followers_count: int, fan_count: int, page_url: string, configured: bool}
+     */
+    private function fetchStats(array $base): array
+    {
+        try {
+            $response = $this->graph->get($this->pageId(), [
+                'fields' => 'name,followers_count,fan_count,link',
+                'access_token' => $this->pageAccessToken(),
+            ]);
 
-                $data = $response->json();
-
-                return [
-                    'name' => (string) ($data['name'] ?? $base['name']),
-                    'followers_count' => (int) ($data['followers_count'] ?? $data['fan_count'] ?? 0),
-                    'fan_count' => (int) ($data['fan_count'] ?? 0),
-                    'page_url' => (string) ($data['link'] ?? $base['page_url']),
-                    'configured' => true,
-                ];
-            } catch (\Throwable) {
+            if (! $response->ok()) {
                 return $base;
             }
-        });
+
+            $data = $response->json();
+
+            return [
+                'name' => (string) ($data['name'] ?? $base['name']),
+                'followers_count' => (int) ($data['followers_count'] ?? $data['fan_count'] ?? 0),
+                'fan_count' => (int) ($data['fan_count'] ?? 0),
+                'page_url' => (string) ($data['link'] ?? $base['page_url']),
+                'configured' => true,
+            ];
+        } catch (\Throwable) {
+            return $base;
+        }
     }
 
     public function pluginAppId(): string

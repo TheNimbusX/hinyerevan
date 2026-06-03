@@ -5,7 +5,7 @@ import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { buildCommentPostBody } from '../utils/commentPost'
-import { appendCommentToThreads } from '../utils/commentTree'
+import { appendCommentToThreads, countComments } from '../utils/commentTree'
 import { userDisplayName } from '../utils/user'
 import PhotoCommentThread from './PhotoCommentThread.vue'
 import DirectionMarker from './DirectionMarker.vue'
@@ -76,12 +76,10 @@ async function loadFreshComments(id) {
   try {
     clearApiCacheForPath(commentsPath)
     const comments = await api(commentsPath)
-    const count = (items) =>
-      (items || []).reduce((sum, item) => sum + 1 + count(item.replies || []), 0)
     photo.value = {
       ...photo.value,
       comments,
-      comments_count: Math.max(photo.value.comments_count || 0, count(comments)),
+      comments_count: Math.max(photo.value.comments_count || 0, countComments(comments)),
     }
   } catch {
     // keep embedded comments

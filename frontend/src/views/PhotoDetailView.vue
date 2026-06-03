@@ -12,7 +12,7 @@ import { getDirectionIcon } from '../utils/mapMarkerIcons'
 import { setupLeaflet } from '../utils/leafletSetup'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { buildCommentPostBody } from '../utils/commentPost'
-import { appendCommentToThreads } from '../utils/commentTree'
+import { appendCommentToThreads, countComments } from '../utils/commentTree'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import PhotoCommentThread from '../components/PhotoCommentThread.vue'
 import { setPageMeta } from '../utils/seo'
@@ -116,13 +116,6 @@ async function loadFreshComments() {
   } catch {
     // keep embedded comments from photo payload
   }
-}
-
-function countComments(threads) {
-  if (!Array.isArray(threads)) return 0
-  const walk = (items) =>
-    items.reduce((sum, item) => sum + 1 + walk(item.replies || []), 0)
-  return walk(threads)
 }
 
 async function load({ soft = false } = {}) {
