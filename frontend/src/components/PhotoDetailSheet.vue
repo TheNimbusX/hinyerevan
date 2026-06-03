@@ -1,11 +1,11 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
 import { api, clearApiCacheForPath, getToken, imageUrl, localizedApi, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { buildCommentPostBody } from '../utils/commentPost'
-import { appendCommentToThreads, countComments } from '../utils/commentTree'
+import { appendCommentToThreads, countComments, removeCommentById } from '../utils/commentTree'
 import { userDisplayName } from '../utils/user'
 import PhotoCommentThread from './PhotoCommentThread.vue'
 import DirectionMarker from './DirectionMarker.vue'
@@ -35,6 +35,8 @@ const detailImageSrc = ref('')
 
 const open = computed(() => props.photoId != null)
 const isAuthenticated = computed(() => Boolean(getToken()))
+const currentUser = inject('currentUser', ref(null))
+const currentUserUnique = computed(() => currentUser.value?.unique || '')
 const photoDirectionLabel = computed(() => (photo.value ? directionLabel(photo.value.direction, t) : ''))
 const addedLabel = computed(() => (photo.value ? formatDateTime(photo.value.datetime, currentLanguage.value) : ''))
 const displayLikes = computed(() => photo.value?.likes_total ?? photo.value?.likes_count ?? 0)
@@ -283,6 +285,27 @@ async function submitComment() {
   if (ok) comment.value = ''
 }
 
+async function deleteComment(item) {
+  if (!item || typeof item.id !== 'number' || !photo.value) return
+  const photoId = photo.value.id
+  const { threads, removed } = removeCommentById(photo.value.comments || [], item.id)
+  const snapshot = photo.value.comments
+  const snapshotCount = photo.value.comments_count
+  photo.value = {
+    ...photo.value,
+    comments: threads,
+    comments_count: Math.max(0, (photo.value.comments_count || 0) - removed),
+  }
+  try {
+    await api(`/comments/${item.id}`, { method: 'DELETE' })
+    clearApiCacheForPath(`/photos/${photoId}/comments`)
+    clearApiCacheForPath(`/photos/${photoId}`)
+  } catch (e) {
+    photo.value = { ...photo.value, comments: snapshot, comments_count: snapshotCount }
+    commentPostError.value = e?.message || 'Failed to delete comment'
+  }
+}
+
 function handleKey(event) {
   if (event.key !== 'Escape') return
   if (lightboxOpen.value) {
@@ -470,7 +493,9 @@ onBeforeUnmount(() => {
                 :submitting="commentSubmitting"
                 :reply-reset-key="replyResetKey"
                 :post-error="commentPostError"
+                :current-user-unique="currentUserUnique"
                 @submit="postComment"
+                @delete="deleteComment"
               />
             </section>
           </template>

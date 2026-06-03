@@ -520,6 +520,14 @@
 
   .profile-comments li {
     background: rgba(255, 255, 255, 0.03);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.07);
+    }
+  }
+
+  .profile-comments.preview li:hover {
+    background: transparent;
   }
 
   .profile-comments p {
@@ -800,10 +808,18 @@
 
   .profile-comments li {
     background: rgba(255, 255, 255, 0.04);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
   }
 
   .profile-comments.preview li {
     border-bottom-color: #2a313d;
+  }
+
+  .profile-comments.preview li:hover {
+    background: transparent;
   }
 
   .profile-comments p {

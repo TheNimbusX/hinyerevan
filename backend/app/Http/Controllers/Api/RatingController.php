@@ -8,6 +8,7 @@ use App\Services\LegacySchema;
 use App\Services\TranslationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class RatingController extends Controller
 {
@@ -42,14 +43,18 @@ class RatingController extends Controller
                 ->get(['photos.id', 'photos.title', 'photos.file_id', 'photos.year', DB::raw('COALESCE(views.count, 0) as views')])
             : [];
 
+        $hasFbCount = Schema::hasColumn('photos', 'facebook_comments_count');
+        $fbExpr = $hasFbCount ? 'COALESCE(photos.facebook_comments_count, 0)' : '0';
+        $totalCommentsExpr = "COALESCE(comment_counts.comments_count, 0) + {$fbExpr}";
+
         $photosByComments = LegacySchema::commentsReady()
             ? DB::table('photos')
                 ->leftJoinSub($commentCounts, 'comment_counts', fn ($join) => $join->on('comment_counts.post_id', '=', 'photos.id'))
                 ->where('photos.id', '>', 0)
                 ->where('photos.published', 1)
-                ->orderByDesc('comment_counts.comments_count')
+                ->orderByDesc(DB::raw($totalCommentsExpr))
                 ->limit(10)
-                ->get(['photos.id', 'photos.title', 'photos.file_id', 'photos.year', DB::raw('COALESCE(comment_counts.comments_count, 0) as comments_count')])
+                ->get(['photos.id', 'photos.title', 'photos.file_id', 'photos.year', DB::raw("{$totalCommentsExpr} as comments_count")])
             : [];
 
         return [

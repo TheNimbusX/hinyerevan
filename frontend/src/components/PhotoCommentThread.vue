@@ -40,13 +40,36 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  currentUserUnique: {
+    type: String,
+    default: '',
+  },
 })
 
-const emit = defineEmits(['submit'])
+const emit = defineEmits(['submit', 'delete'])
 
 const activeReplyId = ref(null)
 const replyDraft = ref('')
 const inlineError = ref('')
+const confirmDeleteId = ref(null)
+
+function canDelete(item) {
+  return (
+    item.source === 'site' &&
+    typeof item.id === 'number' &&
+    !!props.currentUserUnique &&
+    item.author?.unique === props.currentUserUnique
+  )
+}
+
+function askDelete(item) {
+  confirmDeleteId.value = confirmDeleteId.value === item.id ? null : item.id
+}
+
+function confirmDelete(item) {
+  confirmDeleteId.value = null
+  emit('delete', item)
+}
 
 watch(
   () => props.replyResetKey,
@@ -139,15 +162,46 @@ watch(
                 {{ formatDateTime(item.datetime, lang) }}
               </time>
             </div>
-            <button
-              v-if="canReply(item) && isAuthenticated"
-              type="button"
-              class="comment-row__reply-btn"
-              :aria-expanded="activeReplyId === item.id"
-              @click="toggleReply(item)"
+            <div
+              v-if="isAuthenticated && (canReply(item) || canDelete(item))"
+              class="comment-row__actions"
+              :class="{ 'is-active': activeReplyId === item.id || confirmDeleteId === item.id }"
             >
-              {{ activeReplyId === item.id ? t('cancelReply') : t('reply') }}
-            </button>
+              <button
+                v-if="canReply(item)"
+                type="button"
+                class="comment-row__reply-btn"
+                :aria-expanded="activeReplyId === item.id"
+                @click="toggleReply(item)"
+              >
+                {{ activeReplyId === item.id ? t('cancelReply') : t('reply') }}
+              </button>
+              <template v-if="canDelete(item)">
+                <button
+                  v-if="confirmDeleteId !== item.id"
+                  type="button"
+                  class="comment-row__delete-btn"
+                  :aria-label="t('deleteComment')"
+                  :title="t('deleteComment')"
+                  @click="askDelete(item)"
+                >
+                  <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                    <path
+                      fill="currentColor"
+                      d="M9 3a1 1 0 0 0-1 1v1H4v2h16V5h-4V4a1 1 0 0 0-1-1H9Zm-3 6 1 11a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-11H6Z"
+                    />
+                  </svg>
+                </button>
+                <span v-else class="comment-row__delete-confirm">
+                  <button type="button" class="comment-row__delete-yes" @click="confirmDelete(item)">
+                    {{ t('confirmDelete') }}
+                  </button>
+                  <button type="button" class="comment-row__delete-no" @click="confirmDeleteId = null">
+                    {{ t('cancel') }}
+                  </button>
+                </span>
+              </template>
+            </div>
           </header>
           <p class="comment-row__body">{{ formatCommentBody(item.body) }}</p>
         </div>
@@ -185,8 +239,10 @@ watch(
         :submitting="submitting"
         :reply-reset-key="replyResetKey"
         :post-error="postError"
+        :current-user-unique="currentUserUnique"
         nested
         @submit="emit('submit', $event)"
+        @delete="emit('delete', $event)"
       />
     </li>
   </ul>
@@ -296,6 +352,30 @@ watch(
   color: #65676b;
 }
 
+.comment-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+  opacity: 0;
+  transform: translateY(-1px);
+  transition: opacity 0.15s ease;
+
+  &.is-active {
+    opacity: 1;
+  }
+
+  // Touch devices can't hover — keep actions reachable.
+  @media (hover: none) {
+    opacity: 1;
+  }
+}
+
+.comment-row:hover .comment-row__actions,
+.comment-row:focus-within .comment-row__actions {
+  opacity: 1;
+}
+
 .comment-row__reply-btn {
   border: 0;
   padding: 0;
@@ -309,6 +389,46 @@ watch(
   &:hover {
     text-decoration: underline;
   }
+}
+
+.comment-row__delete-btn {
+  display: inline-flex;
+  align-items: center;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: #b0b3b8;
+  cursor: pointer;
+  line-height: 0;
+  transition: color 0.15s ease;
+
+  &:hover {
+    color: #e53935;
+  }
+}
+
+.comment-row__delete-confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+
+  button {
+    border: 0;
+    padding: 0;
+    background: none;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+}
+
+.comment-row__delete-yes {
+  color: #e53935;
+}
+
+.comment-row__delete-no {
+  color: #65676b;
 }
 
 .comment-row__body {

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRoute } from 'vue-router'
@@ -12,7 +12,7 @@ import { getDirectionIcon } from '../utils/mapMarkerIcons'
 import { setupLeaflet } from '../utils/leafletSetup'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { buildCommentPostBody } from '../utils/commentPost'
-import { appendCommentToThreads, countComments } from '../utils/commentTree'
+import { appendCommentToThreads, countComments, removeCommentById } from '../utils/commentTree'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import PhotoCommentThread from '../components/PhotoCommentThread.vue'
 import { setPageMeta } from '../utils/seo'
@@ -41,6 +41,8 @@ let miniMap
 let miniMapTileLayer
 
 const isAuthenticated = computed(() => Boolean(getToken()))
+const currentUser = inject('currentUser', ref(null))
+const currentUserUnique = computed(() => currentUser.value?.unique || '')
 
 const photoDirectionLabel = computed(() =>
   photo.value ? directionLabel(photo.value.direction, t) : '',
@@ -381,6 +383,27 @@ async function submitComment() {
   if (ok) comment.value = ''
 }
 
+async function deleteComment(item) {
+  if (!item || typeof item.id !== 'number') return
+  const { threads, removed } = removeCommentById(photo.value.comments || [], item.id)
+  const snapshot = photo.value.comments
+  const snapshotCount = photo.value.comments_count
+  photo.value = {
+    ...photo.value,
+    comments: threads,
+    comments_count: Math.max(0, (photo.value.comments_count || 0) - removed),
+  }
+  try {
+    await api(`/comments/${item.id}`, { method: 'DELETE' })
+    clearApiCacheForPath(`/photos/${route.params.id}/comments`)
+    clearApiCacheForPath(`/photos/${route.params.id}`)
+  } catch (event) {
+    // Roll back optimistic removal on failure.
+    photo.value = { ...photo.value, comments: snapshot, comments_count: snapshotCount }
+    commentPostError.value = event?.message || 'Failed to delete comment'
+  }
+}
+
 watch(isAuthenticated, () => {
   if (photo.value) {
     clearApiCacheForPath(`/photos/${route.params.id}`)
@@ -581,7 +604,9 @@ watch(isAuthenticated, () => {
       :submitting="commentSubmitting"
       :reply-reset-key="replyResetKey"
       :post-error="commentPostError"
+      :current-user-unique="currentUserUnique"
       @submit="postComment"
+      @delete="deleteComment"
     />
   </section>
 

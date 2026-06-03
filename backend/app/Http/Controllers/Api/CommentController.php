@@ -168,9 +168,29 @@ class CommentController extends Controller
         abort_unless(LegacySchema::commentsReady(), 503, 'Legacy comments table is not connected yet.');
         abort_unless($comment->id > 0, 404);
 
-        $comment->id = -abs($comment->id);
-        $comment->save();
+        $this->softDelete($comment);
 
         return response()->noContent();
+    }
+
+    /** Authenticated users may delete their own comments (admins delete via the admin route). */
+    public function destroyOwn(Request $request, Comment $comment)
+    {
+        abort_unless(LegacySchema::commentsReady(), 503, 'Legacy comments table is not connected yet.');
+        abort_unless($comment->id > 0, 404);
+
+        $user = $request->user();
+        abort_unless($user && ($user->isAdmin() || $comment->user_unique === $user->unique), 403);
+
+        $this->softDelete($comment);
+
+        return response()->noContent();
+    }
+
+    private function softDelete(Comment $comment): void
+    {
+        // Legacy soft-delete convention: negative id rows are treated as removed.
+        $comment->id = -abs($comment->id);
+        $comment->save();
     }
 }

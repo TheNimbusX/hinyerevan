@@ -149,12 +149,16 @@ class PhotoController extends Controller
 
         $this->syncFacebookIfStale($photo);
 
-        $photo->refresh()->load([
-            'author:id,unique,uid,first_name,last_name,photo,identity',
-            'viewCounter',
-            'comments.author:id,unique,uid,first_name,last_name,photo,identity,email',
-            'comments.replies.author:id,unique,uid,first_name,last_name,photo,identity,email',
-        ]);
+        // refresh() re-queries without the withCount aggregates, so likes_count /
+        // comments_count would reset to null — reload them explicitly afterwards.
+        $photo->refresh()
+            ->loadCount(['comments', 'favorites as likes_count'])
+            ->load([
+                'author:id,unique,uid,first_name,last_name,photo,identity',
+                'viewCounter',
+                'comments.author:id,unique,uid,first_name,last_name,photo,identity,email',
+                'comments.replies.author:id,unique,uid,first_name,last_name,photo,identity,email',
+            ]);
 
         $data = $this->serialize($photo, true, $lang, $commentLang);
         $data['author_other_photos'] = $this->otherPhotosByAuthor($photo, $relatedLang);

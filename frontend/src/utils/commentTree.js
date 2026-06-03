@@ -69,3 +69,31 @@ export function countComments(threads) {
   if (!Array.isArray(threads)) return 0
   return threads.reduce((sum, item) => sum + 1 + countComments(item.replies || []), 0)
 }
+
+/**
+ * Remove a comment (and its sub-tree) by id. Returns `{ threads, removed }`
+ * where `removed` is the count of nodes removed (the node + its replies).
+ */
+export function removeCommentById(threads, id) {
+  const list = Array.isArray(threads) ? threads : []
+  let removed = 0
+
+  const next = list.reduce((acc, item) => {
+    if (item.id === id) {
+      removed += 1 + countComments(item.replies || [])
+      return acc
+    }
+    if (item.replies?.length) {
+      const result = removeCommentById(item.replies, id)
+      if (result.removed) {
+        removed += result.removed
+        acc.push({ ...item, replies: result.threads })
+        return acc
+      }
+    }
+    acc.push(item)
+    return acc
+  }, [])
+
+  return { threads: next, removed }
+}

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, apiUrl, getToken, safeAvatarUrl, setToken } from './api'
 import { useI18n } from './i18n'
@@ -19,6 +19,7 @@ const authMode = ref('login')
 const authError = ref('')
 const authRedirect = ref(null)
 const currentUser = ref(null)
+provide('currentUser', currentUser)
 const authForm = ref({
   login: '',
   uid: '',

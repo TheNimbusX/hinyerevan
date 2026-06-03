@@ -88,6 +88,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::delete('/photos/{photo}/favorite', [FavoriteController::class, 'destroy'])->whereNumber('photo');
     Route::post('/photos', [PhotoController::class, 'store']);
     Route::post('/photos/{photo}/comments', [CommentController::class, 'store'])->whereNumber('photo');
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroyOwn'])->whereNumber('comment');
     Route::post('/news/{news}/comments', [CommentController::class, 'newsStore'])->whereNumber('news');
 
     Route::middleware('admin')->prefix('admin')->group(function () {
