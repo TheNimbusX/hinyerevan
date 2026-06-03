@@ -43,6 +43,10 @@ class FacebookPublishService
         $siteUrl = rtrim((string) (config('services.facebook.site_url') ?: config('app.frontend_url', config('app.url'))), '/');
         $message .= "\n\n" . $siteUrl . '/photos/' . $photo->id;
 
+        if ($photo->video) {
+            $message .= "\n\nYouTube: " . trim((string) $photo->video);
+        }
+
         try {
             $response = $this->graph->post($this->pageId() . '/photos', [
                 'url' => $imageUrl,

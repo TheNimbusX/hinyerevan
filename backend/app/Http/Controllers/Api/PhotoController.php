@@ -324,7 +324,8 @@ class PhotoController extends Controller
             $facebookError = $this->facebookPublish->publishIfPending($photo->fresh());
         }
 
-        $payload = $this->serialize($photo->fresh());
+        $fresh = $photo->fresh(['author:id,unique,uid,first_name,last_name,photo,identity']);
+        $payload = $this->serialize($fresh);
         $payload['moderation_pending'] = ! $isAdmin;
         $payload['message'] = $isAdmin
             ? 'Photo published.'
@@ -464,7 +465,7 @@ class PhotoController extends Controller
             'views' => $photo->viewCounter?->count ?? 0,
             'comments_count' => $photo->comments_count ?? ($includeComments ? $photo->comments->count() : 0),
             'likes_count' => $photo->likes_count ?? 0,
-            'author' => $photo->author,
+            'author' => $this->serializeAuthor($photo->author),
             'images' => $photo->image_urls,
             'facebook' => $this->serializeFacebook($photo),
         ];
@@ -481,13 +482,32 @@ class PhotoController extends Controller
         return $data;
     }
 
-    private function serializeFacebook(Photo $photo): ?array
+    private function serializeAuthor($author): ?array
     {
-        if (! $photo->facebook_post_id && ! $photo->facebook_post_url) {
+        if (! $author) {
             return null;
         }
 
         return [
+            'id' => $author->id,
+            'unique' => $author->unique,
+            'uid' => $author->uid,
+            'first_name' => $author->first_name,
+            'last_name' => $author->last_name,
+            'name' => $author->name,
+            'display_name' => $author->display_name,
+            'photo' => $author->photo,
+        ];
+    }
+
+    private function serializeFacebook(Photo $photo): ?array
+    {
+        if (! $photo->facebook_post_id && ! $photo->facebook_post_url && ! $photo->facebook_publish_pending) {
+            return null;
+        }
+
+        return [
+            'pending' => (bool) $photo->facebook_publish_pending,
             'post_id' => $photo->facebook_post_id,
             'post_url' => $photo->facebook_post_url,
             'likes' => (int) ($photo->facebook_likes ?? 0),

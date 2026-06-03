@@ -9,9 +9,11 @@ import ThemeToggle from './components/ThemeToggle.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import FacebookPageBadge from './components/FacebookPageBadge.vue'
+import FacebookPageModal from './components/FacebookPageModal.vue'
 import HeaderUserMenu from './components/HeaderUserMenu.vue'
 
 const menuOpen = ref(false)
+const facebookOpen = ref(false)
 const authOpen = ref(false)
 const authMode = ref('login')
 const authError = ref('')
@@ -319,6 +321,20 @@ watch(
   },
 )
 
+function openFacebookModal() {
+  facebookOpen.value = true
+}
+
+function closeFacebookModal() {
+  facebookOpen.value = false
+  const route = router.currentRoute.value
+  if (route.query.facebook) {
+    const cleanQuery = { ...route.query }
+    delete cleanQuery.facebook
+    router.replace({ path: route.path, query: cleanQuery })
+  }
+}
+
 onMounted(async () => {
   // Must run before loadCurrentUser(): a stale token in localStorage can 401 and
   // call setToken(null), wiping the fresh social_token we just received.
@@ -327,6 +343,9 @@ onMounted(async () => {
     await loadCurrentUser()
   }
   loadSocialProviders()
+  if (router.currentRoute.value.query.facebook === '1') {
+    openFacebookModal()
+  }
   window.addEventListener('hinyerevan:auth-changed', syncAuthState)
   window.addEventListener('hinyerevan:open-auth', handleOpenAuth)
 })
@@ -405,7 +424,8 @@ onBeforeUnmount(() => {
 
     <SiteFooter />
 
-    <FacebookPageBadge />
+    <FacebookPageBadge @open="openFacebookModal" />
+    <FacebookPageModal :open="facebookOpen" @close="closeFacebookModal" />
 
     <Teleport to="body">
       <div v-if="authOpen" class="auth-modal-backdrop" @click.self="authOpen = false">

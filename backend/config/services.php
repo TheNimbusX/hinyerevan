@@ -85,6 +85,7 @@ return [
     ],
 
     'instagram' => [
+        'enabled' => env('INSTAGRAM_OAUTH_ENABLED', false),
         'client_id' => env('INSTAGRAM_CLIENT_ID'),
         'client_secret' => env('INSTAGRAM_CLIENT_SECRET'),
         'redirect' => env('INSTAGRAM_REDIRECT_URI', rtrim(env('OAUTH_REDIRECT_BASE', 'http://127.0.0.1:8000'), '/') . '/api/auth/social/instagram/callback'),

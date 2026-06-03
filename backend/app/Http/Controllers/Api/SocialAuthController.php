@@ -378,9 +378,29 @@ class SocialAuthController extends Controller
         return match ($provider) {
             'odnoklassniki' => $this->isLegacyOkConfigured() || $this->isVkIdConfigured(),
             'mailru' => $this->isVkIdConfigured(),
+            'instagram' => $this->isInstagramConfigured(),
             default => ! empty(config("services.$provider.client_id"))
                 && ! empty(config("services.$provider.client_secret")),
         };
+    }
+
+    /** Instagram OAuth needs its own Meta app — not the Facebook Consumer app id. */
+    private function isInstagramConfigured(): bool
+    {
+        $id = trim((string) config('services.instagram.client_id', ''));
+        $secret = trim((string) config('services.instagram.client_secret', ''));
+
+        if ($id === '' || $secret === '') {
+            return false;
+        }
+
+        if (filter_var(config('services.instagram.enabled', true), FILTER_VALIDATE_BOOL) === false) {
+            return false;
+        }
+
+        $fbId = trim((string) config('services.facebook.client_id', ''));
+
+        return $fbId === '' || $id !== $fbId;
     }
 
     private function socialErrorMessage(string $provider, \Throwable $e): string

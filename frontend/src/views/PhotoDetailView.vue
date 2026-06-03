@@ -397,10 +397,10 @@ async function submitComment() {
         class="panel author-card"
         :to="`/users/${photo.author.unique || photo.author.uid}`"
       >
-        <img class="author-card-avatar" :src="authorAvatar(photo.author)" :alt="photo.author.name || photo.author.uid" />
+        <img class="author-card-avatar" :src="authorAvatar(photo.author)" :alt="userDisplayName(photo.author, t)" />
         <div class="author-card-body">
           <p class="eyebrow">{{ t('photographer') }}</p>
-          <strong>{{ photo.author.name || photo.author.uid }}</strong>
+          <strong>{{ userDisplayName(photo.author, t) }}</strong>
           <small v-if="photo.author_stats">
             {{ photo.author_stats.photos_count }} {{ t('photosCount') }} ·
             {{ photo.author_stats.views_total.toLocaleString() }} {{ t('views') }}
@@ -499,7 +499,7 @@ async function submitComment() {
           <img :src="detailImageSrc" :alt="photo.title" />
           <figcaption>
             <strong>{{ photo.title }}</strong>
-            <span>{{ photo.year }}<template v-if="photo.author"> · {{ photo.author.name || photo.author.uid }}</template></span>
+            <span>{{ photo.year }}<template v-if="photo.author"> · {{ userDisplayName(photo.author, t) }}</template></span>
           </figcaption>
         </figure>
       </div>

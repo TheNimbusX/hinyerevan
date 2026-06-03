@@ -1,10 +1,9 @@
 <script setup>
 import { onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { api } from '../api'
 import { useI18n } from '../i18n'
 
-const router = useRouter()
+const emit = defineEmits(['open'])
 const { t } = useI18n()
 const stats = ref(null)
 
@@ -17,7 +16,7 @@ onMounted(async () => {
 })
 
 function openPage() {
-  router.push('/facebook')
+  emit('open')
 }
 </script>
 

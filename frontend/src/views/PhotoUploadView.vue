@@ -175,9 +175,17 @@ async function submit() {
   try {
     const result = await api('/photos', { method: 'POST', body })
     success.value = true
-    successMessage.value = result?.moderation_pending === false
+    let msg = result?.moderation_pending === false
       ? t('uploadPublishedSuccess')
       : t('uploadPendingSuccess')
+    if (publishToFacebook.value && result?.facebook_publish_error) {
+      msg += ` ${t('facebookPublishFailed')}: ${result.facebook_publish_error}`
+    } else if (publishToFacebook.value && result?.facebook?.pending) {
+      msg += ` ${t('facebookPublishQueued')}`
+    } else if (publishToFacebook.value && result?.facebook?.post_url) {
+      msg += ` ${t('facebookPublishDone')}`
+    }
+    successMessage.value = msg
     resetForm()
   } catch (event) {
     error.value = event.message
@@ -307,6 +315,7 @@ onBeforeUnmount(() => {
             <input v-model="publishToFacebook" type="checkbox" />
             <span>{{ t('publishToFacebook') }}</span>
           </label>
+          <p v-if="publishToFacebook" class="facebook-publish-hint muted-hint">{{ t('publishToFacebookHint') }}</p>
           <p v-if="publishToFacebook && !facebookConfigured" class="facebook-config-hint">
             {{ t('facebookNotConfigured') }}
           </p>
@@ -335,6 +344,12 @@ onBeforeUnmount(() => {
   color: darken($accent, 14%);
   background: rgba($accent, 0.12);
   font-weight: 600;
+  line-height: 1.5;
+}
+
+.facebook-publish-hint {
+  margin: -4px 0 10px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
