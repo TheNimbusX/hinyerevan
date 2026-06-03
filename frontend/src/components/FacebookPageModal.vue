@@ -235,7 +235,7 @@ onBeforeUnmount(() => {
           </h2>
           <p class="facebook-modal__stats">
             <span v-if="apiLoading" class="facebook-modal__sk facebook-modal__sk--stat" aria-hidden="true" />
-            <template v-else-if="stats?.followers_count != null">
+            <template v-else-if="(stats?.followers_count || stats?.fan_count || 0) > 0">
               {{ t('facebookFollowers') }}:
               <strong>{{ (stats.followers_count || stats.fan_count || 0).toLocaleString() }}</strong>
             </template>
