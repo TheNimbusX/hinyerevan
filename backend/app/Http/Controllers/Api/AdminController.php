@@ -77,6 +77,15 @@ class AdminController extends Controller
                     $query->where('published', in_array((string) $published, ['1', 'true', 'yes'], true) ? 1 : 0);
                 }
             )
+            ->when($request->filled('search'), function ($query) use ($request) {
+                $term = trim((string) $request->search);
+                $query->where(function ($inner) use ($term) {
+                    $inner->where('title', 'like', '%' . $term . '%');
+                    if (ctype_digit($term)) {
+                        $inner->orWhere('id', (int) $term);
+                    }
+                });
+            })
             ->latest('id')
             ->paginate(min((int) $request->integer('per_page', 30), 100));
 

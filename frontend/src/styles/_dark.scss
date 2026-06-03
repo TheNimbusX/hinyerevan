@@ -1057,27 +1057,33 @@
     border-color: #2a313d;
   }
 
+  .admin__stat-cards {
+    border-color: #2a313d;
+  }
+
   .admin__stat-card {
     background: #1c212c;
-    border-color: #2a313d;
+    border-right-color: #2a313d;
 
     span {
       color: #98a0ae;
     }
   }
 
+  .admin__tabs {
+    border-bottom-color: #2a313d;
+  }
+
   .admin__tab {
-    background: #161b25;
-    border-color: #2a313d;
-    color: #c5cad6;
+    color: #98a0ae;
 
     &:hover {
       color: #f4f7ff;
     }
 
     &.on {
-      color: #fff;
-      border-color: transparent;
+      color: #f4f7ff;
+      border-bottom-color: rgba(138, 165, 236, 0.9);
     }
   }
 
@@ -1091,16 +1097,17 @@
     }
 
     &.on {
-      color: #cdd9ff;
-      border-color: rgba(138, 165, 236, 0.5);
-      background: rgba(138, 165, 236, 0.14);
+      color: #f4f7ff;
+      border-color: #6c7585;
     }
   }
 
   .admin__desc {
-    background: rgba(138, 165, 236, 0.1);
-    border-left-color: rgba(138, 165, 236, 0.6);
-    color: #cdd9ff;
+    color: #98a0ae;
+  }
+
+  .admin__tab-badge {
+    color: #d9a45b;
   }
 
   .admin__act {

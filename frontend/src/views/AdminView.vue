@@ -24,6 +24,8 @@ const busyId = ref(null)
 
 const userSearch = ref('')
 let userSearchTimer
+const photoSearch = ref('')
+let photoSearchTimer
 
 const sentinel = ref(null)
 let observer
@@ -43,10 +45,10 @@ const totalCount = computed(() => meta.value?.total ?? rows.value.length)
 const isPaginatedTab = computed(() => ['photos', 'users', 'news', 'feedback'].includes(tab.value))
 
 const tabs = computed(() => [
-  { id: 'photos', label: t('photos'), icon: '🖼', badge: pendingCount.value },
-  { id: 'users', label: t('users'), icon: '👤', badge: 0 },
-  { id: 'news', label: t('news'), icon: '📰', badge: 0 },
-  { id: 'feedback', label: t('feedback'), icon: '✉️', badge: feedbackUnreadCount.value },
+  { id: 'photos', label: t('photos'), badge: pendingCount.value },
+  { id: 'users', label: t('users'), badge: 0 },
+  { id: 'news', label: t('news'), badge: 0 },
+  { id: 'feedback', label: t('feedback'), badge: feedbackUnreadCount.value },
 ])
 
 const tabDescription = computed(
@@ -98,6 +100,7 @@ function listEndpoint(page = 1) {
     } else if (photoFilter.value === 'review') {
       params.set('status', 'review')
     }
+    if (photoSearch.value.trim()) params.set('search', photoSearch.value.trim())
     return `/admin/photos?${params.toString()}`
   }
   if (tab.value === 'users') {
@@ -434,6 +437,12 @@ watch(userSearch, () => {
   userSearchTimer = setTimeout(() => loadTab('users'), 320)
 })
 
+watch(photoSearch, () => {
+  if (tab.value !== 'photos') return
+  clearTimeout(photoSearchTimer)
+  photoSearchTimer = setTimeout(() => loadTab('photos'), 320)
+})
+
 watch(tab, async () => {
   await nextTick()
   setupObserver()
@@ -482,7 +491,6 @@ watch([hasMore, loading], async () => {
         :class="{ on: tab === item.id }"
         @click="loadTab(item.id)"
       >
-        <span class="admin__tab-icon" aria-hidden="true">{{ item.icon }}</span>
         <span>{{ item.label }}</span>
         <span v-if="item.badge" class="admin__tab-badge">{{ item.badge }}</span>
       </button>
@@ -495,6 +503,10 @@ watch([hasMore, loading], async () => {
       <button type="button" class="admin__chip" :class="{ on: photoFilter === 'published' }" @click="setPhotoFilter('published')">{{ t('published') }}</button>
       <button type="button" class="admin__chip" :class="{ on: photoFilter === 'review' }" @click="setPhotoFilter('review')">{{ t('adminNeedsReview') }}</button>
       <button type="button" class="admin__chip" :class="{ on: photoFilter === 'all' }" @click="setPhotoFilter('all')">{{ t('allPhotos') }}</button>
+    </div>
+
+    <div v-if="tab === 'photos'" class="admin__bar">
+      <input v-model="photoSearch" type="search" class="admin__input admin__input--search" :placeholder="t('adminSearchPhotos')" />
     </div>
 
     <div v-if="tab === 'users'" class="admin__bar">
@@ -723,21 +735,26 @@ watch([hasMore, loading], async () => {
 .admin__stat-cards {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 0;
   margin: 0;
+  border: 1px solid $line;
+  width: fit-content;
 }
 
 .admin__stat-card {
   display: flex;
   flex-direction: column;
-  min-width: 78px;
-  padding: 8px 12px;
-  border: 1px solid $line;
-  border-radius: $radius-md;
-  background: $surface-soft;
+  min-width: 88px;
+  padding: 8px 14px;
+  border-right: 1px solid $line;
+  background: $surface;
+
+  &:last-child {
+    border-right: 0;
+  }
 
   strong {
-    font-size: 18px;
+    font-size: 17px;
     font-weight: 700;
     line-height: 1.1;
   }
@@ -748,81 +765,55 @@ watch([hasMore, loading], async () => {
     font-weight: 500;
   }
 
-  &--accent {
-    border-color: rgba($accent, 0.35);
-    background: rgba($accent, 0.08);
-
-    strong {
-      color: $accent-dark;
-    }
+  &--accent strong {
+    color: $accent-dark;
   }
 }
 
 .admin__tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 0 4px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid $line;
 }
 
 .admin__tab {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 8px 14px;
-  border: 1px solid $line;
-  border-radius: $radius-pill;
-  background: $surface;
+  gap: 6px;
+  padding: 9px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  background: none;
   color: $muted;
   font: inherit;
   font-size: 14px;
-  font-weight: 600;
   cursor: pointer;
-  @include interactive((background, color, border-color, box-shadow));
+  @include interactive((color, border-color));
 
   &:hover {
     color: $ink;
-    border-color: rgba($primary, 0.4);
   }
 
   &.on {
-    color: #fff;
-    border-color: transparent;
-    background: linear-gradient(135deg, $primary, $primary-dark);
-    box-shadow: 0 6px 14px rgba($primary, 0.26);
+    color: $ink;
+    font-weight: 600;
+    border-bottom-color: $primary;
   }
-}
-
-.admin__tab-icon {
-  font-size: 15px;
-  line-height: 1;
 }
 
 .admin__tab-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
-  border-radius: $radius-pill;
-  background: $accent;
-  color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-
-  .admin__tab.on & {
-    background: rgba(255, 255, 255, 0.28);
-  }
+  color: $accent-dark;
 }
 
 .admin__desc {
   margin: 0 0 14px;
-  padding: 10px 14px;
-  border-left: 3px solid rgba($primary, 0.5);
-  border-radius: 0 $radius-sm $radius-sm 0;
-  background: $primary-soft;
-  color: $primary-dark;
+  padding: 8px 0 12px;
+  color: $muted;
   font-size: 13px;
   line-height: 1.5;
 }
@@ -831,18 +822,16 @@ watch([hasMore, loading], async () => {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .admin__chip {
-  padding: 6px 13px;
+  padding: 5px 12px;
   border: 1px solid $line;
-  border-radius: $radius-pill;
   background: $surface;
   color: $muted;
   font: inherit;
   font-size: 13px;
-  font-weight: 600;
   cursor: pointer;
   @include interactive((background, color, border-color));
 
@@ -851,9 +840,9 @@ watch([hasMore, loading], async () => {
   }
 
   &.on {
-    color: $primary-dark;
-    border-color: rgba($primary, 0.5);
-    background: $primary-soft;
+    color: $ink;
+    border-color: $ink;
+    font-weight: 600;
   }
 }
 
@@ -950,7 +939,6 @@ watch([hasMore, loading], async () => {
   align-items: center;
   padding: 5px 11px;
   border: 1px solid $line;
-  border-radius: $radius-pill;
   background: $surface;
   color: $ink;
   font: inherit;
@@ -962,8 +950,7 @@ watch([hasMore, loading], async () => {
   @include interactive((background, color, border-color));
 
   &:hover {
-    border-color: rgba($primary, 0.45);
-    background: $primary-soft;
+    border-color: $ink;
   }
 
   &--ok {
@@ -1001,8 +988,7 @@ watch([hasMore, loading], async () => {
 
 .admin__badge {
   display: inline-block;
-  padding: 3px 10px;
-  border-radius: $radius-pill;
+  padding: 2px 8px;
   font-size: 11px;
   font-weight: 600;
 
@@ -1111,6 +1097,11 @@ a.admin__link {
   color: $ink;
   font: inherit;
   font-size: 13px;
+}
+
+.admin__input--search {
+  width: 100%;
+  max-width: 360px;
 }
 
 .admin__textarea {
