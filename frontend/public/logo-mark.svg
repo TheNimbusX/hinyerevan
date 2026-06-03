@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 212" fill="none" role="img" aria-label="HinYerevan">
+  <defs>
+    <linearGradient id="hy-mark" x1="58" y1="8" x2="150" y2="202" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4a93e6"/>
+      <stop offset="0.55" stop-color="#2f6fcc"/>
+      <stop offset="1" stop-color="#1c4aa2"/>
+    </linearGradient>
+  </defs>
+  <!-- stepped fortress wall -->
+  <path d="M22 200 V176 H52 V160 H74 V144 H92 V170 H108 V144 H126 V160 H148 V176 H178 V200 Z" fill="url(#hy-mark)"/>
+  <!-- stem -->
+  <rect x="95.4" y="148" width="3.1" height="48" fill="url(#hy-mark)"/>
+  <rect x="101.5" y="148" width="3.1" height="48" fill="url(#hy-mark)"/>
+  <!-- feather / leaf -->
+  <path d="M100 12 C128 52 128 112 100 150 C72 112 72 52 100 12 Z" fill="url(#hy-mark)"/>
+  <!-- veins -->
+  <g stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" fill="none">
+    <path d="M100 150 V26"/>
+    <path d="M100 130 L90.5 118 M100 130 L109.5 118"/>
+    <path d="M100 108 L87 94 M100 108 L113 94"/>
+    <path d="M100 86 L86 72 M100 86 L114 72"/>
+    <path d="M100 64 L88 51 M100 64 L112 51"/>
+    <path d="M100 45 L92 36 M100 45 L108 36"/>
+  </g>
+</svg>

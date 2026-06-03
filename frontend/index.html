@@ -92,32 +92,17 @@
       html[data-theme='dark'] .app-splash__halo {
         background: radial-gradient(circle, rgba(138, 165, 236, 0.26), transparent 70%);
       }
-      .app-splash__tile {
+      .app-splash__logo {
         position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 108px;
-        height: 108px;
-        border-radius: 26px;
-        background: #fff;
-        box-shadow:
-          0 1px 0 rgba(255, 255, 255, 0.6) inset,
-          0 18px 38px rgba(13, 16, 24, 0.22);
+        width: 116px;
+        height: auto;
         opacity: 0;
         transform: scale(0.85) translateY(10px);
         animation: splashReveal 0.85s cubic-bezier(0.22, 0.8, 0.28, 1) 0.05s forwards;
+        filter: drop-shadow(0 12px 24px rgba(13, 16, 24, 0.2));
       }
-      html[data-theme='dark'] .app-splash__tile {
-        box-shadow:
-          0 0 0 1px rgba(255, 255, 255, 0.06),
-          0 20px 48px rgba(0, 0, 0, 0.55),
-          0 0 32px rgba(138, 165, 236, 0.22);
-      }
-      .app-splash__logo {
-        width: 78%;
-        height: 78%;
-        object-fit: contain;
+      html[data-theme='dark'] .app-splash__logo {
+        filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.55));
       }
       .app-splash__bar {
         position: relative;
@@ -177,7 +162,7 @@
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        .app-splash__tile {
+        .app-splash__logo {
           animation: splashFadeIn 0.4s ease forwards;
           transform: none;
         }
@@ -193,9 +178,7 @@
       <div class="app-splash__stage">
         <div class="app-splash__logo-wrap">
           <span class="app-splash__halo" aria-hidden="true"></span>
-          <span class="app-splash__tile">
-            <img class="app-splash__logo" src="/Logo2026.png" alt="HinYerevan" />
-          </span>
+          <img class="app-splash__logo" src="/logo-mark.svg" alt="HinYerevan" />
         </div>
         <span class="app-splash__bar" aria-hidden="true"></span>
       </div>
