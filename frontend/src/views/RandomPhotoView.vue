@@ -4,6 +4,7 @@ import { api, imageUrl, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { userDisplayName, userProfilePath } from '../utils/user'
+import { photoDisplayLikes } from '../utils/photoStats'
 
 const { t, currentLanguage } = useI18n()
 const photo = ref(null)
@@ -98,7 +99,7 @@ onMounted(loadRandom)
           </span>
           <span class="random-stat" :title="t('likes')">
             <svg viewBox="0 0 24 24" width="15" height="15"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-            {{ photo.likes_count || 0 }}
+            {{ photoDisplayLikes(photo) }}
           </span>
         </span>
 

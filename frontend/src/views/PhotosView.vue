@@ -4,6 +4,7 @@ import { imageUrl, localizedApi } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel } from '../utils/locale'
+import { photoDisplayLikes } from '../utils/photoStats'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
 
@@ -94,7 +95,7 @@ onBeforeUnmount(() => observer?.disconnect())
       <small>{{ directionLabel(photo.direction, t) }}</small>
       <div class="photo-card-meta">
         <span class="like-pill">
-          <LikeIcon />{{ photo.likes_count || 0 }}
+          <LikeIcon />{{ photoDisplayLikes(photo) }}
         </span>
         <span>{{ photo.views }} {{ t('views') }}</span>
         <span>{{ photo.comments_count }} {{ t('comments') }}</span>

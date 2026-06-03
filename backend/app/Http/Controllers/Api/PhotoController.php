@@ -477,7 +477,12 @@ class PhotoController extends Controller
         $fbLikes = (int) ($photo->facebook_likes ?? 0);
         $siteComments = (int) ($photo->comments_count ?? 0);
         $fbComments = $photo->facebook_post_id
-            ? PhotoFacebookComment::query()->where('photo_id', $photo->id)->count()
+            ? max(
+                (int) ($photo->facebook_comments_count ?? 0),
+                $includeComments
+                    ? PhotoFacebookComment::query()->where('photo_id', $photo->id)->count()
+                    : 0,
+            )
             : 0;
 
         $data['likes_total'] = $siteLikes + $fbLikes;
