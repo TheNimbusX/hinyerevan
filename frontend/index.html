@@ -58,6 +58,12 @@
         opacity: 0;
         visibility: hidden;
       }
+      /* Splash is a mobile-only intro; never show it on tablet/desktop. */
+      @media (min-width: 768px) {
+        #app-splash {
+          display: none;
+        }
+      }
       .app-splash__stage {
         position: relative;
         display: flex;
