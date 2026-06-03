@@ -40,17 +40,7 @@ class FacebookPublishService
             return 'Could not build a public image URL for Facebook.';
         }
 
-        $message = trim((string) $photo->facebook_comment);
-        if ($message === '') {
-            $message = trim($photo->title . ' (' . $photo->year . ')');
-        }
-
-        $siteUrl = rtrim((string) (config('services.facebook.site_url') ?: config('app.frontend_url', config('app.url'))), '/');
-        $message .= "\n\n" . $siteUrl . '/photos/' . $photo->id;
-
-        if ($photo->video) {
-            $message .= "\n\nYouTube: " . trim((string) $photo->video);
-        }
+        $message = $this->buildPostMessage($photo);
 
         try {
             $response = $this->graph->post($this->pageId() . '/photos', [
@@ -99,19 +89,30 @@ class FacebookPublishService
 
         try {
             $response = $this->graph->get($photo->facebook_post_id, [
-                'fields' => 'likes.summary(true),comments.summary(true),permalink_url',
+                'fields' => 'likes.summary(true),comments.summary(true),permalink_url,link,reactions.type(LIKE).summary(true).limit(0)',
                 'access_token' => $this->pageAccessToken(),
             ]);
 
             if (! $response->ok()) {
+                Log::warning('Facebook stats sync HTTP error', [
+                    'photo_id' => $photo->id,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+
                 return;
             }
 
             $data = $response->json();
+            $likes = (int) ($data['likes']['summary']['total_count']
+                ?? $data['reactions']['summary']['total_count']
+                ?? 0);
+            $postUrl = (string) ($data['permalink_url'] ?? $data['link'] ?? $photo->facebook_post_url ?? '');
+
             $photo->forceFill([
-                'facebook_likes' => (int) ($data['likes']['summary']['total_count'] ?? $photo->facebook_likes ?? 0),
-                'facebook_comments_count' => (int) ($data['comments']['summary']['total_count'] ?? $photo->facebook_comments_count ?? 0),
-                'facebook_post_url' => (string) ($data['permalink_url'] ?? $photo->facebook_post_url),
+                'facebook_likes' => $likes,
+                'facebook_comments_count' => (int) ($data['comments']['summary']['total_count'] ?? 0),
+                'facebook_post_url' => $postUrl !== '' ? $postUrl : $photo->facebook_post_url,
                 'facebook_synced_at' => now(),
             ])->save();
 
@@ -130,10 +131,11 @@ class FacebookPublishService
         return $this->publishPhoto($photo);
     }
 
-    private function resolvePermalink(string $mediaId): ?string
+    public function resolvePermalink(string $mediaId, bool $retryWithLink = false): ?string
     {
+        $fields = $retryWithLink ? 'link,permalink_url,from' : 'permalink_url,link';
         $response = $this->graph->get($mediaId, [
-            'fields' => 'permalink_url,link',
+            'fields' => $fields,
             'access_token' => $this->pageAccessToken(),
         ]);
 
@@ -141,7 +143,45 @@ class FacebookPublishService
             return null;
         }
 
-        return $response->json('permalink_url') ?: $response->json('link');
+        $url = $response->json('permalink_url') ?: $response->json('link');
+
+        return is_string($url) && $url !== '' ? $url : null;
+    }
+
+    public function publicPostUrl(Photo $photo): ?string
+    {
+        if ($photo->facebook_post_url) {
+            return $photo->facebook_post_url;
+        }
+
+        if ($photo->facebook_post_id) {
+            return $this->resolvePermalink((string) $photo->facebook_post_id, true);
+        }
+
+        return null;
+    }
+
+    private function buildPostMessage(Photo $photo): string
+    {
+        $siteUrl = rtrim((string) (config('services.facebook.site_url') ?: config('app.frontend_url', config('app.url'))), '/');
+        $photoUrl = $siteUrl . '/photos/' . $photo->id;
+
+        $headline = trim((string) $photo->facebook_comment);
+        if ($headline === '') {
+            $headline = trim((string) $photo->title);
+        }
+
+        // Strip raw URLs from comment so the photo link is not duplicated.
+        $headline = trim(preg_replace('#https?://\S+#u', '', $headline) ?? $headline);
+
+        $lines = [$headline, $photoUrl];
+
+        if ($photo->video) {
+            $lines[] = '';
+            $lines[] = 'YouTube: ' . trim((string) $photo->video);
+        }
+
+        return implode("\n", $lines);
     }
 
     private function publicImageUrl(Photo $photo): ?string

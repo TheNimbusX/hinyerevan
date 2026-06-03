@@ -8,6 +8,7 @@ use App\Models\Photo;
 use App\Models\PhotoView;
 use App\Services\CommentPresenter;
 use App\Services\DemoData;
+use App\Jobs\PublishPhotoToFacebookJob;
 use App\Models\PhotoFacebookComment;
 use App\Services\Facebook\FacebookCommentSyncService;
 use App\Services\Facebook\FacebookPublishService;
@@ -322,9 +323,8 @@ class PhotoController extends Controller
 
         self::flushMarkersCache();
 
-        $facebookError = null;
         if ($publishToFacebook && $isAdmin && $photo->published) {
-            $facebookError = $this->facebookPublish->publishIfPending($photo->fresh());
+            PublishPhotoToFacebookJob::dispatchAfterResponse($photo->id);
         }
 
         $fresh = $photo->fresh(['author:id,unique,uid,first_name,last_name,photo,identity']);
@@ -333,8 +333,8 @@ class PhotoController extends Controller
         $payload['message'] = $isAdmin
             ? 'Photo published.'
             : 'Photo submitted for moderation.';
-        if ($facebookError) {
-            $payload['facebook_publish_error'] = $facebookError;
+        if ($publishToFacebook && $isAdmin && $photo->published) {
+            $payload['facebook_publish_queued'] = true;
         }
 
         return response()->json($payload, 201);
@@ -537,11 +537,13 @@ class PhotoController extends Controller
 
         $storedComments = PhotoFacebookComment::query()->where('photo_id', $photo->id)->count();
 
+        $postUrl = $this->facebookPublish->publicPostUrl($photo);
+
         return [
             'pending' => (bool) $photo->facebook_publish_pending,
             'published' => (bool) $photo->facebook_post_id,
             'post_id' => $photo->facebook_post_id,
-            'post_url' => $photo->facebook_post_url,
+            'post_url' => $postUrl,
             'likes' => (int) ($photo->facebook_likes ?? 0),
             'comments_count' => max((int) ($photo->facebook_comments_count ?? 0), $storedComments),
             'synced_at' => optional($photo->facebook_synced_at)->toISOString(),

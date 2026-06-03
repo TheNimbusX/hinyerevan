@@ -180,7 +180,7 @@ async function submit() {
       : t('uploadPendingSuccess')
     if (publishToFacebook.value && result?.facebook_publish_error) {
       msg += ` ${t('facebookPublishFailed')}: ${result.facebook_publish_error}`
-    } else if (publishToFacebook.value && result?.facebook?.pending) {
+    } else if (publishToFacebook.value && (result?.facebook_publish_queued || result?.facebook?.pending)) {
       msg += ` ${t('facebookPublishQueued')}`
     } else if (publishToFacebook.value && result?.facebook?.post_url) {
       msg += ` ${t('facebookPublishDone')}`

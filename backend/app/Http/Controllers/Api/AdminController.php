@@ -8,6 +8,7 @@ use App\Models\NewsItem;
 use App\Models\Page;
 use App\Models\Photo;
 use App\Models\User;
+use App\Jobs\PublishPhotoToFacebookJob;
 use App\Services\Facebook\FacebookPublishService;
 use App\Services\LegacySchema;
 use Illuminate\Http\Request;
@@ -108,16 +109,15 @@ class AdminController extends Controller
 
         $photo->fill($data)->save();
 
-        $facebookError = null;
-        if (! $wasPublished && (bool) $photo->published) {
-            $facebookError = $this->facebookPublish->publishIfPending($photo->fresh());
+        if (! $wasPublished && (bool) $photo->published && $photo->facebook_publish_pending) {
+            PublishPhotoToFacebookJob::dispatchAfterResponse($photo->id);
         }
 
         PhotoController::flushMarkersCache();
 
         $payload = $this->serializeAdminPhoto($photo->fresh(['author', 'viewCounter']));
-        if ($facebookError) {
-            $payload['facebook_publish_error'] = $facebookError;
+        if (! $wasPublished && (bool) $photo->published && $photo->facebook_publish_pending) {
+            $payload['facebook_publish_queued'] = true;
         }
 
         return $payload;

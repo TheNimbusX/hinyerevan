@@ -5,7 +5,7 @@ import { useI18n } from '../i18n'
 import { currentLanguage } from '../i18n'
 import { loadFacebookSdk, parseFacebookXfbml } from '../utils/facebookSdk'
 
-const PLUGIN_HEIGHT = 480
+const PLUGIN_HEIGHT = 560
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -232,13 +232,15 @@ onBeforeUnmount(() => {
   z-index: 920;
 }
 
-.facebook-modal {
+.facebook-modal.auth-modal {
   display: flex;
   flex-direction: column;
-  width: min(560px, calc(100vw - 28px));
-  max-height: calc(100vh - 40px);
-  padding: 0;
-  overflow: hidden;
+  width: min(560px, calc(100vw - 28px)) !important;
+  max-width: calc(100vw - 28px);
+  max-height: calc(100vh - 32px);
+  padding: 0 !important;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 .facebook-modal__head {
@@ -296,9 +298,10 @@ onBeforeUnmount(() => {
 .facebook-modal__embed {
   position: relative;
   flex: 0 0 auto;
-  height: var(--fb-plugin-height, 480px);
+  min-height: var(--fb-plugin-height, 560px);
+  height: var(--fb-plugin-height, 560px);
   margin: 0 16px 20px;
-  overflow: hidden;
+  overflow: visible;
   border-radius: $radius-lg;
   background: $surface-soft;
 }
@@ -366,15 +369,17 @@ onBeforeUnmount(() => {
   z-index: 1;
   opacity: 0;
   transition: opacity 0.45s ease 0.08s;
-  overflow: hidden;
+  overflow: visible;
 
   &.is-visible {
     opacity: 1;
   }
 
-  :deep(iframe) {
+  :deep(iframe),
+  :deep(.fb-page),
+  :deep(span) {
     display: block;
-    max-width: 100%;
+    max-width: 100% !important;
   }
 }
 
