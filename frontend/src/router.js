@@ -2,16 +2,18 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from './views/HomeView.vue'
 import PhotosView from './views/PhotosView.vue'
 import PhotoDetailView from './views/PhotoDetailView.vue'
-import PhotoUploadView from './views/PhotoUploadView.vue'
-import NewsView from './views/NewsView.vue'
-import NewsDetailView from './views/NewsDetailView.vue'
-import PageView from './views/PageView.vue'
-import ProfileView from './views/ProfileView.vue'
-import AdminView from './views/AdminView.vue'
-import RandomPhotoView from './views/RandomPhotoView.vue'
-import UserProfileView from './views/UserProfileView.vue'
-import FacebookPageView from './views/FacebookPageView.vue'
-import ResetPasswordView from './views/ResetPasswordView.vue'
+
+// Lazy-loaded: keep these out of the initial bundle (most visitors never open them).
+const PhotoUploadView = () => import('./views/PhotoUploadView.vue')
+const NewsView = () => import('./views/NewsView.vue')
+const NewsDetailView = () => import('./views/NewsDetailView.vue')
+const PageView = () => import('./views/PageView.vue')
+const ProfileView = () => import('./views/ProfileView.vue')
+const AdminView = () => import('./views/AdminView.vue')
+const RandomPhotoView = () => import('./views/RandomPhotoView.vue')
+const UserProfileView = () => import('./views/UserProfileView.vue')
+const FacebookPageView = () => import('./views/FacebookPageView.vue')
+const ResetPasswordView = () => import('./views/ResetPasswordView.vue')
 import { api, getToken } from './api'
 import { applyRouteMeta } from './utils/seo'
 import { isAdminUser } from './utils/user'
