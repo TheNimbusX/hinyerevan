@@ -42,13 +42,17 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: #0d1018;
+        background:
+          radial-gradient(circle at 50% 38%, rgba(138, 165, 236, 0.12), transparent 62%),
+          #0d1018;
         transition:
-          opacity 0.55s ease,
-          visibility 0.55s ease;
+          opacity 0.5s ease,
+          visibility 0.5s ease;
       }
       html[data-theme='light'] #app-splash {
-        background: #ffffff;
+        background:
+          radial-gradient(circle at 50% 38%, rgba(41, 79, 179, 0.08), transparent 62%),
+          #ffffff;
       }
       #app-splash.app-splash--hide {
         opacity: 0;
@@ -57,86 +61,112 @@
       .app-splash__stage {
         position: relative;
         display: flex;
+        flex-direction: column;
         align-items: center;
-        justify-content: center;
-        width: 180px;
-        height: 180px;
-        transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
+        gap: 26px;
+        transition:
+          transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+          opacity 0.5s ease;
       }
       #app-splash.app-splash--hide .app-splash__stage {
-        transform: scale(1.12);
+        transform: translateY(-6px) scale(1.04);
+        opacity: 0;
       }
-      .app-splash__ring {
+      .app-splash__logo-wrap {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 132px;
+        height: 132px;
+      }
+      .app-splash__halo {
         position: absolute;
-        inset: 0;
+        inset: -18%;
         border-radius: 50%;
-        border: 2px solid rgba(41, 79, 179, 0.18);
-        border-top-color: #294fb3;
-        animation: splashSpin 1s linear infinite;
+        background: radial-gradient(circle, rgba(41, 79, 179, 0.3), transparent 68%);
+        filter: blur(6px);
+        animation: splashHalo 2.6s ease-in-out infinite;
       }
-      html[data-theme='dark'] .app-splash__ring {
-        border-color: rgba(120, 150, 240, 0.18);
-        border-top-color: #8aa5ec;
-      }
-      .app-splash__glow {
-        position: absolute;
-        width: 150px;
-        height: 150px;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(41, 79, 179, 0.28), transparent 70%);
-        animation: splashPulse 1.8s ease-in-out infinite;
+      html[data-theme='dark'] .app-splash__halo {
+        background: radial-gradient(circle, rgba(138, 165, 236, 0.28), transparent 68%);
       }
       .app-splash__logo {
         position: relative;
-        width: 96px;
+        width: 112px;
         height: auto;
-        animation:
-          splashPop 0.85s cubic-bezier(0.2, 0.8, 0.2, 1) both,
-          splashFloat 2.6s ease-in-out 0.85s infinite;
-        filter: drop-shadow(0 12px 26px rgba(0, 0, 0, 0.35));
+        opacity: 0;
+        transform: scale(0.82) translateY(10px);
+        animation: splashReveal 0.9s cubic-bezier(0.22, 0.8, 0.28, 1) 0.05s forwards;
+        filter: drop-shadow(0 10px 28px rgba(0, 0, 0, 0.4));
       }
-      @keyframes splashPop {
-        0% {
-          opacity: 0;
-          transform: scale(0.55);
-        }
-        60% {
-          opacity: 1;
-          transform: scale(1.08);
-        }
-        100% {
-          transform: scale(1);
-        }
+      html[data-theme='light'] .app-splash__logo {
+        filter: drop-shadow(0 10px 24px rgba(41, 79, 179, 0.22));
       }
-      @keyframes splashFloat {
-        0%,
-        100% {
-          transform: translateY(0);
-        }
-        50% {
-          transform: translateY(-6px);
-        }
+      .app-splash__bar {
+        position: relative;
+        width: 132px;
+        height: 3px;
+        border-radius: 99px;
+        overflow: hidden;
+        background: rgba(138, 165, 236, 0.16);
+        opacity: 0;
+        animation: splashFadeIn 0.6s ease 0.5s forwards;
       }
-      @keyframes splashPulse {
-        0%,
-        100% {
-          transform: scale(0.85);
-          opacity: 0.5;
-        }
-        50% {
-          transform: scale(1.05);
-          opacity: 0.9;
-        }
+      html[data-theme='light'] .app-splash__bar {
+        background: rgba(41, 79, 179, 0.14);
       }
-      @keyframes splashSpin {
+      .app-splash__bar::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        width: 42%;
+        border-radius: inherit;
+        background: linear-gradient(90deg, transparent, #294fb3, transparent);
+        animation: splashSlide 1.25s ease-in-out infinite;
+      }
+      html[data-theme='dark'] .app-splash__bar::before {
+        background: linear-gradient(90deg, transparent, #8aa5ec, transparent);
+      }
+      @keyframes splashReveal {
         to {
-          transform: rotate(360deg);
+          opacity: 1;
+          transform: scale(1) translateY(0);
+        }
+      }
+      @keyframes splashFadeIn {
+        to {
+          opacity: 1;
+        }
+      }
+      @keyframes splashHalo {
+        0%,
+        100% {
+          transform: scale(0.9);
+          opacity: 0.55;
+        }
+        50% {
+          transform: scale(1.06);
+          opacity: 0.95;
+        }
+      }
+      @keyframes splashSlide {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(320%);
         }
       }
       @media (prefers-reduced-motion: reduce) {
-        .app-splash__logo,
-        .app-splash__glow,
-        .app-splash__ring {
+        .app-splash__logo {
+          animation: splashFadeIn 0.4s ease forwards;
+          transform: none;
+        }
+        .app-splash__halo,
+        .app-splash__bar::before {
           animation: none;
         }
       }
@@ -145,9 +175,11 @@
   <body>
     <div id="app-splash" role="status" aria-label="HinYerevan">
       <div class="app-splash__stage">
-        <span class="app-splash__glow" aria-hidden="true"></span>
-        <span class="app-splash__ring" aria-hidden="true"></span>
-        <img class="app-splash__logo" src="/Logo2026.png" alt="HinYerevan" />
+        <div class="app-splash__logo-wrap">
+          <span class="app-splash__halo" aria-hidden="true"></span>
+          <img class="app-splash__logo" src="/Logo2026.png" alt="HinYerevan" />
+        </div>
+        <span class="app-splash__bar" aria-hidden="true"></span>
       </div>
     </div>
     <div id="app"></div>
