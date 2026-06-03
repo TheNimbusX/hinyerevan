@@ -3,6 +3,7 @@
 namespace App\Services\Facebook;
 
 use App\Models\Photo;
+use App\Models\PhotoFacebookComment;
 use Illuminate\Support\Facades\Log;
 
 class FacebookPublishService
@@ -89,7 +90,7 @@ class FacebookPublishService
 
         try {
             $response = $this->graph->get($photo->facebook_post_id, [
-                'fields' => 'link,likes.summary(true),comments.summary(true),reactions.type(LIKE).summary(true).limit(0)',
+                'fields' => 'link,likes.summary(true)',
                 'access_token' => $this->pageAccessToken(),
             ]);
 
@@ -104,19 +105,21 @@ class FacebookPublishService
             }
 
             $data = $response->json();
-            $likes = (int) ($data['likes']['summary']['total_count']
-                ?? $data['reactions']['summary']['total_count']
-                ?? 0);
+            $likes = (int) ($data['likes']['summary']['total_count'] ?? 0);
             $postUrl = (string) ($data['link'] ?? $photo->facebook_post_url ?? '');
 
             $photo->forceFill([
                 'facebook_likes' => $likes,
-                'facebook_comments_count' => (int) ($data['comments']['summary']['total_count'] ?? 0),
                 'facebook_post_url' => $postUrl !== '' ? $postUrl : $photo->facebook_post_url,
                 'facebook_synced_at' => now(),
             ])->save();
 
             $this->commentSync->syncForPhoto($photo->fresh());
+
+            $storedComments = PhotoFacebookComment::query()
+                ->where('photo_id', $photo->id)
+                ->count();
+            $photo->forceFill(['facebook_comments_count' => $storedComments])->save();
         } catch (\Throwable $e) {
             Log::warning('Facebook stats sync failed', ['photo_id' => $photo->id, 'message' => $e->getMessage()]);
         }
