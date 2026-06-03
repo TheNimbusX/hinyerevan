@@ -12,7 +12,9 @@ class PhotoFacebookComment extends Model
     protected $fillable = [
         'photo_id',
         'facebook_comment_id',
+        'parent_facebook_comment_id',
         'author_name',
+        'author_picture',
         'body',
         'commented_at',
         'synced_at',

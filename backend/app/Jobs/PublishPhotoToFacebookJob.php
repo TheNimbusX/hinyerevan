@@ -5,13 +5,13 @@ namespace App\Jobs;
 use App\Models\Photo;
 use App\Services\Facebook\FacebookPublishService;
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-class PublishPhotoToFacebookJob implements ShouldQueue
+/** Runs synchronously so publish completes before the admin sees the photo. */
+class PublishPhotoToFacebookJob
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 

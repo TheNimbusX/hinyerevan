@@ -12,4 +12,5 @@ return [
     // Watermark burned into NEW uploads (legacy photos already carry their own).
     'watermark_upload' => env('HINYEREVAN_WATERMARK_UPLOAD', base_path('resources/watermark/logo.png')),
     'public_photo_requires_published' => env('HINYEREVAN_PUBLIC_PHOTO_REQUIRES_PUBLISHED', true),
+    'legacy_likes_connection' => env('LEGACY_LIKES_DB_CONNECTION', ''),
 ];

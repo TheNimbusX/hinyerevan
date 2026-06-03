@@ -324,7 +324,8 @@ class PhotoController extends Controller
         self::flushMarkersCache();
 
         if ($publishToFacebook && $isAdmin && $photo->published) {
-            PublishPhotoToFacebookJob::dispatchAfterResponse($photo->id);
+            PublishPhotoToFacebookJob::dispatchSync($photo->id);
+            $photo->refresh();
         }
 
         $fresh = $photo->fresh(['author:id,unique,uid,first_name,last_name,photo,identity']);
@@ -474,6 +475,7 @@ class PhotoController extends Controller
         ];
 
         $siteLikes = (int) ($photo->likes_count ?? 0);
+        $legacyLikes = (int) ($photo->legacy_likes_count ?? 0);
         $fbLikes = (int) ($photo->facebook_likes ?? 0);
         $siteComments = (int) ($photo->comments_count ?? 0);
         $fbComments = $photo->facebook_post_id
@@ -485,8 +487,9 @@ class PhotoController extends Controller
             )
             : 0;
 
-        $data['likes_total'] = $siteLikes + $fbLikes;
-        $data['site_likes_count'] = $siteLikes;
+        $data['likes_total'] = $siteLikes + $legacyLikes + $fbLikes;
+        $data['site_likes_count'] = $siteLikes + $legacyLikes;
+        $data['legacy_likes_count'] = $legacyLikes;
         $data['comments_count'] = $siteComments + $fbComments;
 
         if ($includeComments) {
@@ -502,18 +505,12 @@ class PhotoController extends Controller
      */
     private function mergedComments(Photo $photo, ?string $lang): array
     {
-        $site = CommentPresenter::serializeFlat(
+        return CommentPresenter::mergePhotoThreads(
             $photo->comments->sortBy('datetime')->values(),
+            fn () => $this->facebookComments->serializedTreeForPhoto($photo->id, $this->translator, $lang),
             $this->translator,
             $lang,
         );
-        $facebook = $this->facebookComments->serializedForPhoto($photo->id, $this->translator, $lang);
-
-        return collect($site)
-            ->concat($facebook)
-            ->sortBy(fn (array $row) => $row['datetime'] ?? '')
-            ->values()
-            ->all();
     }
 
     private function serializeAuthor($author): ?array

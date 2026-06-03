@@ -109,15 +109,22 @@ class AdminController extends Controller
 
         $photo->fill($data)->save();
 
+        $facebookPublishError = null;
         if (! $wasPublished && (bool) $photo->published && $photo->facebook_publish_pending) {
-            PublishPhotoToFacebookJob::dispatchAfterResponse($photo->id);
+            PublishPhotoToFacebookJob::dispatchSync($photo->id);
+            $photo->refresh();
+            if ($photo->facebook_publish_pending && ! $photo->facebook_post_id) {
+                $facebookPublishError = $this->facebookPublish->publishIfPending($photo);
+            }
         }
 
         PhotoController::flushMarkersCache();
 
         $payload = $this->serializeAdminPhoto($photo->fresh(['author', 'viewCounter']));
-        if (! $wasPublished && (bool) $photo->published && $photo->facebook_publish_pending) {
-            $payload['facebook_publish_queued'] = true;
+        if ($facebookPublishError) {
+            $payload['facebook_publish_error'] = $facebookPublishError;
+        } elseif ($photo->facebook_post_id || $photo->facebook_post_url) {
+            $payload['facebook_publish_done'] = true;
         }
 
         return $payload;

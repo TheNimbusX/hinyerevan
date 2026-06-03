@@ -3,7 +3,7 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRoute } from 'vue-router'
-import { api, getToken, imageUrl, localizedApi, safeAvatarUrl } from '../api'
+import { api, clearApiCacheForPath, getToken, imageUrl, localizedApi, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
@@ -11,8 +11,10 @@ import { applyMapTileLayer, getMapTileLayer } from '../utils/mapTiles'
 import { getDirectionIcon } from '../utils/mapMarkerIcons'
 import { setupLeaflet } from '../utils/leafletSetup'
 import { directionLabel, formatDateTime } from '../utils/locale'
-import { formatCommentBody } from '../utils/commentBody'
+import { commentDisplayName } from '../utils/commentDisplay'
+import { buildCommentPostBody } from '../utils/commentPost'
 import { userDisplayName, userProfilePath } from '../utils/user'
+import PhotoCommentThread from '../components/PhotoCommentThread.vue'
 import { setPageMeta } from '../utils/seo'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
@@ -23,6 +25,7 @@ const route = useRoute()
 const photo = ref(null)
 const detailImageSrc = ref('')
 const comment = ref('')
+const replyTo = ref(null)
 const error = ref('')
 const loading = ref(true)
 const isFavorite = ref(false)
@@ -67,6 +70,26 @@ function authorAvatar(author) {
   return safeAvatarUrl(author?.photo)
 }
 
+async function refreshPhotoFacebookMeta() {
+  const photoPath = `/photos/${route.params.id}`
+  try {
+    clearApiCacheForPath(photoPath)
+    const fresh = await api(photoPath, { translateScope: 'main' })
+    if (!photo.value || fresh?.id !== photo.value.id) return
+    photo.value = {
+      ...photo.value,
+      facebook: fresh.facebook ?? photo.value.facebook,
+      likes_total: fresh.likes_total ?? photo.value.likes_total,
+      site_likes_count: fresh.site_likes_count ?? photo.value.site_likes_count,
+      legacy_likes_count: fresh.legacy_likes_count ?? photo.value.legacy_likes_count,
+      likes_count: fresh.likes_count ?? photo.value.likes_count,
+      comments_count: fresh.comments_count ?? photo.value.comments_count,
+    }
+  } catch {
+    // keep cached payload
+  }
+}
+
 async function loadTranslatedComments() {
   if (currentLanguage.value === 'hy' || !photo.value) return
   const commentsPath = `/photos/${route.params.id}/comments`
@@ -101,6 +124,7 @@ async function load({ soft = false } = {}) {
       type: 'article',
     })
     void loadTranslatedComments()
+    void refreshPhotoFacebookMeta()
   } catch (event) {
     if (!soft) {
       photo.value = null
@@ -291,6 +315,22 @@ function promptLogin() {
   window.dispatchEvent(new CustomEvent('hinyerevan:open-auth', { detail: { mode: 'login' } }))
 }
 
+function setReplyTarget(item) {
+  replyTo.value = item
+}
+
+function cancelReply() {
+  replyTo.value = null
+}
+
+const commentPlaceholder = computed(() =>
+  replyTo.value ? t('writeReply') : t('writeComment'),
+)
+
+const replyToLabel = computed(() =>
+  replyTo.value ? t('replyingTo', { name: commentDisplayName(replyTo.value, t) }) : '',
+)
+
 async function submitComment() {
   error.value = ''
   if (!isAuthenticated.value) {
@@ -300,9 +340,10 @@ async function submitComment() {
   try {
     await api(`/photos/${route.params.id}/comments`, {
       method: 'POST',
-      body: { body: comment.value },
+      body: buildCommentPostBody(comment.value, replyTo.value),
     })
     comment.value = ''
+    replyTo.value = null
     await load()
   } catch (event) {
     if (event.status === 401) {
@@ -475,7 +516,13 @@ async function submitComment() {
   <section v-if="photo" class="panel">
     <h2>{{ t('comments') }}</h2>
     <form v-if="isAuthenticated" class="comment-form" @submit.prevent="submitComment">
-      <textarea v-model="comment" :placeholder="t('writeComment')" required />
+      <p v-if="replyTo" class="comment-reply-banner">
+        <span>{{ replyToLabel }}</span>
+        <button type="button" class="comment-reply-banner__cancel" @click="cancelReply">
+          {{ t('cancelReply') }}
+        </button>
+      </p>
+      <textarea v-model="comment" :placeholder="commentPlaceholder" required />
       <button class="button" type="submit">{{ t('postComment') }}</button>
       <p v-if="error" class="error">{{ error }}</p>
     </form>
@@ -483,32 +530,15 @@ async function submitComment() {
       {{ t('loginToComment') }}
     </button>
     <p v-if="isAuthenticated" class="facebook-comments-note muted-hint">{{ t('facebookReplyOnSiteOnly') }}</p>
-    <div
-      v-for="item in photo.comments || []"
-      :key="item.id"
-      class="comment"
-      :class="{ 'comment--facebook': item.source === 'facebook' }"
-    >
-      <img
-        v-if="item.source !== 'facebook'"
-        class="comment-avatar"
-        :src="authorAvatar(item.author)"
-        :alt="userDisplayName(item.author, t)"
-      />
-      <span v-else class="comment-avatar comment-avatar--fb" aria-hidden="true">f</span>
-      <span>
-        <RouterLink
-          v-if="item.source !== 'facebook' && item.author?.unique"
-          class="comment-author"
-          :to="userProfilePath(item.author)"
-        >
-          {{ userDisplayName(item.author, t) }}
-        </RouterLink>
-        <span v-else class="comment-author">{{ userDisplayName(item.author, t) }}</span>
-        <span v-if="item.source === 'facebook'" class="comment-source">{{ t('facebookCommentBadge') }}</span>
-        <p class="comment-body">{{ formatCommentBody(item.body) }}</p>
-      </span>
-    </div>
+    <PhotoCommentThread
+      v-if="photo.comments?.length"
+      :threads="photo.comments"
+      :t="t"
+      :lang="currentLanguage"
+      :is-authenticated="isAuthenticated"
+      :reply-to-id="replyTo?.id ?? null"
+      @reply="setReplyTarget"
+    />
   </section>
 
   <Teleport to="body">
@@ -762,33 +792,26 @@ async function submitComment() {
   font-size: 13px;
 }
 
-.comment--facebook {
-  background: rgba(24, 119, 242, 0.06);
+.comment-reply-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 0 0 8px;
+  padding: 8px 10px;
   border-radius: $radius-sm;
-  padding: 10px;
+  background: rgba(24, 119, 242, 0.08);
+  font-size: 13px;
 }
 
-.comment-avatar--fb {
-  display: grid;
-  place-items: center;
-  background: #1877f2;
-  color: #fff;
-  font-weight: 800;
-  font-size: 14px;
-  text-transform: lowercase;
-}
-
-.comment-source {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: $radius-pill;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.comment-reply-banner__cancel {
+  border: 0;
+  padding: 0;
+  background: none;
   color: #1877f2;
-  background: rgba(24, 119, 242, 0.12);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .facebook-post-stats {

@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Comment;
 use App\Models\NewsItem;
 use App\Models\Photo;
+use App\Models\PhotoFacebookComment;
 use App\Services\CommentPresenter;
 use App\Services\DemoData;
 use App\Services\Facebook\FacebookCommentSyncService;
@@ -41,24 +42,20 @@ class CommentController extends Controller
         abort_unless($photoModel->id > 0 && $photoModel->published, 404);
 
         $comments = Comment::query()
-            ->with(['author:id,unique,uid,first_name,last_name,photo,identity,email', 'replies.author:id,unique,uid,first_name,last_name,photo,identity,email'])
+            ->with('author:id,unique,uid,first_name,last_name,photo,identity,email')
             ->alive()
             ->where('post_id', $photoModel->id)
-            ->where(function ($query) {
-                $query->whereNull('to')->orWhere('to', 0);
-            })
             ->oldest('datetime')
             ->get();
 
         $lang = $this->lang($request);
-        $site = CommentPresenter::serializeFlat($comments, $this->translator, $lang);
-        $facebook = $this->facebookComments->serializedForPhoto($photoModel->id, $this->translator, $lang);
 
-        return collect($site)
-            ->concat($facebook)
-            ->sortBy(fn (array $row) => $row['datetime'] ?? '')
-            ->values()
-            ->all();
+        return CommentPresenter::mergePhotoThreads(
+            $comments,
+            fn () => $this->facebookComments->serializedTreeForPhoto($photoModel->id, $this->translator, $lang),
+            $this->translator,
+            $lang,
+        );
     }
 
     public function store(Request $request, int $photo)
@@ -70,14 +67,41 @@ class CommentController extends Controller
         $data = $request->validate([
             'body' => ['required', 'string', 'max:2000'],
             'to' => ['nullable', 'integer', 'min:0'],
+            'reply_to_facebook_comment_id' => ['nullable', 'string', 'max:64'],
         ]);
+
+        $parentId = (int) ($data['to'] ?? 0);
+        $replyToFacebook = trim((string) ($data['reply_to_facebook_comment_id'] ?? ''));
+
+        if ($replyToFacebook !== '') {
+            abort_unless(
+                PhotoFacebookComment::query()
+                    ->where('photo_id', $photo->id)
+                    ->where('facebook_comment_id', $replyToFacebook)
+                    ->exists(),
+                422,
+                'Facebook comment not found for this photo.',
+            );
+            $parentId = 0;
+        } elseif ($parentId > 0) {
+            abort_unless(
+                Comment::query()
+                    ->alive()
+                    ->where('post_id', $photo->id)
+                    ->where('id', $parentId)
+                    ->exists(),
+                422,
+                'Parent comment not found.',
+            );
+        }
 
         $comment = Comment::query()->create([
             'post_id' => $photo->id,
             'body' => $data['body'],
             'user_unique' => $request->user()->unique,
             'datetime' => now(),
-            'to' => $data['to'] ?? 0,
+            'to' => $parentId,
+            'reply_to_facebook_comment_id' => $replyToFacebook !== '' ? $replyToFacebook : null,
         ]);
 
         $comment->load('author:id,unique,uid,first_name,last_name,photo,identity,email');

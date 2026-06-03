@@ -63,6 +63,19 @@ return [
             ]) : [],
         ],
 
+        'legacy_likes' => [
+            'driver' => 'mysql',
+            'host' => env('LEGACY_LIKES_DB_HOST', '127.0.0.1'),
+            'port' => env('LEGACY_LIKES_DB_PORT', '3310'),
+            'database' => env('LEGACY_LIKES_DB_DATABASE', 'hin-yerevan'),
+            'username' => env('LEGACY_LIKES_DB_USERNAME', 'hin-yerevan'),
+            'password' => env('LEGACY_LIKES_DB_PASSWORD', ''),
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => false,
+        ],
+
         'pgsql' => [
             'driver' => 'pgsql',
             'url' => env('DATABASE_URL'),

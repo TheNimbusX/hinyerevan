@@ -53,6 +53,14 @@ export function clearApiCacheForLanguage(lang) {
     .forEach((key) => localStorage.removeItem(key))
 }
 
+/** Drop cached GET payloads for one API path (all languages). */
+export function clearApiCacheForPath(path) {
+  const base = path.split('?')[0]
+  Object.keys(localStorage)
+    .filter((key) => key.startsWith(CACHE_PREFIX) && key.includes(`:${base}`))
+    .forEach((key) => localStorage.removeItem(key))
+}
+
 function readCacheEntry(key, ttl) {
   try {
     const cached = JSON.parse(localStorage.getItem(key) || 'null')
