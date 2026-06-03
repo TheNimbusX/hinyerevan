@@ -57,6 +57,8 @@ return [
         'app_id' => env('FACEBOOK_APP_ID', env('FACEBOOK_CLIENT_ID')),
         // Secret of the Meta app that issued the page token (HinYerevanPage), for token exchange
         'app_secret' => env('FACEBOOK_APP_SECRET'),
+        // Optional; leave empty on VPS — OAUTH_PROXY is for Yandex and breaks graph.facebook.com
+        'graph_proxy' => env('FACEBOOK_GRAPH_PROXY'),
         'site_url' => rtrim(env('FRONTEND_URL', env('APP_URL', 'http://127.0.0.1:8000')), '/'),
     ],
 

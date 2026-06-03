@@ -31,7 +31,7 @@ class FacebookGraphClient
     private function client()
     {
         $client = Http::timeout(25)->acceptJson();
-        $proxy = trim((string) config('services.oauth.proxy', ''));
+        $proxy = trim((string) config('services.facebook.graph_proxy', ''));
 
         if ($proxy !== '') {
             $client = $client->withOptions(['proxy' => $proxy]);
