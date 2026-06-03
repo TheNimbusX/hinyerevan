@@ -14,7 +14,7 @@ return new class extends Migration
 
         Schema::table('photos', function (Blueprint $table) {
             if (! Schema::hasColumn('photos', 'legacy_likes_count')) {
-                $table->unsignedInteger('legacy_likes_count')->default(0)->after('year');
+                $table->unsignedInteger('legacy_likes_count')->default(0);
             }
         });
     }
