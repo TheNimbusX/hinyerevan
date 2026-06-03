@@ -17,6 +17,24 @@
   }
 }
 
+.comment-crosspost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  font-size: 13px;
+  color: $muted;
+  cursor: pointer;
+  user-select: none;
+
+  input {
+    width: 16px;
+    height: 16px;
+    accent-color: #1877f2;
+    cursor: pointer;
+  }
+}
+
 .filter-bar {
   display: flex;
   flex-wrap: wrap;

@@ -2,6 +2,7 @@
 
 namespace App\Services\Facebook;
 
+use App\Models\Comment;
 use App\Models\Photo;
 use App\Models\PhotoFacebookComment;
 use App\Services\TranslationService;
@@ -16,9 +17,59 @@ class FacebookCommentSyncService
     /** Avoid hammering Graph when one page view touches several endpoints. */
     private const THROTTLE_SECONDS = 15;
 
+    /** @var list<string> FB comment ids already represented by site comments. */
+    private array $linkedFacebookIds = [];
+
     public function __construct(
         private readonly FacebookGraphClient $graph,
     ) {}
+
+    /**
+     * Cross-post a site comment to the photo's Facebook post via the Page token.
+     * Appears as the Page; author is attributed in the message text.
+     *
+     * @return string|null  The created Facebook comment id, or null on failure.
+     */
+    public function publishComment(Photo $photo, string $message, ?string $replyToFacebookCommentId = null): ?string
+    {
+        $token = trim((string) config('services.facebook.page_access_token', ''));
+        $postId = trim((string) $photo->facebook_post_id);
+        if ($postId === '' || $token === '' || trim($message) === '') {
+            return null;
+        }
+
+        $target = $replyToFacebookCommentId !== null && $replyToFacebookCommentId !== ''
+            ? $replyToFacebookCommentId
+            : $postId;
+
+        try {
+            $response = $this->graph->post($target . '/comments', [
+                'message' => $message,
+                'access_token' => $token,
+            ]);
+
+            if (! $response->ok()) {
+                Log::warning('Facebook comment cross-post failed', [
+                    'photo_id' => $photo->id,
+                    'status' => $response->status(),
+                    'body' => $response->json(),
+                ]);
+
+                return null;
+            }
+
+            $id = (string) ($response->json('id') ?? '');
+
+            return $id !== '' ? $id : null;
+        } catch (\Throwable $e) {
+            Log::warning('Facebook comment cross-post exception', [
+                'photo_id' => $photo->id,
+                'message' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
 
     public function syncForPhoto(Photo $photo, bool $force = false): void
     {
@@ -40,6 +91,15 @@ class FacebookCommentSyncService
         }
 
         $postId = trim((string) $photo->facebook_post_id);
+
+        // FB comment ids that originated from site comments (cross-posted): they are
+        // already shown as the site comment, so don't ingest them as duplicates.
+        $this->linkedFacebookIds = Comment::query()
+            ->where('post_id', $photo->id)
+            ->whereNotNull('facebook_comment_id')
+            ->pluck('facebook_comment_id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
 
         try {
             $response = $this->graph->get($postId . '/comments', [
@@ -111,6 +171,11 @@ class FacebookCommentSyncService
         $fbId = (string) ($row['id'] ?? '');
         $message = trim((string) ($row['message'] ?? ''));
         if ($fbId === '' || $message === '') {
+            return;
+        }
+
+        // Skip comments that we cross-posted from the site; the site comment is the source of truth.
+        if (in_array($fbId, $this->linkedFacebookIds, true)) {
             return;
         }
 

@@ -20,6 +20,7 @@ class Comment extends Model
         'datetime',
         'to',
         'reply_to_facebook_comment_id',
+        'facebook_comment_id',
     ];
 
     protected $casts = [

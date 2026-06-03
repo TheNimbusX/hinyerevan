@@ -27,6 +27,7 @@ const commentError = ref('')
 const commentSubmitting = ref(false)
 const commentPostError = ref('')
 const replyResetKey = ref(0)
+const crosspostFb = ref(false)
 const isFavorite = ref(false)
 const favoritePending = ref(false)
 const shareNotice = ref('')
@@ -253,14 +254,14 @@ async function sharePhoto() {
   }
 }
 
-async function postComment({ replyTo, body }) {
+async function postComment({ replyTo, body, postToFacebook = false }) {
   commentPostError.value = ''
   if (!photo.value) return false
   commentSubmitting.value = true
   try {
     const created = await api(`/photos/${photo.value.id}/comments`, {
       method: 'POST',
-      body: buildCommentPostBody(body, replyTo),
+      body: buildCommentPostBody(body, replyTo, { postToFacebook }),
     })
     const threads = appendCommentToThreads(photo.value.comments || [], created, replyTo)
     photo.value = {
@@ -281,7 +282,7 @@ async function postComment({ replyTo, body }) {
 
 async function submitComment() {
   commentError.value = ''
-  const ok = await postComment({ replyTo: null, body: comment.value })
+  const ok = await postComment({ replyTo: null, body: comment.value, postToFacebook: crosspostFb.value })
   if (ok) comment.value = ''
 }
 
@@ -480,6 +481,10 @@ onBeforeUnmount(() => {
               <h3>{{ t('comments') }}</h3>
               <form v-if="isAuthenticated" class="comment-form comment-form--root" @submit.prevent="submitComment">
                 <textarea v-model="comment" :placeholder="t('writeComment')" :disabled="commentSubmitting" required />
+                <label v-if="photo.facebook?.post_id" class="comment-crosspost">
+                  <input v-model="crosspostFb" type="checkbox" :disabled="commentSubmitting" />
+                  <span>{{ t('postAlsoToFacebook') }}</span>
+                </label>
                 <button class="button" type="submit" :disabled="commentSubmitting">{{ t('postComment') }}</button>
                 <p v-if="commentError" class="error">{{ commentError }}</p>
               </form>

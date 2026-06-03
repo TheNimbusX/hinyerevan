@@ -76,10 +76,12 @@ class CommentController extends Controller
             'body' => ['required', 'string', 'max:2000'],
             'to' => ['nullable', 'integer', 'min:0'],
             'reply_to_facebook_comment_id' => ['nullable', 'string', 'max:64'],
+            'post_to_facebook' => ['nullable', 'boolean'],
         ]);
 
         $parentId = (int) ($data['to'] ?? 0);
         $replyToFacebook = trim((string) ($data['reply_to_facebook_comment_id'] ?? ''));
+        $crosspostToFacebook = (bool) ($data['post_to_facebook'] ?? false);
 
         if ($replyToFacebook !== '') {
             abort_unless(
@@ -113,6 +115,19 @@ class CommentController extends Controller
         ]);
 
         $comment->load('author:id,unique,uid,first_name,last_name,photo,identity,email');
+
+        if ($crosspostToFacebook && $photo->facebook_post_id) {
+            $authorName = trim((string) ($comment->author?->name ?? $request->user()->name ?? ''));
+            $message = $authorName !== '' ? $authorName . ': ' . $data['body'] : $data['body'];
+            $fbId = $this->facebookComments->publishComment(
+                $photo,
+                $message,
+                $replyToFacebook !== '' ? $replyToFacebook : null,
+            );
+            if ($fbId !== null) {
+                $comment->forceFill(['facebook_comment_id' => $fbId])->save();
+            }
+        }
 
         $payload = CommentPresenter::serializeFlat(collect([$comment]), $this->translator, $this->lang($request))[0];
         $payload['source'] = 'site';

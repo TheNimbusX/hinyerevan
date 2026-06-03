@@ -1,5 +1,8 @@
-export function buildCommentPostBody(text, replyTo) {
+export function buildCommentPostBody(text, replyTo, { postToFacebook = false } = {}) {
   const body = { body: String(text || '').trim() }
+  if (postToFacebook) {
+    body.post_to_facebook = true
+  }
   if (!replyTo) return body
 
   if (replyTo.source === 'facebook' && replyTo.facebook_comment_id) {
