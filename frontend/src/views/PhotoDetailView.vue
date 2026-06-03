@@ -610,6 +610,7 @@ watch(isAuthenticated, () => {
       :reply-reset-key="replyResetKey"
       :post-error="commentPostError"
       :current-user-unique="currentUserUnique"
+      :can-crosspost="Boolean(photo.facebook?.post_id)"
       @submit="postComment"
       @delete="deleteComment"
     />

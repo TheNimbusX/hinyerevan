@@ -44,6 +44,10 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  canCrosspost: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['submit', 'delete'])
@@ -52,6 +56,7 @@ const activeReplyId = ref(null)
 const replyDraft = ref('')
 const inlineError = ref('')
 const confirmDeleteId = ref(null)
+const replyCrosspost = ref(false)
 
 function canDelete(item) {
   return (
@@ -77,6 +82,7 @@ watch(
     activeReplyId.value = null
     replyDraft.value = ''
     inlineError.value = ''
+    replyCrosspost.value = false
   },
 )
 
@@ -94,19 +100,21 @@ function toggleReply(item) {
   activeReplyId.value = item.id
   replyDraft.value = ''
   inlineError.value = ''
+  replyCrosspost.value = false
 }
 
 function cancelInlineReply() {
   activeReplyId.value = null
   replyDraft.value = ''
   inlineError.value = ''
+  replyCrosspost.value = false
 }
 
 function submitInline(item) {
   const body = replyDraft.value.trim()
   if (!body || props.submitting) return
   inlineError.value = ''
-  emit('submit', { replyTo: item, body })
+  emit('submit', { replyTo: item, body, postToFacebook: replyCrosspost.value })
 }
 
 watch(
@@ -219,6 +227,10 @@ watch(
           :disabled="submitting"
           required
         />
+        <label v-if="canCrosspost" class="comment-crosspost comment-crosspost--inline">
+          <input v-model="replyCrosspost" type="checkbox" :disabled="submitting" />
+          <span>{{ t('postAlsoToFacebook') }}</span>
+        </label>
         <div class="comment-inline-reply__actions">
           <button class="button" type="submit" :disabled="submitting || !replyDraft.trim()">
             {{ t('postComment') }}
@@ -240,6 +252,7 @@ watch(
         :reply-reset-key="replyResetKey"
         :post-error="postError"
         :current-user-unique="currentUserUnique"
+        :can-crosspost="canCrosspost"
         nested
         @submit="emit('submit', $event)"
         @delete="emit('delete', $event)"
