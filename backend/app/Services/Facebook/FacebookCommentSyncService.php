@@ -9,8 +9,8 @@ use Illuminate\Support\Facades\Log;
 
 class FacebookCommentSyncService
 {
-    /** Stream returns top-level comments and replies flat with parent{id}. */
-    private const COMMENT_FIELDS = 'id,message,created_time,from{name,picture},parent{id}';
+    /** Stream returns flat list; parent must be requested as `parent` (not parent{id}). */
+    private const COMMENT_FIELDS = 'id,message,created_time,from{name,picture},parent';
 
     public function __construct(
         private readonly FacebookGraphClient $graph,
