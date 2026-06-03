@@ -26,6 +26,10 @@ class FacebookPublishService
             return 'Facebook Page is not configured on the server.';
         }
 
+        if ($tokenError = $this->assertPageAccessToken()) {
+            return $tokenError;
+        }
+
         if ($photo->facebook_post_id) {
             return null;
         }
@@ -156,5 +160,38 @@ class FacebookPublishService
     private function pageAccessToken(): string
     {
         return trim((string) config('services.facebook.page_access_token', ''));
+    }
+
+    /** Page token from /me/accounts → access_token; User token from Explorer top field will not work. */
+    public function assertPageAccessToken(): ?string
+    {
+        $token = $this->pageAccessToken();
+        $pageId = $this->pageId();
+
+        if ($token === '' || $pageId === '') {
+            return 'Facebook Page is not configured on the server.';
+        }
+
+        try {
+            $response = $this->graph->get('me', [
+                'fields' => 'id',
+                'access_token' => $token,
+            ]);
+
+            if (! $response->ok()) {
+                $body = $response->json();
+                $msg = is_array($body) ? ($body['error']['message'] ?? null) : null;
+
+                return is_string($msg) ? $msg : 'Facebook Page access token is invalid.';
+            }
+
+            if ((string) ($response->json('id') ?? '') !== $pageId) {
+                return 'FACEBOOK_PAGE_ACCESS_TOKEN must be the Page token from GET /me/accounts (field access_token for your page), not the User token from Graph API Explorer.';
+            }
+        } catch (\Throwable $e) {
+            return 'Facebook token check failed: ' . $e->getMessage();
+        }
+
+        return null;
     }
 }

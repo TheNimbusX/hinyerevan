@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\Facebook\FacebookGraphClient;
 use App\Services\Facebook\FacebookPageService;
+use App\Services\Facebook\FacebookPublishService;
 use Illuminate\Console\Command;
 
 class FacebookDiagnose extends Command
@@ -12,7 +13,7 @@ class FacebookDiagnose extends Command
 
     protected $description = 'Check Facebook Page API configuration and fetch page stats';
 
-    public function handle(FacebookPageService $pages, FacebookGraphClient $graph): int
+    public function handle(FacebookPageService $pages, FacebookGraphClient $graph, FacebookPublishService $publish): int
     {
         $pageId = trim((string) config('services.facebook.page_id', ''));
         $token = trim((string) config('services.facebook.page_access_token', ''));
@@ -36,6 +37,12 @@ class FacebookDiagnose extends Command
         if (! $pages->isConfigured()) {
             $this->error('Page is NOT configured. Set FACEBOOK_PAGE_ID and FACEBOOK_PAGE_ACCESS_TOKEN in .env');
             $this->line('Guide: deploy/FACEBOOK-TEST-PAGE.md');
+
+            return self::FAILURE;
+        }
+
+        if ($tokenError = $publish->assertPageAccessToken()) {
+            $this->error('Token problem: ' . $tokenError);
 
             return self::FAILURE;
         }
