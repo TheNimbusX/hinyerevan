@@ -3,16 +3,14 @@ base="https://hinyerevan.ru/api"
 urls=(
   "photos/11180?lang=ru&translate=main"
   "photos/11180?lang=hy"
-  "photos/11180?lang=ru"
-  "photos/11180/comments?lang=ru"
-  "photos/11180/comments?lang=hy"
+  "users/b3da541e9442c40f9579b36083fe51d0?lang=ru"
+  "users/b3da541e9442c40f9579b36083fe51d0?lang=hy"
   "ratings?lang=ru"
-  "ratings?lang=hy"
   "photos?lang=ru&per_page=12"
-  "photos?lang=hy&per_page=12"
-  "facebook/page?lang=ru"
+  "photos/random?lang=ru"
+  "news?lang=ru"
 )
 for u in "${urls[@]}"; do
-  printf '%-45s ' "$u"
-  curl -s -o /dev/null -w 'total=%{time_total}s ttfb=%{time_starttransfer}s\n' "$base/$u"
+  printf '%-55s ' "$u"
+  curl -s -o /dev/null -w 'total=%{time_total}s\n' "$base/$u"
 done

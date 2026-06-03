@@ -8,9 +8,8 @@ composer install --no-dev --optimize-autoloader 2>/dev/null || composer install 
 php artisan config:cache
 php artisan route:cache
 php artisan migrate --force
-# Clear any cache files left owned by root so php-fpm (www-data) can rewrite them.
-rm -rf storage/framework/cache/data/* || true
-# Storage + bootstrap cache must stay writable by the web user.
+# Storage + bootstrap cache must stay writable by the web user. chown (not delete)
+# so root-owned cache files become writable WITHOUT wiping the translation cache.
 chown -R www-data:www-data storage bootstrap/cache || true
 find storage -type d -exec chmod 775 {} \; || true
 cd ../frontend
