@@ -147,18 +147,10 @@ class PhotoController extends Controller
         $commentLang = ($lang && ! $lightTranslate) ? $lang : null;
         $relatedLang = $lightTranslate ? null : $lang;
 
-        $this->syncFacebookIfStale($photo);
-
-        // refresh() re-queries without the withCount aggregates, so likes_count /
-        // comments_count would reset to null — reload them explicitly afterwards.
-        $photo->refresh()
-            ->loadCount(['comments', 'favorites as likes_count'])
-            ->load([
-                'author:id,unique,uid,first_name,last_name,photo,identity',
-                'viewCounter',
-                'comments.author:id,unique,uid,first_name,last_name,photo,identity,email',
-                'comments.replies.author:id,unique,uid,first_name,last_name,photo,identity,email',
-            ]);
+        // Facebook sync (Graph API calls) is deferred until after the response is
+        // sent so the page never blocks on network I/O. Data refreshes for the
+        // next load; the throttle inside the services keeps the call rate sane.
+        $this->scheduleFacebookSync($photo->id);
 
         $data = $this->serialize($photo, true, $lang, $commentLang);
         $data['author_other_photos'] = $this->otherPhotosByAuthor($photo, $relatedLang);
@@ -522,6 +514,24 @@ class PhotoController extends Controller
     /**
      * @return list<array<string, mixed>>
      */
+    /**
+     * Run the Facebook sync after the HTTP response is flushed to the client
+     * (php-fpm fastcgi_finish_request), so page loads stay fast without a queue worker.
+     */
+    private function scheduleFacebookSync(int $photoId): void
+    {
+        app()->terminating(function () use ($photoId) {
+            try {
+                $photo = Photo::find($photoId);
+                if ($photo) {
+                    $this->syncFacebookIfStale($photo);
+                }
+            } catch (\Throwable) {
+                // never let background work surface to the client
+            }
+        });
+    }
+
     private function syncFacebookIfStale(Photo $photo): void
     {
         if (! $photo->facebook_post_id || ! $this->facebookPublish->isConfigured()) {

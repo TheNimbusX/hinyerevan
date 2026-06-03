@@ -42,11 +42,19 @@ class CommentController extends Controller
         abort_unless($photoModel->id > 0 && $photoModel->published, 404);
 
         if ($photoModel->facebook_post_id) {
-            try {
-                $this->facebookComments->syncForPhoto($photoModel);
-            } catch (\Throwable) {
-                // non-fatal
-            }
+            // Defer the Graph API sync until after the response is flushed so the
+            // comments endpoint returns immediately; the throttle keeps calls sane.
+            $photoId = $photoModel->id;
+            app()->terminating(function () use ($photoId) {
+                try {
+                    $photo = Photo::find($photoId);
+                    if ($photo) {
+                        $this->facebookComments->syncForPhoto($photo);
+                    }
+                } catch (\Throwable) {
+                    // non-fatal
+                }
+            });
         }
 
         $comments = Comment::query()
