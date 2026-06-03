@@ -53,7 +53,6 @@ const addedLabel = computed(() =>
   photo.value ? formatDateTime(photo.value.datetime, currentLanguage.value) : '',
 )
 const displayLikes = computed(() => photo.value?.likes_total ?? photo.value?.likes_count ?? 0)
-const siteLikes = computed(() => photo.value?.site_likes_count ?? photo.value?.likes_count ?? 0)
 const siteOnlyLikes = computed(() => Math.max(0, displayLikes.value - (photo.value?.facebook?.likes || 0)))
 
 async function fetchPhotoDetail(id) {
@@ -457,7 +456,6 @@ watch(isAuthenticated, () => {
           >
             <LikeIcon :filled="isFavorite" />
             <span class="action-label">{{ isFavorite ? t('unlike') : t('like') }}</span>
-            <span v-if="siteLikes > 0" class="action-count">{{ siteLikes }}</span>
           </button>
           <button
             type="button"
