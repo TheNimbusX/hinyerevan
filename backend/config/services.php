@@ -61,6 +61,8 @@ return [
         'app_secret' => env('FACEBOOK_APP_SECRET'),
         // Optional; leave empty on VPS — OAUTH_PROXY is for Yandex and breaks graph.facebook.com
         'graph_proxy' => env('FACEBOOK_GRAPH_PROXY'),
+        // Where facebook:refresh-token sends alerts if the Page token can't be refreshed.
+        'alert_email' => env('FACEBOOK_ALERT_EMAIL'),
         'site_url' => rtrim(env('FRONTEND_URL', env('APP_URL', 'http://127.0.0.1:8000')), '/'),
     ],
 
