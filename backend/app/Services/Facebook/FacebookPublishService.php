@@ -89,7 +89,7 @@ class FacebookPublishService
 
         try {
             $response = $this->graph->get($photo->facebook_post_id, [
-                'fields' => 'likes.summary(true),comments.summary(true),permalink_url,link,reactions.type(LIKE).summary(true).limit(0)',
+                'fields' => 'link,likes.summary(true),comments.summary(true),reactions.type(LIKE).summary(true).limit(0)',
                 'access_token' => $this->pageAccessToken(),
             ]);
 
@@ -107,7 +107,7 @@ class FacebookPublishService
             $likes = (int) ($data['likes']['summary']['total_count']
                 ?? $data['reactions']['summary']['total_count']
                 ?? 0);
-            $postUrl = (string) ($data['permalink_url'] ?? $data['link'] ?? $photo->facebook_post_url ?? '');
+            $postUrl = (string) ($data['link'] ?? $photo->facebook_post_url ?? '');
 
             $photo->forceFill([
                 'facebook_likes' => $likes,
@@ -131,11 +131,10 @@ class FacebookPublishService
         return $this->publishPhoto($photo);
     }
 
-    public function resolvePermalink(string $mediaId, bool $retryWithLink = false): ?string
+    public function resolvePermalink(string $mediaId): ?string
     {
-        $fields = $retryWithLink ? 'link,permalink_url,from' : 'permalink_url,link';
         $response = $this->graph->get($mediaId, [
-            'fields' => $fields,
+            'fields' => 'link,from',
             'access_token' => $this->pageAccessToken(),
         ]);
 
@@ -143,7 +142,7 @@ class FacebookPublishService
             return null;
         }
 
-        $url = $response->json('permalink_url') ?: $response->json('link');
+        $url = $response->json('link');
 
         return is_string($url) && $url !== '' ? $url : null;
     }
@@ -155,7 +154,7 @@ class FacebookPublishService
         }
 
         if ($photo->facebook_post_id) {
-            return $this->resolvePermalink((string) $photo->facebook_post_id, true);
+            return $this->resolvePermalink((string) $photo->facebook_post_id);
         }
 
         return null;
