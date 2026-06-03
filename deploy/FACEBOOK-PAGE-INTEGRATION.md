@@ -21,7 +21,9 @@
 
 ## 1. Права в Meta Developer
 
-В [developers.facebook.com/apps](https://developers.facebook.com/apps) → приложение → **App Review → Permissions**:
+В [developers.facebook.com/apps](https://developers.facebook.com/apps) → приложение → **Проверка приложения → Разрешения и функции** (App Review → Permissions and features).
+
+Для приложения типа **Consumer** пункта «Сценарии использования» нет — права `pages_*` добавляются только здесь. Если их нет в списке, нужно отдельное **Business**-приложение (см. [`FACEBOOK-TEST-PAGE.md`](FACEBOOK-TEST-PAGE.md) §2.1).
 
 - `pages_manage_posts` — публикация фото
 - `pages_read_engagement` — лайки и комментарии

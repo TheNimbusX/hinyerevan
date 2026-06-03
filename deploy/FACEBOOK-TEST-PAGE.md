@@ -22,39 +22,128 @@
 
 [developers.facebook.com/apps/802992039416856](https://developers.facebook.com/apps/802992039416856/)
 
+### 2.1 Почему нет «Сценариев» и `pages_manage_posts`
+
+У приложения **HinYerevan** тип **Потребительское (Consumer)** — в меню слева **нет** пункта «Сценарии использования». Это нормально: такие приложения заточены под **Вход через Facebook**, а не под Pages API.
+
+**Куда идти в вашем кабинете (как на скриншоте):**
+
+1. Слева **Проверка приложения** → **Разрешения и функции**.
+2. В поиске введите `pages` и добавьте (кнопка **Добавить** / **Request**):
+   - `pages_show_list`
+   - `pages_read_engagement`
+   - `pages_manage_posts`
+3. Для тестов переключите приложение в **режим разработки** (переключатель вверху; сейчас у вас **рабочий режим** — для своих тестов лучше Development).
+4. Обновите [Graph API Explorer](https://developers.facebook.com/tools/explorer/) (F5).
+
+Если в **Разрешения и функции** прав `pages_*` **вообще нет** — **не обязательно** создавать новое приложение (см. §2.3).
+
+В Explorer: группа **Events, Groups and Pages**, не User Data; **очистите поиск** (не `email`).
+
+### 2.3 Застряли на «Компания» при создании нового приложения
+
+Сообщение **«Нет доступных компаний»** и серая кнопка **Далее** — Meta требует **бизнес-портфолио** (Business Portfolio). Без него мастер с сценарием «Страница» не продолжить.
+
+**Рекомендуемый путь (без нового приложения):**
+
+1. **Отмена** в мастере создания — второе приложение для теста **не нужно**.
+2. Оставьте приложение **802992039416856** (Consumer).
+3. [Graph API Explorer](https://developers.facebook.com/tools/explorer/) → **Получить маркер доступа к странице** → **HinYerevan TEST** → скопировать токен.
+4. Проверка: `GET /{page-id}?fields=id,name` (id из `/me/accounts`) — если есть `name`, токен рабочий → §3.3 и `.env`.
+
+Так можно протестировать сайт **без** Business Portfolio и без `pages_*` в кабинете.
+
+**Если всё же нужно новое Business-приложение** — сначала привяжите тестовую страницу к портфолио (§2.4), затем в мастере на шаге «Компания» выберите это портфолио.
+
+### 2.4 Бизнес-портфолио (например lenstoremy)
+
+**Верификация не обязательна** для своей тестовой страницы и токена в Explorer. Неподтверждённое портфолио нормально; верификация нужна позже, если чужие люди/бизнесы будут давать вашему приложению доступ к своим данным (App Review / Live).
+
+Сейчас в портфолио может быть **другая** страница (у вас **lenstoremy**, ID `110565793716725`). Для HinYerevan нужна **HinYerevan TEST** (Page ID из API, см. `/me/accounts`) — это разные страницы.
+
+**Добавить HinYerevan TEST в портфолио:**
+
+1. [business.facebook.com/settings](https://business.facebook.com/settings) → слева выберите портфолио **lenstoremy** (или своё).
+2. **Аккаунты** → **Страницы** → синяя кнопка **+ Добавить**.
+3. В меню выберите **Добавить страницу** (не «Создать», если страница уже есть):
+   - **Добавить страницу** — если вы админ HinYerevan TEST в личном Facebook;
+   - **Запросить доступ к странице** — если страница на другом аккаунте;
+   - **Создать новую страницу** — только если ещё не создавали TEST.
+4. В списке отметьте **HinYerevan TEST** → подтвердить. Должна появиться в списке рядом с lenstoremy.
+
+Если **HinYerevan TEST** в списке нет — зайдите на [facebook.com](https://www.facebook.com) → ваша страница TEST → **Настройки страницы** → **Новый доступ к странице** / роли — убедитесь, что вы **Администратор** под тем же Facebook, что и Business Suite.
+
+**Проверка верификации (не блокер для теста):** Настройки → **Информация о компании** / **Центр безопасности** — статус «Не подтверждено» можно игнорировать до продакшена.
+
+После добавления страницы: мастер нового приложения на шаге **Компания** → выбрать **lenstoremy**. Либо без нового app — только **маркер страницы** в Explorer (§3.1).
+
+**Ошибка «Unable to add Facebook Page» / «действие временно заблокировано»** — ограничение Meta на аккаунт, не настройка сайта. Портфолио для теста **не обязательно**. Обход:
+
+1. Не добавляйте страницу в Business Suite — идите сразу в [Graph API Explorer](https://developers.facebook.com/tools/explorer/) → **маркер страницы** → HinYerevan TEST (§3.1).
+2. Снятие блока (если нужен именно Business Manager): подождать 24–72 ч; зайти с [facebook.com](https://www.facebook.com) → **Настройки и конфиденциальность** → проверить ограничения; не спамить повторными «Добавить»; при долгой блокировке — [справка Meta](https://www.facebook.com/business/help).
+3. Страница TEST и так ваша как **админ страницы** — API часто работает без привязки к портфолио lenstoremy.
+
+**Продакшен-страница босса (HinYerevanCom):** без портфолио/прав владельца страницы API не даст — см. [`FACEBOOK-PAGE-INTEGRATION.md`](FACEBOOK-PAGE-INTEGRATION.md).
+
+### 2.2 Facebook Login и режим
+
 | Шаг | Действие |
 |-----|----------|
-| Продукты | **Facebook Login** → Settings → Valid OAuth Redirect URIs: `https://hinyerevan.ru/api/auth/social/facebook/callback` и для локали `http://127.0.0.1:8000/api/auth/social/facebook/callback` |
-| Use cases | Добавить доступ к **Pages** (управление страницами), если Meta предлагает в мастере |
-| Роли | Вы уже Admin приложения |
-| Режим | **Development** — для тестов нормально (работает для админов app + страницы) |
+| Продукты | **Facebook Login** → Settings → Valid OAuth Redirect URIs: `https://hinyerevan.ru/api/auth/social/facebook/callback` и `http://127.0.0.1:8000/api/auth/social/facebook/callback` |
+| Режим | **Development** — для тестов достаточно |
 
-Права для Graph API Explorer (не обязательно ждать App Review в Development):
+Права для Explorer (после §2.1): `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`.
 
-- `pages_show_list`
-- `pages_manage_posts`
-- `pages_read_engagement`
+**Privacy Policy URL:** `https://hinyerevan.ru/pages/privacy`
 
 ---
 
 ## 3. Получить Page ID и токен
 
-### 3.1 Graph API Explorer
+Тестовая страница: **HinYerevan TEST**. **Page ID для API** берите из `GET /me/accounts` → поле `id` (например `1051690344704492`). Число в URL `profile.php?id=61590549752538` — другое идентификатор, в `.env` нужен именно `id` из API.
 
-1. [developers.facebook.com/tools/explorer](https://developers.facebook.com/tools/explorer/)
-2. **Meta App:** `802992039416856`
-3. **User or Page** → **Get User Access Token** → отметить права из §2.
-4. Запрос:
+### 3.0 Почему везде `Invalid Scopes: manage_pages, pages_show_list`
 
-```http
-GET /me/accounts
+Приложение **802992039416856** — тип **Consumer**. У таких приложений Meta **не даёт** page token ни через «маркер страницы», ни через `pages_show_list` (в OAuth подставляется устаревший `manage_pages` → ошибка).
+
+**Решение:** второе приложение типа **Business** (§2.5). Старое оставить для **входа** на сайт (`FACEBOOK_CLIENT_ID`).
+
+### 2.5 Второе приложение Business (без сценария «Страница»)
+
+1. [Создать приложение](https://developers.facebook.com/apps/creation/) → имя, например **HinYerevan Pages**.
+2. На шаге сценариев прокрутите вниз → **Другое** → **Далее**.
+3. Тип **Компания (Business)** → **Далее**.
+4. **Компания:** выберите портфолио **lenstoremy** (страницу TEST в Business Suite добавлять **не обязательно**).
+5. **Создать приложение** → режим **Разработка**.
+6. **Проверка приложения → Разрешения и функции** → добавить `pages_show_list`, `pages_read_engagement`, `pages_manage_posts`.
+7. Explorer → выберите **новое** приложение (не 802992039416856) → **маркер страницы** → HinYerevan TEST.
+
+В `.env` на сервере:
+
+```env
+FACEBOOK_CLIENT_ID=802992039416856
+FACEBOOK_CLIENT_SECRET=...   # secret от Consumer-приложения (вход)
+FACEBOOK_APP_ID=<ID нового Business-приложения>   # для Page Plugin
+FACEBOOK_PAGE_ACCESS_TOKEN=... # токен из нового app
 ```
 
-5. В ответе найдите **HinYerevan Dev Test** (или как назвали):
-   - `id` → это `FACEBOOK_PAGE_ID`
-   - `access_token` → short-lived Page token
+Секрет для обмена long-lived токена страницы — **от того приложения, которым получили page token** (нового Business).
 
-### 3.2 Long-lived token (~60 дней)
+Опционально: в старом app **Проверка приложения** → внизу **Удалить тип приложения** (Remove App Type) — иногда снимает Consumer; надёжнее отдельное Business-приложение.
+
+### 3.1 Способ A: маркер страницы (только Business-приложение)
+
+1. [Graph API Explorer](https://developers.facebook.com/tools/explorer/) → **HinYerevan Pages** (не Consumer 802992039416856).
+2. **Получить маркер доступа к странице** → **HinYerevan TEST**.
+3. Права user token: только то, что предлагает Meta для Business app (не вручную `pages_show_list` в Consumer).
+4. Скопировать токен → `FACEBOOK_PAGE_ACCESS_TOKEN`.
+
+### 3.2 Способ B: User Token + `/me/accounts`
+
+1. User Token с правами из §2.1.
+2. `GET /me/accounts` → для **HinYerevan TEST**: `id` = `FACEBOOK_PAGE_ID`, `access_token` = short-lived page token.
+
+### 3.3 Long-lived token (~60 дней)
 
 В Explorer или браузере (подставьте значения):
 
@@ -82,8 +171,8 @@ php artisan facebook:exchange-token "EAAshort..."
 FACEBOOK_CLIENT_ID=802992039416856
 FACEBOOK_CLIENT_SECRET=...
 
-FACEBOOK_PAGE_ID=123456789012345
-FACEBOOK_PAGE_URL=https://www.facebook.com/YourTestPageName/
+FACEBOOK_PAGE_ID=1051690344704492
+FACEBOOK_PAGE_URL=https://www.facebook.com/profile.php?id=61590549752538
 FACEBOOK_PAGE_ACCESS_TOKEN=EAA...long...
 FACEBOOK_APP_ID=802992039416856
 ```

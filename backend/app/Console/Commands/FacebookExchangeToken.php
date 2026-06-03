@@ -13,12 +13,14 @@ class FacebookExchangeToken extends Command
 
     public function handle(FacebookGraphClient $graph): int
     {
-        $clientId = trim((string) config('services.facebook.client_id', ''));
-        $clientSecret = trim((string) config('services.facebook.client_secret', ''));
+        $appId = trim((string) (config('services.facebook.app_id') ?: config('services.facebook.client_id', '')));
+        $appSecret = trim((string) (config('services.facebook.app_secret') ?: config('services.facebook.client_secret', '')));
+        $clientId = $appId;
+        $clientSecret = $appSecret;
         $short = trim($this->argument('token'));
 
         if ($clientId === '' || $clientSecret === '') {
-            $this->error('Set FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET in .env');
+            $this->error('Set FACEBOOK_APP_ID + FACEBOOK_APP_SECRET (or FACEBOOK_CLIENT_ID + FACEBOOK_CLIENT_SECRET) in .env');
 
             return self::FAILURE;
         }
