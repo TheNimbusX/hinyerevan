@@ -495,7 +495,7 @@ onBeforeUnmount(() => {
 }
 
 .review-check {
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
   padding: 12px 14px;
   border: 1px solid rgba($accent, 0.28);
@@ -503,7 +503,7 @@ onBeforeUnmount(() => {
   background: rgba($accent, 0.06);
 
   input {
-    margin-top: 2px;
+    margin-top: 0;
   }
 
   span {
