@@ -145,22 +145,25 @@ FACEBOOK_PAGE_ACCESS_TOKEN=... # токен из нового app
 
 ### 3.3 Long-lived token (~60 дней)
 
-В Explorer или браузере (подставьте значения):
+**Важно:** обмен делается через приложение **HinYerevanPage** (`443529411008579`), не через Consumer `802992039416856`.
 
-```http
-GET /oauth/access_token?grant_type=fb_exchange_token
-  &client_id=802992039416856
-  &client_secret={FACEBOOK_CLIENT_SECRET}
-  &fb_exchange_token={SHORT_PAGE_TOKEN}
-```
-
-В ответе `access_token` → `FACEBOOK_PAGE_ACCESS_TOKEN`.
-
-Или на сервере/локально:
+1. [developers.facebook.com/apps/443529411008579/settings/basic](https://developers.facebook.com/apps/443529411008579/settings/basic/) → **Секрет приложения** → Показать → скопировать.
+2. В `.env`: `FACEBOOK_APP_SECRET=...` (только для HinYerevanPage).
+3. На VPS:
 
 ```bash
-cd backend
-php artisan facebook:exchange-token "EAAshort..."
+cd /var/www/hinyerevan/backend
+php artisan config:clear
+php artisan facebook:exchange-token "EAA...short_page_token..." --write-env
+php artisan config:cache
+php artisan facebook:diagnose
+```
+
+Или одной командой (подставьте секрет):
+
+```bash
+export FACEBOOK_APP_SECRET='...'
+bash /var/www/hinyerevan/deploy/facebook-exchange-vps.sh
 ```
 
 ---
@@ -174,7 +177,9 @@ FACEBOOK_CLIENT_SECRET=...
 FACEBOOK_PAGE_ID=1051690344704492
 FACEBOOK_PAGE_URL=https://www.facebook.com/profile.php?id=1051690344704492
 FACEBOOK_PAGE_ACCESS_TOKEN=EAA...long...
-FACEBOOK_APP_ID=802992039416856
+FACEBOOK_APP_ID=443529411008579
+FACEBOOK_APP_SECRET=...   # secret HinYerevanPage, не Consumer
+FACEBOOK_PLUGIN_APP_ID=802992039416856
 ```
 
 ```bash
