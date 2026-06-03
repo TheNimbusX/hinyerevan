@@ -1,6 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { api } from '../api'
+import { useTheme } from '../composables/useTheme'
 import { useI18n } from '../i18n'
 import { currentLanguage } from '../i18n'
 import { loadFacebookSdk, parseFacebookXfbml } from '../utils/facebookSdk'
@@ -13,6 +14,7 @@ const props = defineProps({
 const emit = defineEmits(['close'])
 
 const { t } = useI18n()
+const { theme } = useTheme()
 const stats = ref(null)
 const plugin = ref(null)
 const apiLoading = ref(false)
@@ -30,11 +32,16 @@ const fbLocale = computed(() => {
 
 const followUrl = computed(() => embedHref.value || stats.value?.page_url || 'https://www.facebook.com/HinYerevanCom/')
 
+/** Meta Page Plugin is always a white iframe — use a dark card instead. */
+const skipEmbedInDark = computed(() => theme.value === 'dark')
+
 const showSkeleton = computed(
-  () => apiLoading.value || (embedLoading.value && pluginReady.value && !pluginFailed.value),
+  () => !skipEmbedInDark.value && (apiLoading.value || (embedLoading.value && pluginReady.value && !pluginFailed.value)),
 )
 
-const showEmbed = computed(() => !apiLoading.value && (pluginReady.value || pluginFailed.value))
+const showEmbed = computed(
+  () => !skipEmbedInDark.value && !apiLoading.value && (pluginReady.value || pluginFailed.value),
+)
 
 let pluginCheckTimer = null
 let embedWatchTimer = null
@@ -106,7 +113,7 @@ async function loadPanel() {
     stats.value = pageStats
     embedHref.value = config?.page_url || pageStats?.page_url || ''
 
-    if (config?.app_id && embedHref.value) {
+    if (!skipEmbedInDark.value && config?.app_id && embedHref.value) {
       const ok = await loadFacebookSdk(config.app_id, fbLocale.value)
       if (ok) {
         pluginReady.value = true
@@ -187,6 +194,17 @@ onBeforeUnmount(() => {
         </header>
 
         <div
+          v-if="skipEmbedInDark"
+          class="facebook-modal__dark-panel"
+        >
+          <p class="facebook-modal__dark-hint">{{ t('facebookEmbedDarkHint') }}</p>
+          <a class="button" :href="followUrl" target="_blank" rel="noopener noreferrer">
+            {{ t('facebookOpenPage') }}
+          </a>
+        </div>
+
+        <div
+          v-else
           class="facebook-modal__embed"
           :style="{ '--fb-plugin-height': `${PLUGIN_HEIGHT}px` }"
           :aria-busy="showSkeleton"
@@ -399,7 +417,36 @@ onBeforeUnmount(() => {
   }
 }
 
+.facebook-modal__dark-panel {
+  display: grid;
+  gap: 16px;
+  place-items: center;
+  margin: 0 16px 24px;
+  padding: 28px 22px;
+  text-align: center;
+  border-radius: $radius-lg;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: $surface-soft;
+}
+
+.facebook-modal__dark-hint {
+  margin: 0;
+  max-width: 36ch;
+  color: $muted;
+  line-height: 1.55;
+  font-size: 14px;
+}
+
 [data-theme='dark'] {
+  .facebook-modal.auth-modal {
+    background: $surface;
+  }
+
+  .facebook-modal__dark-panel {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+  }
+
   .facebook-modal__sk,
   .facebook-modal__skeleton-cover,
   .facebook-modal__skeleton-line {

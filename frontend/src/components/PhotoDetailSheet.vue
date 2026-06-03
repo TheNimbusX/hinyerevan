@@ -186,7 +186,12 @@ async function toggleFavorite() {
   }
 
   try {
-    await api(`/photos/${photo.value.id}/favorite`, { method: previous ? 'DELETE' : 'POST' })
+    const res = await api(`/photos/${photo.value.id}/favorite`, { method: previous ? 'DELETE' : 'POST' })
+    if (res?.likes_total != null) {
+      photo.value.likes_total = res.likes_total
+      photo.value.likes_count = res.likes_count ?? photo.value.likes_count
+      photo.value.site_likes_count = res.site_likes_count ?? photo.value.site_likes_count
+    }
   } catch (e) {
     isFavorite.value = previous
     const undo = -delta
@@ -372,7 +377,12 @@ onBeforeUnmount(() => {
                         ({{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})
                       </small>
                     </span>
-                    <span>{{ photo.views }} {{ t('views') }}</span>
+                    <span class="views-pill">
+                      {{ photo.views }} {{ t('views') }}
+                      <small v-if="photo.facebook_views_count" class="views-pill__fb">
+                        ({{ photo.facebook_views_count }} {{ t('facebookViewsIncluded') }})
+                      </small>
+                    </span>
                     <span>{{ photo.comments_count }} {{ t('comments') }}</span>
                   </div>
                 </div>
@@ -664,7 +674,8 @@ onBeforeUnmount(() => {
   }
 }
 
-.like-pill__fb {
+.like-pill__fb,
+.views-pill__fb {
   margin-left: 4px;
   font-size: 11px;
   font-weight: 500;

@@ -147,6 +147,15 @@ class PhotoController extends Controller
         $commentLang = ($lang && ! $lightTranslate) ? $lang : null;
         $relatedLang = $lightTranslate ? null : $lang;
 
+        $this->syncFacebookIfStale($photo);
+
+        $photo->refresh()->load([
+            'author:id,unique,uid,first_name,last_name,photo,identity',
+            'viewCounter',
+            'comments.author:id,unique,uid,first_name,last_name,photo,identity,email',
+            'comments.replies.author:id,unique,uid,first_name,last_name,photo,identity,email',
+        ]);
+
         $data = $this->serialize($photo, true, $lang, $commentLang);
         $data['author_other_photos'] = $this->otherPhotosByAuthor($photo, $relatedLang);
         $data['nearby_photos'] = $this->nearbyPhotos($photo, 6, 0.012, $relatedLang);
@@ -487,6 +496,12 @@ class PhotoController extends Controller
             )
             : 0;
 
+        $siteViews = (int) ($photo->viewCounter?->count ?? 0);
+        $fbViews = (int) ($photo->facebook_views ?? 0);
+
+        $data['views'] = $siteViews + $fbViews;
+        $data['site_views_count'] = $siteViews;
+        $data['facebook_views_count'] = $fbViews;
         $data['likes_total'] = $siteLikes + $legacyLikes + $fbLikes;
         $data['site_likes_count'] = $siteLikes + $legacyLikes;
         $data['legacy_likes_count'] = $legacyLikes;
@@ -503,6 +518,27 @@ class PhotoController extends Controller
     /**
      * @return list<array<string, mixed>>
      */
+    private function syncFacebookIfStale(Photo $photo): void
+    {
+        if (! $photo->facebook_post_id || ! $this->facebookPublish->isConfigured()) {
+            return;
+        }
+
+        $cacheKey = 'facebook_sync_photo_' . $photo->id;
+        if (Cache::has($cacheKey)) {
+            return;
+        }
+
+        try {
+            $fresh = $photo->fresh() ?? $photo;
+            $this->facebookPublish->syncPostStats($fresh);
+            $this->facebookComments->syncForPhoto($fresh);
+            Cache::put($cacheKey, true, now()->addSeconds(45));
+        } catch (\Throwable) {
+            // non-fatal for page load
+        }
+    }
+
     private function mergedComments(Photo $photo, ?string $lang): array
     {
         return CommentPresenter::mergePhotoThreads(
@@ -547,6 +583,7 @@ class PhotoController extends Controller
             'post_id' => $photo->facebook_post_id,
             'post_url' => $postUrl,
             'likes' => (int) ($photo->facebook_likes ?? 0),
+            'views' => (int) ($photo->facebook_views ?? 0),
             'comments_count' => max((int) ($photo->facebook_comments_count ?? 0), $storedComments),
             'synced_at' => optional($photo->facebook_synced_at)->toISOString(),
         ];

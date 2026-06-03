@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\CommentController;
 use App\Http\Controllers\Api\ContentController;
 use App\Http\Controllers\Api\FacebookController;
 use App\Http\Controllers\Api\FeedbackController;
+use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\PhotoController;
 use App\Http\Controllers\Api\RatingController;
 use App\Http\Controllers\Api\SocialAuthController;

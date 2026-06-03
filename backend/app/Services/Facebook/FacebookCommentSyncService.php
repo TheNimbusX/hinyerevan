@@ -9,7 +9,8 @@ use Illuminate\Support\Facades\Log;
 
 class FacebookCommentSyncService
 {
-    private const COMMENT_FIELDS = 'id,message,created_time,from{name,picture},comments.limit(25){id,message,created_time,from{name,picture},comments.limit(15){id,message,created_time,from{name,picture}}}';
+    /** Stream returns top-level comments and replies flat with parent{id}. */
+    private const COMMENT_FIELDS = 'id,message,created_time,from{name,picture},parent{id}';
 
     public function __construct(
         private readonly FacebookGraphClient $graph,
@@ -26,13 +27,15 @@ class FacebookCommentSyncService
         try {
             $response = $this->graph->get($postId . '/comments', [
                 'fields' => self::COMMENT_FIELDS,
-                'limit' => 50,
+                'filter' => 'stream',
+                'limit' => 100,
                 'access_token' => $token,
             ]);
 
             if (! $response->ok()) {
                 Log::warning('Facebook comments sync failed', [
                     'photo_id' => $photo->id,
+                    'status' => $response->status(),
                     'body' => $response->body(),
                 ]);
 
@@ -46,7 +49,7 @@ class FacebookCommentSyncService
                 if (! is_array($row)) {
                     continue;
                 }
-                $this->ingestCommentRow($photo, $row, null, $seen);
+                $this->ingestCommentRow($photo, $row, $seen);
             }
 
             if ($seen !== []) {
@@ -66,7 +69,7 @@ class FacebookCommentSyncService
     /**
      * @param  list<string>  $seen
      */
-    private function ingestCommentRow(Photo $photo, array $row, ?string $parentFbId, array &$seen): void
+    private function ingestCommentRow(Photo $photo, array $row, array &$seen): void
     {
         $fbId = (string) ($row['id'] ?? '');
         $message = trim((string) ($row['message'] ?? ''));
@@ -76,6 +79,11 @@ class FacebookCommentSyncService
 
         $seen[] = $fbId;
         $authorName = trim((string) ($row['from']['name'] ?? 'Facebook'));
+        $parentId = trim((string) ($row['parent']['id'] ?? ''));
+        $postId = trim((string) $photo->facebook_post_id);
+        if ($parentId === $fbId || $parentId === $postId) {
+            $parentId = '';
+        }
 
         PhotoFacebookComment::query()->updateOrCreate(
             [
@@ -83,7 +91,7 @@ class FacebookCommentSyncService
                 'facebook_comment_id' => $fbId,
             ],
             [
-                'parent_facebook_comment_id' => $parentFbId,
+                'parent_facebook_comment_id' => $parentId !== '' ? $parentId : null,
                 'author_name' => $authorName !== '' ? $authorName : 'Facebook',
                 'author_picture' => $this->extractPictureUrl($row['from'] ?? null),
                 'body' => $message,
@@ -91,13 +99,6 @@ class FacebookCommentSyncService
                 'synced_at' => now(),
             ],
         );
-
-        foreach ($row['comments']['data'] ?? [] as $child) {
-            if (! is_array($child)) {
-                continue;
-            }
-            $this->ingestCommentRow($photo, $child, $fbId, $seen);
-        }
     }
 
     /**
@@ -213,11 +214,9 @@ class FacebookCommentSyncService
             $walk($root);
         }
 
-        if ($flat === []) {
-            return;
+        if ($flat !== []) {
+            $translator->translateItems($flat, ['body'], $lang);
         }
-
-        $translator->translateItems($flat, ['body'], $lang);
     }
 
     /**

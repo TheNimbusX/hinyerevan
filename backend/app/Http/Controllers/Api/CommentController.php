@@ -41,6 +41,14 @@ class CommentController extends Controller
         $photoModel = Photo::query()->findOrFail($photo);
         abort_unless($photoModel->id > 0 && $photoModel->published, 404);
 
+        if ($photoModel->facebook_post_id) {
+            try {
+                $this->facebookComments->syncForPhoto($photoModel);
+            } catch (\Throwable) {
+                // non-fatal
+            }
+        }
+
         $comments = Comment::query()
             ->with('author:id,unique,uid,first_name,last_name,photo,identity,email')
             ->alive()

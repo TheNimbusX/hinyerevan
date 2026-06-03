@@ -44,6 +44,7 @@ class Photo extends Model
         'facebook_publish_pending',
         'facebook_comment',
         'facebook_likes',
+        'facebook_views',
         'facebook_comments_count',
         'facebook_synced_at',
     ];
@@ -59,6 +60,7 @@ class Photo extends Model
         'needs_location_review' => 'boolean',
         'facebook_publish_pending' => 'boolean',
         'facebook_likes' => 'integer',
+        'facebook_views' => 'integer',
         'facebook_comments_count' => 'integer',
         'facebook_synced_at' => 'datetime',
         'datetime' => 'datetime',

@@ -107,12 +107,17 @@ class FacebookPublishService
             $data = $response->json();
             $likes = (int) ($data['likes']['summary']['total_count'] ?? 0);
             $postUrl = (string) ($data['link'] ?? $photo->facebook_post_url ?? '');
+            $fbViews = $this->fetchPostImpressions($photo->facebook_post_id);
 
-            $photo->forceFill([
+            $fill = [
                 'facebook_likes' => $likes,
                 'facebook_post_url' => $postUrl !== '' ? $postUrl : $photo->facebook_post_url,
                 'facebook_synced_at' => now(),
-            ])->save();
+            ];
+            if ($fbViews !== null) {
+                $fill['facebook_views'] = $fbViews;
+            }
+            $photo->forceFill($fill)->save();
 
             $this->commentSync->syncForPhoto($photo->fresh());
 
@@ -122,6 +127,33 @@ class FacebookPublishService
             $photo->forceFill(['facebook_comments_count' => $storedComments])->save();
         } catch (\Throwable $e) {
             Log::warning('Facebook stats sync failed', ['photo_id' => $photo->id, 'message' => $e->getMessage()]);
+        }
+    }
+
+    private function fetchPostImpressions(string $objectId): ?int
+    {
+        try {
+            $response = $this->graph->get($objectId . '/insights', [
+                'metric' => 'post_impressions',
+                'period' => 'lifetime',
+                'access_token' => $this->pageAccessToken(),
+            ]);
+
+            if (! $response->ok()) {
+                return null;
+            }
+
+            $values = $response->json('data.0.values') ?? [];
+            if (! is_array($values) || $values === []) {
+                return null;
+            }
+
+            $last = end($values);
+            $value = is_array($last) ? ($last['value'] ?? null) : null;
+
+            return is_numeric($value) ? max(0, (int) $value) : null;
+        } catch (\Throwable) {
+            return null;
         }
     }
 

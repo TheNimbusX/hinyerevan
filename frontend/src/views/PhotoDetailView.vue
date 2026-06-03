@@ -239,10 +239,13 @@ async function toggleFavorite() {
   }
 
   try {
-    if (previous) {
-      await api(`/photos/${photo.value.id}/favorite`, { method: 'DELETE' })
-    } else {
-      await api(`/photos/${photo.value.id}/favorite`, { method: 'POST' })
+    const res = previous
+      ? await api(`/photos/${photo.value.id}/favorite`, { method: 'DELETE' })
+      : await api(`/photos/${photo.value.id}/favorite`, { method: 'POST' })
+    if (res?.likes_total != null) {
+      photo.value.likes_total = res.likes_total
+      photo.value.likes_count = res.likes_count ?? photo.value.likes_count
+      photo.value.site_likes_count = res.site_likes_count ?? photo.value.site_likes_count
     }
   } catch (e) {
     isFavorite.value = previous
@@ -432,7 +435,12 @@ async function submitComment() {
             <LikeIcon /> {{ displayLikes }} {{ t('likes') }}
             <small v-if="photo.facebook?.likes" class="like-pill__fb">({{ photo.facebook.likes }} {{ t('facebookLikesIncluded') }})</small>
           </span>
-          <span>{{ photo.views }} {{ t('views') }}</span>
+          <span class="views-pill">
+            {{ photo.views }} {{ t('views') }}
+            <small v-if="photo.facebook_views_count" class="views-pill__fb">
+              ({{ photo.facebook_views_count }} {{ t('facebookViewsIncluded') }})
+            </small>
+          </span>
           <span>{{ photo.comments_count }} {{ t('comments') }}</span>
         </div>
       </div>
@@ -780,7 +788,8 @@ async function submitComment() {
   }
 }
 
-.like-pill__fb {
+.like-pill__fb,
+.views-pill__fb {
   margin-left: 4px;
   font-size: 11px;
   font-weight: 500;

@@ -66,10 +66,10 @@ class FavoriteController extends Controller
             ]
         );
 
-        return response()->json([
-            'is_favorite' => true,
-            'favorited_at' => optional($favorite->created_at)->toISOString(),
-        ], 201);
+        return response()->json(array_merge(
+            ['is_favorite' => true, 'favorited_at' => optional($favorite->created_at)->toISOString()],
+            $this->likeCounts($photoModel),
+        ), 201);
     }
 
     public function destroy(Request $request, int $photo)
@@ -79,6 +79,29 @@ class FavoriteController extends Controller
             ->where('photo_id', $photo)
             ->delete();
 
-        return response()->json(['is_favorite' => false]);
+        $photoModel = Photo::query()->find($photo);
+
+        return response()->json(array_merge(
+            ['is_favorite' => false],
+            $photoModel ? $this->likeCounts($photoModel) : [],
+        ));
+    }
+
+    /**
+     * @return array{likes_count: int, site_likes_count: int, legacy_likes_count: int, likes_total: int}
+     */
+    private function likeCounts(Photo $photo): array
+    {
+        $photo->loadCount('favorites as likes_count');
+        $siteLikes = (int) $photo->likes_count;
+        $legacyLikes = (int) ($photo->legacy_likes_count ?? 0);
+        $fbLikes = (int) ($photo->facebook_likes ?? 0);
+
+        return [
+            'likes_count' => $siteLikes,
+            'site_likes_count' => $siteLikes + $legacyLikes,
+            'legacy_likes_count' => $legacyLikes,
+            'likes_total' => $siteLikes + $legacyLikes + $fbLikes,
+        ];
     }
 }

@@ -31,7 +31,7 @@ return new class extends Migration
 
         Schema::table('photo_facebook_comments', function (Blueprint $table) {
             if (Schema::hasColumn('photo_facebook_comments', 'parent_facebook_comment_id')) {
-                $table->dropIndex(['photo_id', 'parent_facebook_comment_id']);
+                $table->dropIndex('pfc_photo_parent_idx');
                 $table->dropColumn('parent_facebook_comment_id');
             }
             if (Schema::hasColumn('photo_facebook_comments', 'author_picture')) {
