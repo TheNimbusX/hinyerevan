@@ -10,7 +10,12 @@ import LikeIcon from '../components/LikeIcon.vue'
 
 const photos = ref([])
 const meta = ref(null)
-const filters = ref({ search: '', year_from: '', year_to: '' })
+const filters = ref({ search: '', year_from: '', year_to: '', media: '' })
+const mediaOptions = [
+  { value: '', label: 'allPhotos' },
+  { value: 'photo', label: 'mediaTabPhoto' },
+  { value: 'video', label: 'mediaTabVideo' },
+]
 const loading = ref(false)
 const loadingMore = ref(false)
 const sentinel = ref(null)
@@ -44,6 +49,12 @@ function applyFilters() {
   load()
 }
 
+function setMedia(value) {
+  if (filters.value.media === value) return
+  filters.value.media = value
+  applyFilters()
+}
+
 function loadMore() {
   if (!meta.value || meta.value.current_page >= meta.value.last_page) return
   load(meta.value.current_page + 1, true)
@@ -72,6 +83,21 @@ onBeforeUnmount(() => observer?.disconnect())
     <h1>{{ t('photos') }}</h1>
   </section>
 
+  <div class="media-filter" role="tablist" :aria-label="t('photos')">
+    <button
+      v-for="option in mediaOptions"
+      :key="option.value"
+      type="button"
+      role="tab"
+      class="media-filter__chip"
+      :class="{ on: filters.media === option.value }"
+      :aria-selected="filters.media === option.value"
+      @click="setMedia(option.value)"
+    >
+      {{ t(option.label) }}
+    </button>
+  </div>
+
   <form class="filter-bar" @submit.prevent="applyFilters">
     <input v-model="filters.search" :placeholder="t('search')" />
     <input v-model="filters.year_from" :placeholder="t('fromYear')" inputmode="numeric" />
@@ -89,6 +115,9 @@ onBeforeUnmount(() => observer?.disconnect())
   <section v-else class="photo-grid masonry-grid">
     <RouterLink v-for="photo in photos" :key="photo.id" class="photo-card" :to="`/photos/${photo.id}`">
       <img :src="imageUrl(photo.images.large || photo.images.thumb)" :alt="photo.title" loading="lazy" />
+      <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+      </span>
       <span class="photo-year">{{ photo.year }}</span>
       <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
       <h3>{{ photo.title }}</h3>
@@ -110,6 +139,59 @@ onBeforeUnmount(() => observer?.disconnect())
 </template>
 
 <style lang="scss">
+.media-filter {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 12px;
+  padding: 4px;
+  border: 1px solid $line;
+  border-radius: $radius-pill;
+  background: $surface-soft;
+}
+
+.media-filter__chip {
+  padding: 7px 16px;
+  border: 0;
+  border-radius: $radius-pill;
+  background: transparent;
+  color: $muted;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  @include interactive((background, color, box-shadow));
+
+  &:hover {
+    color: $ink;
+  }
+
+  &.on {
+    color: #fff;
+    background: linear-gradient(135deg, $primary, $primary-dark);
+    box-shadow: 0 6px 14px rgba($primary, 0.26);
+  }
+
+  @include focus-ring(rgba($primary, 0.42), 2px);
+}
+
+.photo-video-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(2px);
+
+  svg {
+    margin-left: 1px;
+  }
+}
+
 .photo-card {
   position: relative;
   display: inline-block;

@@ -56,6 +56,8 @@ class PhotoController extends Controller
             ->when($request->filled('year_from'), fn ($query) => $query->where('year', '>=', (int) $request->year_from))
             ->when($request->filled('year_to'), fn ($query) => $query->where('year', '<=', (int) $request->year_to))
             ->when($request->filled('search'), fn ($query) => $query->where('title', 'like', '%' . $request->search . '%'))
+            ->when($request->query('media') === 'video', fn ($query) => $query->whereNotNull('video')->where('video', '!=', ''))
+            ->when($request->query('media') === 'photo', fn ($query) => $query->where(fn ($q) => $q->whereNull('video')->orWhere('video', '')))
             ->latest('id')
             ->paginate(min((int) $request->integer('per_page', 20), 60));
 
