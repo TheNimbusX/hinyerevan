@@ -125,16 +125,28 @@ class CommentController extends Controller
         $comment->load('author:id,unique,uid,first_name,last_name,photo,identity,email');
 
         if ($crosspostToFacebook && $photo->facebook_post_id) {
+            // Post to Facebook AFTER the response is flushed so the site comment
+            // appears instantly; the FB comment id is linked in the background.
             $authorName = trim((string) ($comment->author?->name ?? $request->user()->name ?? ''));
             $message = $authorName !== '' ? $authorName . ': ' . $data['body'] : $data['body'];
-            $fbId = $this->facebookComments->publishComment(
-                $photo,
-                $message,
-                $replyToFacebook !== '' ? $replyToFacebook : null,
-            );
-            if ($fbId !== null) {
-                $comment->forceFill(['facebook_comment_id' => $fbId])->save();
-            }
+            $photoId = $photo->id;
+            $commentId = $comment->id;
+            $replyTarget = $replyToFacebook !== '' ? $replyToFacebook : null;
+
+            app()->terminating(function () use ($photoId, $commentId, $message, $replyTarget) {
+                try {
+                    $freshPhoto = Photo::find($photoId);
+                    if (! $freshPhoto) {
+                        return;
+                    }
+                    $fbId = $this->facebookComments->publishComment($freshPhoto, $message, $replyTarget);
+                    if ($fbId !== null) {
+                        Comment::where('id', $commentId)->update(['facebook_comment_id' => $fbId]);
+                    }
+                } catch (\Throwable) {
+                    // cross-post failures must not affect the site comment
+                }
+            });
         }
 
         $payload = CommentPresenter::serializeFlat(collect([$comment]), $this->translator, $this->lang($request))[0];

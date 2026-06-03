@@ -1080,20 +1080,21 @@ onBeforeUnmount(() => {
   right: 12px;
   width: 32px;
   height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: 1px solid $line;
   border-radius: 50%;
   color: $muted;
   background: $surface-soft;
   cursor: pointer;
+  padding: 0;
+  line-height: 1;
 
   &::before {
     content: "×";
-    font-size: 20px;
-    line-height: 30px;
-    justify-self: center;
-    align-self: center;
-    display: flex;
-    margin-top: -5px;
+    font-size: 22px;
+    line-height: 1;
   }
 
   &:hover {

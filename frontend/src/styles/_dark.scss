@@ -247,6 +247,22 @@
     border-bottom-color: #2a313d;
   }
 
+  .check-line input[type='checkbox'],
+  .comment-crosspost input[type='checkbox'] {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.18);
+  }
+
+  .check-line input[type='checkbox']:checked {
+    background: $primary;
+    border-color: $primary;
+  }
+
+  .comment-crosspost input[type='checkbox']:checked {
+    background: #1877f2;
+    border-color: #1877f2;
+  }
+
   .comment-form textarea,
   .profile-form input {
     background: #1c212c;

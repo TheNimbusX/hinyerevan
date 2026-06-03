@@ -17,21 +17,81 @@
   }
 }
 
+// Branded custom checkbox shared across the app (replaces the raw native box).
+.check-line input[type='checkbox'],
+.comment-crosspost input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border: 1.5px solid $line;
+  border-radius: 5px;
+  background: $surface;
+  display: grid;
+  place-content: center;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &::before {
+    content: '';
+    width: 5px;
+    height: 9px;
+    margin-top: -1px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+    transition: transform 0.12s ease;
+  }
+
+  &:checked {
+    background: $primary;
+    border-color: $primary;
+  }
+
+  &:checked::before {
+    transform: rotate(45deg) scale(1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid rgba($primary, 0.4);
+    outline-offset: 2px;
+  }
+}
+
+.check-line:hover input[type='checkbox']:not(:checked),
+.comment-crosspost:hover input[type='checkbox']:not(:checked) {
+  border-color: $primary;
+}
+
 .comment-crosspost {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   justify-self: start;
   font-size: 13px;
+  font-weight: 500;
   color: $muted;
   cursor: pointer;
   user-select: none;
 
-  input {
-    width: 16px;
-    height: 16px;
-    accent-color: #1877f2;
-    cursor: pointer;
+  // FB-tinted accent for the "post to Facebook" action.
+  input[type='checkbox'] {
+    &:checked {
+      background: #1877f2;
+      border-color: #1877f2;
+    }
+
+    &:focus-visible {
+      outline-color: rgba(24, 119, 242, 0.45);
+    }
+  }
+
+  &:hover input[type='checkbox']:not(:checked) {
+    border-color: #1877f2;
   }
 }
 

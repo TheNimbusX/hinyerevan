@@ -491,6 +491,8 @@ onBeforeUnmount(() => {
     }
 
     &.active {
+      background: $accent;
+      border-color: $accent;
       color: #14171e;
     }
   }
