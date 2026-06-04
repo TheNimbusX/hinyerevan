@@ -16,4 +16,6 @@ return [
     'validation_password_min' => 'Пароль должен содержать не менее 6 символов.',
     'validation_password_confirmed' => 'Пароли не совпадают.',
     'validation_token_required' => 'Ссылка для сброса недействительна.',
+    'captcha_required' => 'Отметьте «Я не робот» в captcha.',
+    'captcha_failed' => 'Проверка captcha не прошла. Попробуйте ещё раз.',
 ];

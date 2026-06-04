@@ -60,6 +60,8 @@ class AuthController extends Controller
     {
         abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
 
+        UiLocale::apply($request);
+
         $data = $request->validate([
             'uid' => ['required', 'alpha_num', 'min:3', 'max:32', 'unique:users,uid'],
             'first_name' => ['required', 'string', 'min:3', 'max:80'],
@@ -451,7 +453,7 @@ class AuthController extends Controller
 
         if ($token === '') {
             throw ValidationException::withMessages([
-                'recaptcha_token' => 'Please complete the captcha.',
+                'recaptcha_token' => __('password.captcha_required'),
             ]);
         }
 
@@ -476,7 +478,7 @@ class AuthController extends Controller
 
         if (! $response->json('success')) {
             throw ValidationException::withMessages([
-                'recaptcha_token' => 'Captcha verification failed.',
+                'recaptcha_token' => __('password.captcha_failed'),
             ]);
         }
     }

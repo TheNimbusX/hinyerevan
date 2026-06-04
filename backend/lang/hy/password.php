@@ -16,4 +16,6 @@ return [
     'validation_password_min' => 'Գաղտնաբառը՝ առնվազն 6 նշան։',
     'validation_password_confirmed' => 'Գաղտնաբառերը չեն համընկնում։',
     'validation_token_required' => 'Վերականգնման հղումը անվավեր է։',
+    'captcha_required' => 'Նշեք captcha-ն («Ես ռոբոտ չեմ»)։',
+    'captcha_failed' => 'Captcha-ի ստուգումը չհաջողվեց։ Կրկին փորձեք։',
 ];

@@ -53,8 +53,14 @@ const years = Array.from({ length: 127 }, (_, index) => new Date().getFullYear()
 const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
 const recaptchaReady = computed(() => recaptchaSiteKey !== '')
 const recaptchaEl = ref(null)
+const recaptchaLoadFailed = ref(false)
 let recaptchaWidgetId = null
 let recaptchaScriptPromise = null
+
+function recaptchaLang() {
+  const lang = getUiLanguage()
+  return lang === 'ru' ? 'ru' : lang === 'en' ? 'en' : 'hy'
+}
 
 function loadRecaptchaScript() {
   if (recaptchaScriptPromise) return recaptchaScriptPromise
@@ -65,10 +71,9 @@ function loadRecaptchaScript() {
       return
     }
     const script = document.createElement('script')
-    // Load from recaptcha.net instead of google.com: in some regions (RU/AM)
-    // www.google.com is throttled/blocked and the script fails with
-    // ERR_CONNECTION_RESET. recaptcha.net is Google's official mirror.
-    script.src = 'https://www.recaptcha.net/recaptcha/api.js?render=explicit'
+    // recaptcha.net mirror — google.com is often blocked in RU/AM.
+    const hl = recaptchaLang()
+    script.src = `https://www.recaptcha.net/recaptcha/api.js?render=explicit&hl=${hl}`
     script.async = true
     script.defer = true
     script.onload = resolve
@@ -97,11 +102,28 @@ function whenGrecaptchaReady(timeout = 6000) {
 
 async function renderRecaptcha() {
   if (!recaptchaReady.value) return
-  await loadRecaptchaScript().catch(() => null)
+
+  recaptchaLoadFailed.value = false
+  await nextTick()
+
+  if (!recaptchaEl.value) {
+    await nextTick()
+  }
+
+  try {
+    await loadRecaptchaScript()
+  } catch {
+    recaptchaLoadFailed.value = true
+    return
+  }
+
   const ready = await whenGrecaptchaReady()
   await nextTick()
   const grecaptcha = window.grecaptcha
-  if (!ready || !grecaptcha?.render || !recaptchaEl.value) return
+  if (!ready || !grecaptcha?.render || !recaptchaEl.value) {
+    recaptchaLoadFailed.value = true
+    return
+  }
 
   if (recaptchaWidgetId !== null) {
     grecaptcha.reset(recaptchaWidgetId)
@@ -109,15 +131,23 @@ async function renderRecaptcha() {
     return
   }
 
-  recaptchaWidgetId = grecaptcha.render(recaptchaEl.value, {
-    sitekey: recaptchaSiteKey,
-    callback: (token) => {
-      authForm.value.recaptcha_token = token
-    },
-    'expired-callback': () => {
-      authForm.value.recaptcha_token = ''
-    },
-  })
+  try {
+    recaptchaWidgetId = grecaptcha.render(recaptchaEl.value, {
+      sitekey: recaptchaSiteKey,
+      callback: (token) => {
+        authForm.value.recaptcha_token = token
+        recaptchaLoadFailed.value = false
+      },
+      'expired-callback': () => {
+        authForm.value.recaptcha_token = ''
+      },
+      'error-callback': () => {
+        recaptchaLoadFailed.value = true
+      },
+    })
+  } catch {
+    recaptchaLoadFailed.value = true
+  }
 }
 
 function resetRecaptcha() {
@@ -293,12 +323,17 @@ async function submitAuth() {
 }
 
 async function register() {
+  if (recaptchaReady.value && !authForm.value.recaptcha_token) {
+    throw new Error(t('captchaRequired'))
+  }
+
   const body = new FormData()
   Object.entries(authForm.value).forEach(([key, value]) => {
-    if (value !== null && value !== undefined) {
+    if (value !== null && value !== undefined && value !== '') {
       body.append(key, value)
     }
   })
+  body.append('lang', getUiLanguage())
 
   return api('/auth/register', { method: 'POST', body })
 }
@@ -335,9 +370,10 @@ watch(
   [authOpen, authMode],
   ([open, mode]) => {
     if (open && mode === 'register') {
-      renderRecaptcha()
+      void renderRecaptcha()
     }
   },
+  { flush: 'post' },
 )
 
 function openFacebookModal() {
@@ -571,6 +607,10 @@ onBeforeUnmount(() => {
               />
               <small class="form-help">{{ t('passwordHelp') }}</small>
               <div v-if="recaptchaReady" ref="recaptchaEl" class="g-recaptcha-host"></div>
+              <p v-if="recaptchaReady && recaptchaLoadFailed" class="error captcha-retry">
+                {{ t('captchaLoadFailed') }}
+                <button type="button" class="link-button" @click="renderRecaptcha">{{ t('captchaRetry') }}</button>
+              </p>
             </template>
             <button class="button" type="submit">{{ t('continue') }}</button>
             <p v-if="authError" class="error">{{ authError }}</p>
@@ -1335,11 +1375,18 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 
+.captcha-retry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
 .g-recaptcha-host {
   display: flex;
   justify-content: center;
   min-height: 78px;
-  overflow: hidden;
+  overflow: visible;
 
   // The reCAPTCHA iframe is a fixed 304px wide; scale it down on narrow phones
   // so it never spills out of the modal.
