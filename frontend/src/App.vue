@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, apiUrl, getToken, safeAvatarUrl, setToken } from './api'
+import { getUiLanguage } from './utils/browserTranslate'
 import { useI18n } from './i18n'
 import siteLogo from './assets/logos/Logo2026.png'
 import { socialProviderIcon } from './utils/socialProviderIcons'
@@ -234,16 +235,15 @@ async function submitForgotPassword() {
   try {
     const payload = await api('/auth/forgot-password', {
       method: 'POST',
-      body: { email },
+      body: { email, lang: getUiLanguage() },
       timeoutMs: 20000,
     })
     forgotMessage.value = payload?.message || t('forgotPasswordSent')
   } catch (event) {
-    const msg = event?.message || ''
     authError.value =
-      /could not send|reset email|timed out/i.test(msg) || event?.name === 'AbortError'
+      event?.name === 'AbortError' || event?.message === 'Request timed out'
         ? t('forgotPasswordError')
-        : msg || t('forgotPasswordError')
+        : event?.message || t('forgotPasswordError')
   } finally {
     forgotLoading.value = false
   }

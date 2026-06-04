@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Mail\PasswordResetMail;
+use App\Support\UiLocale;
 
 class AuthController extends Controller
 {
@@ -173,15 +174,20 @@ class AuthController extends Controller
     {
         abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
 
+        $lang = UiLocale::apply($request);
+
         $data = $request->validate([
             'email' => ['required', 'email', 'max:190'],
+        ], [
+            'email.required' => __('password.validation_email_required'),
+            'email.email' => __('password.validation_email_invalid'),
         ]);
 
-        $message = 'If an account with this email exists, we sent password reset instructions.';
+        $message = __('password.forgot_sent');
 
         $user = User::query()->where('email', $data['email'])->first();
         if (! $user || $user->isBlocked()) {
-            return ['message' => $message];
+            return ['message' => $message, 'lang' => $lang];
         }
 
         $token = Str::random(64);
@@ -194,10 +200,11 @@ class AuthController extends Controller
         $resetUrl = $frontendUrl . '/reset-password?' . http_build_query([
             'token' => $token,
             'email' => $user->email,
+            'lang' => $lang,
         ]);
 
         try {
-            Mail::to($user->email)->send(new PasswordResetMail($user, $resetUrl));
+            Mail::to($user->email)->send(new PasswordResetMail($user, $resetUrl, $lang));
         } catch (\Throwable $exception) {
             Log::error('Password reset mail failed', [
                 'email' => $user->email,
@@ -205,21 +212,30 @@ class AuthController extends Controller
             ]);
 
             throw ValidationException::withMessages([
-                'email' => 'Could not send the reset email. Please try again in a few minutes.',
+                'email' => __('password.mail_send_failed'),
             ]);
         }
 
-        return ['message' => $message];
+        return ['message' => $message, 'lang' => $lang];
     }
 
     public function resetPassword(Request $request)
     {
         abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
 
+        $lang = UiLocale::apply($request);
+
         $data = $request->validate([
             'email' => ['required', 'email', 'max:190'],
             'token' => ['required', 'string', 'min:32'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
+        ], [
+            'email.required' => __('password.validation_email_required'),
+            'email.email' => __('password.validation_email_invalid'),
+            'token.required' => __('password.validation_token_required'),
+            'password.required' => __('password.validation_password_min'),
+            'password.min' => __('password.validation_password_min'),
+            'password.confirmed' => __('password.validation_password_confirmed'),
         ]);
 
         $record = DB::table('password_reset_tokens')->where('email', $data['email'])->first();
@@ -234,21 +250,21 @@ class AuthController extends Controller
             }
 
             throw ValidationException::withMessages([
-                'email' => 'This reset link is invalid or has expired.',
+                'email' => __('password.reset_invalid_link'),
             ]);
         }
 
         $user = User::query()->where('email', $data['email'])->first();
         if (! $user || $user->isBlocked()) {
             throw ValidationException::withMessages([
-                'email' => 'This reset link is invalid or has expired.',
+                'email' => __('password.reset_invalid_link'),
             ]);
         }
 
         $user->forceFill(['password' => md5($data['password'])])->save();
         DB::table('password_reset_tokens')->where('email', $data['email'])->delete();
 
-        return ['message' => 'Password updated. You can sign in with your new password.'];
+        return ['message' => __('password.reset_success'), 'lang' => $lang];
     }
 
     public function logout(Request $request)

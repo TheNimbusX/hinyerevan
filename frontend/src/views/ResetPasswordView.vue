@@ -3,11 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '../api'
 import { useI18n } from '../i18n'
+import { getUiLanguage } from '../utils/browserTranslate'
 import { setPageMeta } from '../utils/seo'
 
 const route = useRoute()
 const router = useRouter()
-const { t } = useI18n()
+const { t, setLanguage } = useI18n()
 
 const email = ref('')
 const token = ref('')
@@ -20,6 +21,11 @@ const loading = ref(false)
 const ready = computed(() => Boolean(email.value && token.value))
 
 onMounted(() => {
+  const qLang = String(route.query.lang || '')
+  if (['hy', 'ru', 'en'].includes(qLang)) {
+    setLanguage(qLang)
+  }
+
   email.value = String(route.query.email || '')
   token.value = String(route.query.token || '')
   setPageMeta({
@@ -41,6 +47,7 @@ async function submit() {
         token: token.value,
         password: password.value,
         password_confirmation: passwordConfirmation.value,
+        lang: getUiLanguage(),
       },
     })
     success.value = payload?.message || t('resetPasswordSuccess')
@@ -49,7 +56,7 @@ async function submit() {
       router.push('/')
     }, 1800)
   } catch (event) {
-    error.value = event.message
+    error.value = event?.message || t('resetPasswordInvalidLink')
   } finally {
     loading.value = false
   }
