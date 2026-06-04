@@ -151,43 +151,11 @@ onBeforeUnmount(() => {
       <p class="before-after__sub">{{ t('beforeAfterSubtitle') }}</p>
     </header>
 
-    <!-- Teaser: nothing heavy loads until the user asks for it. -->
-    <button v-if="status === 'idle'" type="button" class="ba-teaser" @click="reveal">
-      <img :src="oldSrc" :alt="title" loading="lazy" />
-      <span class="ba-teaser__veil"></span>
-      <span class="ba-teaser__cta">
-        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-          <path
-            d="M3 12h7M14 12h7M10 5l-7 7 7 7M14 5l7 7-7 7"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-        </svg>
-        {{ t('beforeAfterCta') }}
-      </span>
-    </button>
-
-    <div v-else-if="status === 'loading'" class="ba-state">
-      <span class="ba-spinner" aria-hidden="true"></span>
-      <span>{{ t('beforeAfterLoading') }}</span>
-    </div>
-
-    <div v-else-if="status === 'none'" class="ba-state ba-state--muted">
-      <p>{{ t('beforeAfterNone') }}</p>
-      <a :href="yandexMapsLink" target="_blank" rel="noopener" class="ba-link">{{ t('beforeAfterOpenYandex') }} →</a>
-    </div>
-
-    <div v-else-if="status === 'error'" class="ba-state ba-state--muted">
-      <p>{{ t('beforeAfterError') }}</p>
-      <button type="button" class="ba-link" @click="reveal">{{ t('beforeAfterRetry') }}</button>
-    </div>
-
-    <!-- Kept in the DOM (v-show) so the panorama player mounts into a sized element. -->
-    <div v-show="status === 'ready'" class="ba-wrap">
+    <!-- Fixed-ratio frame so the layout never jumps between states. -->
+    <div class="ba-frame">
+      <!-- Compare; kept in the DOM (v-show) so the player mounts into a sized element. -->
       <div
+        v-show="status === 'ready'"
         ref="compareEl"
         class="ba-compare"
         :class="{ dragging }"
@@ -225,8 +193,46 @@ onBeforeUnmount(() => {
           </span>
         </div>
       </div>
-      <p class="before-after__hint">{{ t('beforeAfterHint') }}</p>
+
+      <!-- Until ready, keep the old photo on screen so nothing collapses. -->
+      <template v-if="status !== 'ready'">
+        <img class="ba-base" :src="oldSrc" :alt="title" />
+        <span class="ba-base-veil" aria-hidden="true"></span>
+
+        <button v-if="status === 'idle'" type="button" class="ba-cta" @click="reveal">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path
+              d="M3 12h7M14 12h7M10 5l-7 7 7 7M14 5l7 7-7 7"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span>{{ t('beforeAfterCta') }}</span>
+        </button>
+
+        <div v-else-if="status === 'loading'" class="ba-overlay">
+          <span class="ba-spinner" aria-hidden="true"></span>
+          <span>{{ t('beforeAfterLoading') }}</span>
+        </div>
+
+        <div v-else class="ba-overlay">
+          <p>{{ status === 'none' ? t('beforeAfterNone') : t('beforeAfterError') }}</p>
+          <a
+            v-if="status === 'none'"
+            :href="yandexMapsLink"
+            target="_blank"
+            rel="noopener"
+            class="ba-link"
+          >{{ t('beforeAfterOpenYandex') }} →</a>
+          <button v-else type="button" class="ba-link" @click="reveal">{{ t('beforeAfterRetry') }}</button>
+        </div>
+      </template>
     </div>
+
+    <p v-show="status === 'ready'" class="before-after__hint">{{ t('beforeAfterHint') }}</p>
   </section>
 </template>
 
@@ -259,82 +265,102 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-/* Teaser ----------------------------------------------------------- */
-.ba-teaser {
+/* Frame: holds a stable box across every state -------------------- */
+.ba-frame {
   position: relative;
-  display: block;
   width: 100%;
-  padding: 0;
-  border: 0;
+  aspect-ratio: 16 / 10;
+  max-height: 70vh;
   border-radius: $radius-lg;
   overflow: hidden;
-  cursor: pointer;
   background: $surface-soft;
-  aspect-ratio: 16 / 9;
-  @include interactive((transform, box-shadow));
+  user-select: none;
 
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    filter: saturate(0.92);
+  @include mq-down($bp-sm) {
+    aspect-ratio: 4 / 3;
+    border-radius: $radius-md;
   }
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: $shadow-lg;
-  }
-
-  &:hover img {
-    transform: scale(1.02);
-  }
-
-  @include focus-ring(rgba($primary, 0.45), 3px);
 }
 
-.ba-teaser__veil {
+.ba-base {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(8, 16, 36, 0.05), rgba(8, 16, 36, 0.55));
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
-.ba-teaser__cta {
+.ba-base-veil {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(8, 16, 36, 0.08), rgba(8, 16, 36, 0.5));
+}
+
+/* Call to action -------------------------------------------------- */
+.ba-cta {
   position: absolute;
   left: 50%;
-  bottom: 18px;
+  bottom: 16px;
   transform: translateX(-50%);
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  max-width: calc(100% - 28px);
   padding: 10px 18px;
+  border: 0;
   border-radius: $radius-pill;
   background: rgba(255, 255, 255, 0.96);
   color: $primary-dark;
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  cursor: pointer;
   box-shadow: 0 10px 26px rgba(7, 21, 60, 0.24);
   backdrop-filter: blur(6px);
+  @include interactive((transform, box-shadow));
+
+  svg {
+    flex-shrink: 0;
+  }
+
+  &:hover {
+    transform: translateX(-50%) translateY(-1px);
+    box-shadow: 0 14px 30px rgba(7, 21, 60, 0.3);
+  }
+
+  @include focus-ring(rgba($primary, 0.5), 3px);
+
+  @include mq-down($bp-sm) {
+    bottom: 10px;
+    gap: 6px;
+    padding: 7px 12px;
+    font-size: 12px;
+
+    svg {
+      width: 15px;
+      height: 15px;
+    }
+  }
 }
 
-/* States ----------------------------------------------------------- */
-.ba-state {
+/* Loading / empty / error overlay --------------------------------- */
+.ba-overlay {
+  position: absolute;
+  inset: 0;
   display: grid;
   justify-items: center;
   align-content: center;
   gap: 10px;
-  min-height: 180px;
-  padding: 24px;
-  border-radius: $radius-lg;
-  background: $surface-soft;
-  color: $ink;
+  padding: 20px;
   text-align: center;
+  color: #fff;
+  background: rgba(8, 16, 36, 0.42);
+  backdrop-filter: blur(2px);
 
   p {
     margin: 0;
-  }
-
-  &--muted {
-    color: $muted;
+    font-weight: 500;
   }
 }
 
@@ -342,23 +368,19 @@ onBeforeUnmount(() => {
   border: 0;
   background: none;
   padding: 0;
-  color: $primary;
+  color: #fff;
   font-size: 14px;
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
   cursor: pointer;
-
-  &:hover {
-    text-decoration: underline;
-  }
 }
 
 .ba-spinner {
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 3px solid rgba($primary, 0.2);
-  border-top-color: $primary;
+  border: 3px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
   animation: baSpin 0.7s linear infinite;
 }
 
@@ -368,22 +390,13 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Compare ---------------------------------------------------------- */
+/* Compare slider -------------------------------------------------- */
 .ba-compare {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  max-height: 70vh;
-  border-radius: $radius-lg;
-  overflow: hidden;
+  position: absolute;
+  inset: 0;
+  z-index: 2;
   background: #0d1018;
-  user-select: none;
   touch-action: pan-y;
-
-  @include mq-down($bp-sm) {
-    border-radius: $radius-md;
-    aspect-ratio: 4 / 3;
-  }
 }
 
 .ba-pane {
@@ -401,6 +414,7 @@ onBeforeUnmount(() => {
 .ba-old {
   position: absolute;
   inset: 0;
+  z-index: 3;
   clip-path: inset(0 calc(100% - var(--pos)) 0 0);
   pointer-events: none;
 
@@ -465,5 +479,23 @@ onBeforeUnmount(() => {
   background: #fff;
   color: $primary-dark;
   box-shadow: 0 6px 18px rgba(7, 21, 60, 0.34);
+}
+
+/* Yandex panorama chrome tweaks (scoped to our pane) -------------- */
+.ba-pane [class*='panorama-control__copyright'] {
+  display: none !important;
+}
+
+.ba-pane [class*='islets_round-button'],
+.ba-pane [class*='islets_round-button__icon'] {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+@include mq-down($bp-sm) {
+  .ba-pane [class*='gotoymaps-container'] {
+    display: none !important;
+  }
 }
 </style>
