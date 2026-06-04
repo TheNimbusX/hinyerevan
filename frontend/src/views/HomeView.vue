@@ -37,8 +37,6 @@ const latestAllowedYear = new Date().getFullYear()
 const yearRange = ref([earliestAllowedYear, latestAllowedYear])
 const activeYearRange = ref([earliestAllowedYear, latestAllowedYear])
 const rangeTouched = ref(false)
-const timelinePlaying = ref(false)
-let timelineTimer = null
 const loadError = ref('')
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
@@ -473,50 +471,6 @@ function onYearSliderChange(value) {
   scheduleYearApply()
 }
 
-const canPlayTimeline = computed(() => maxYear.value > minYear.value)
-
-function stopTimeline() {
-  timelinePlaying.value = false
-  if (timelineTimer) {
-    window.clearInterval(timelineTimer)
-    timelineTimer = null
-  }
-}
-
-function startTimeline() {
-  if (!canPlayTimeline.value) return
-  stopTimeline()
-
-  const start = minYear.value
-  const end = maxYear.value
-  const span = end - start
-  // Aim for a ~14s sweep regardless of how many years we span.
-  const stepYears = Math.max(1, Math.round(span / 60))
-  let current = start
-
-  rangeTouched.value = true
-  yearRange.value = [start, current]
-  timelinePlaying.value = true
-
-  timelineTimer = window.setInterval(() => {
-    current += stepYears
-    if (current >= end) {
-      yearRange.value = [start, end]
-      stopTimeline()
-      return
-    }
-    yearRange.value = [start, current]
-  }, 230)
-}
-
-function toggleTimeline() {
-  if (timelinePlaying.value) {
-    stopTimeline()
-  } else {
-    startTimeline()
-  }
-}
-
 async function loadSecondaryContent() {
   // Loaded separately so a failure here never blocks the map markers.
   const [ratingData, photoData, newsData] = await Promise.allSettled([
@@ -580,7 +534,6 @@ watch([theme, currentLanguage], () => {
 watch(activeYearRange, scheduleMarkerSync, { deep: true })
 
 async function reloadMarkersForFilter() {
-  stopTimeline()
   loadFilteredUserLabel()
   markersLoading.value = true
   try {
@@ -628,7 +581,6 @@ watch(yearBounds, () => {
 })
 
 onBeforeUnmount(() => {
-  stopTimeline()
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
@@ -715,27 +667,7 @@ onBeforeUnmount(() => {
   </section>
 
   <section class="year-filter">
-    <div class="year-filter-lead">
-      <button
-        type="button"
-        class="year-play"
-        :class="{ playing: timelinePlaying }"
-        :disabled="!canPlayTimeline"
-        :aria-pressed="timelinePlaying"
-        :aria-label="timelinePlaying ? t('pauseTimeline') : t('playTimeline')"
-        :title="timelinePlaying ? t('pauseTimeline') : t('playTimeline')"
-        @click="toggleTimeline"
-      >
-        <svg v-if="timelinePlaying" viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="6" y="5" width="4" height="14" rx="1" />
-          <rect x="14" y="5" width="4" height="14" rx="1" />
-        </svg>
-        <svg v-else viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M8 5.5v13a1 1 0 0 0 1.54.84l10-6.5a1 1 0 0 0 0-1.68l-10-6.5A1 1 0 0 0 8 5.5Z" />
-        </svg>
-      </button>
-      <span class="year-filter-label">{{ t('yearRange') }}</span>
-    </div>
+    <span class="year-filter-label">{{ t('yearRange') }}</span>
     <div class="year-filter-track">
       <Slider
         v-model="yearRange"
@@ -745,7 +677,6 @@ onBeforeUnmount(() => {
         :tooltips="false"
         :lazy="false"
         class="year-slider"
-        @start="stopTimeline"
         @change="onYearSliderChange"
       />
       <div class="year-ticks">
@@ -1247,7 +1178,7 @@ onBeforeUnmount(() => {
   box-shadow: $shadow-sm;
 
   @include mq-down($bp-md) {
-    grid-template-columns: auto 1fr auto;
+    grid-template-columns: 1fr auto;
     gap: 10px;
     padding: 10px 14px;
     border-radius: $radius-md;
@@ -1255,7 +1186,7 @@ onBeforeUnmount(() => {
 
   @include mq-down($bp-sm) {
     grid-template-columns: 1fr;
-    gap: 8px;
+    gap: 6px;
     padding: 10px 14px 8px;
     margin-inline: 0;
   }
@@ -1279,13 +1210,6 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.year-filter-lead {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
 .year-filter-label {
   color: $muted;
   font-size: 11px;
@@ -1296,62 +1220,6 @@ onBeforeUnmount(() => {
 
   @include mq-down($bp-md) {
     display: none;
-  }
-}
-
-.year-play {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 34px;
-  height: 34px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: linear-gradient(135deg, $accent, $accent-dark);
-  color: #fff;
-  cursor: pointer;
-  box-shadow: 0 6px 14px rgba($accent-dark, 0.28);
-  transition:
-    transform 0.18s ease,
-    box-shadow 0.18s ease,
-    opacity 0.18s ease;
-
-  svg {
-    display: block;
-    width: 15px;
-    height: 15px;
-    fill: currentColor;
-  }
-
-  &:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 18px rgba($accent-dark, 0.34);
-  }
-
-  &:active:not(:disabled) {
-    transform: translateY(0);
-  }
-
-  &.playing {
-    animation: yearPlayPulse 1.8s ease-in-out infinite;
-  }
-
-  &:disabled {
-    opacity: 0.4;
-    cursor: default;
-    box-shadow: none;
-  }
-}
-
-@keyframes yearPlayPulse {
-  0%,
-  100% {
-    box-shadow: 0 6px 14px rgba($accent-dark, 0.28);
-  }
-  50% {
-    box-shadow: 0 6px 20px rgba($accent-dark, 0.5);
   }
 }
 
