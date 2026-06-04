@@ -1265,6 +1265,31 @@
     }
   }
 
+  // ---------- Before / After panorama -----------------------------
+  .before-after__sub,
+  .before-after__hint {
+    color: #98a0ae;
+  }
+
+  .ba-teaser {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .ba-state {
+    background: rgba(255, 255, 255, 0.04);
+    color: #f4f7ff;
+  }
+
+  .ba-state--muted {
+    color: #98a0ae;
+  }
+
+  .ba-teaser__cta,
+  .ba-knob {
+    background: #f4f7ff;
+    color: #14171e;
+  }
+
   // ---------- Feedback form ---------------------------------------
   .feedback-field span {
     color: #e7ebf3;

@@ -20,6 +20,7 @@ import DirectionMarker from '../components/DirectionMarker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
 import YoutubeEmbed from '../components/YoutubeEmbed.vue'
 import FacebookPublishedBadge from '../components/FacebookPublishedBadge.vue'
+import BeforeAfterPanorama from '../components/BeforeAfterPanorama.vue'
 
 const route = useRoute()
 const photo = ref(null)
@@ -533,6 +534,17 @@ watch(isAuthenticated, () => {
       </article>
     </aside>
   </section>
+
+  <BeforeAfterPanorama
+    v-if="photo"
+    :key="`ba-${photo.id}`"
+    :lat="photo.lat"
+    :lng="photo.lng"
+    :direction="photo.direction"
+    :old-image="photo.images.large || photo.images.original || photo.images.thumb"
+    :title="photo.title"
+    :t="t"
+  />
 
   <section v-if="photo?.video" class="panel detail-video-block">
     <h2>{{ t('watchVideo') }}</h2>
