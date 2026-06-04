@@ -37,6 +37,7 @@ const authForm = ref({
 })
 const forgotEmail = ref('')
 const forgotMessage = ref('')
+const forgotLoading = ref(false)
 const socialProviders = ref([])
 const socialRedirecting = ref(null)
 function providerIcon(id) {
@@ -218,16 +219,33 @@ function openAuth(mode = 'login') {
 }
 
 async function submitForgotPassword() {
+  if (forgotLoading.value) return
+
+  const email = forgotEmail.value.trim()
+  if (!email) {
+    authError.value = t('emailRequired')
+    return
+  }
+
   authError.value = ''
   forgotMessage.value = ''
+  forgotLoading.value = true
+
   try {
     const payload = await api('/auth/forgot-password', {
       method: 'POST',
-      body: { email: forgotEmail.value.trim() },
+      body: { email },
+      timeoutMs: 20000,
     })
     forgotMessage.value = payload?.message || t('forgotPasswordSent')
   } catch (event) {
-    authError.value = event.message
+    const msg = event?.message || ''
+    authError.value =
+      /could not send|reset email|timed out/i.test(msg) || event?.name === 'AbortError'
+        ? t('forgotPasswordError')
+        : msg || t('forgotPasswordError')
+  } finally {
+    forgotLoading.value = false
   }
 }
 
@@ -462,11 +480,21 @@ onBeforeUnmount(() => {
           <p v-if="authMode !== 'forgot' && socialProviders.length" class="auth-divider"><span>{{ t('orContinueWithEmail') }}</span></p>
 
           <form v-if="authMode === 'forgot'" class="auth-form" @submit.prevent="submitForgotPassword">
-            <input v-model="forgotEmail" type="email" :placeholder="t('email')" required />
+            <input
+              v-model="forgotEmail"
+              type="email"
+              :placeholder="t('email')"
+              :disabled="forgotLoading"
+              required
+            />
             <p v-if="forgotMessage" class="success">{{ forgotMessage }}</p>
             <p v-if="authError" class="error">{{ authError }}</p>
-            <button class="button" type="submit">{{ t('sendResetLink') }}</button>
-            <button class="link-button auth-forgot-back" type="button" @click="authMode = 'login'">{{ t('backToLogin') }}</button>
+            <button class="button" type="submit" :disabled="forgotLoading">
+              {{ forgotLoading ? t('forgotPasswordSending') : t('sendResetLink') }}
+            </button>
+            <button class="link-button auth-forgot-back" type="button" :disabled="forgotLoading" @click="authMode = 'login'">
+              {{ t('backToLogin') }}
+            </button>
           </form>
 
           <form v-else class="auth-form" @submit.prevent="submitAuth">

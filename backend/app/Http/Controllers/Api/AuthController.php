@@ -204,11 +204,9 @@ class AuthController extends Controller
                 'message' => $exception->getMessage(),
             ]);
 
-            if (config('app.debug')) {
-                throw ValidationException::withMessages([
-                    'email' => 'Could not send email. Check mail settings.',
-                ]);
-            }
+            throw ValidationException::withMessages([
+                'email' => 'Could not send the reset email. Please try again in a few minutes.',
+            ]);
         }
 
         return ['message' => $message];
