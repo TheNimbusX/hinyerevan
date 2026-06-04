@@ -486,14 +486,35 @@ onBeforeUnmount(() => {
   display: none !important;
 }
 
-.ba-pane [class*='islets_round-button'],
-.ba-pane [class*='islets_round-button__icon'] {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+/* Shrink zoom cluster; do NOT override icon display (sprites break with flex). */
+.ba-pane [class*='panorama-controls__zoom'] {
+  transform: scale(0.68);
+  transform-origin: left bottom;
+}
+
+.ba-pane [class*='islets_round-button'] {
+  position: relative !important;
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  min-height: 26px !important;
+  max-width: 26px !important;
+  border-radius: 6px !important;
 }
 
 @include mq-down($bp-sm) {
+  .ba-pane [class*='panorama-controls__zoom'] {
+    transform: scale(0.58);
+  }
+
+  .ba-pane [class*='islets_round-button'] {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
+    max-width: 22px !important;
+  }
+
   .ba-pane [class*='gotoymaps-container'] {
     display: none !important;
   }
