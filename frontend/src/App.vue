@@ -483,7 +483,7 @@ onBeforeUnmount(() => {
     <FacebookPageModal :open="facebookOpen" @close="closeFacebookModal" />
 
     <Teleport to="body">
-      <div v-if="authOpen" class="auth-modal-backdrop" @click.self="authOpen = false">
+      <div v-if="authOpen" class="auth-modal-backdrop">
         <section class="auth-modal" role="dialog" aria-modal="true">
           <button class="auth-close" type="button" @click="authOpen = false" :aria-label="t('cancel')" />
 
