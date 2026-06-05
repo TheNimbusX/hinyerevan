@@ -158,9 +158,13 @@ class LegacyPhotoStorage
         $markW = imagesx($mark);
         $markH = imagesy($mark);
 
-        // Watermark spans ~18% of the photo width, clamped so it stays legible
-        // on small images yet never dominates large originals.
-        $targetW = max(40, min((int) round($width * 0.095), 120));
+        // The legacy mark (templates/white.png) is ~90x96 px and is stamped at a
+        // fixed size in the bottom-right corner of the display variant, so it is
+        // larger (relative to width) on narrow portraits than on wide photos.
+        // Size ours off the long edge so it always matches/covers that footprint,
+        // scaling up on big originals and down on small images.
+        $maxEdge = max($width, $height);
+        $targetW = max(72, min((int) round($maxEdge * 0.135), 300));
         $targetH = max(1, (int) round($markH * ($targetW / $markW)));
 
         $resized = imagecreatetruecolor($targetW, $targetH);
@@ -177,12 +181,13 @@ class LegacyPhotoStorage
         // Place the mark on a soft rounded white plate in the bottom-right
         // corner. Legacy photos carry an old watermark burned into that exact
         // corner, and the semi-opaque plate masks it so only our mark shows.
-        $pad = max(4, (int) round($targetW * 0.07));
+        $pad = max(4, (int) round($targetW * 0.06));
         $panelW = $targetW + 2 * $pad;
         $panelH = $targetH + 2 * $pad;
-        // Hug the bottom-right corner so the plate fully overlaps the legacy
-        // watermark, which sits flush against the edge on old photos.
-        $margin = max(4, min((int) round($width * 0.008), 14));
+        // Hug the bottom-right corner with a slightly smaller margin than the
+        // legacy mark used (~8px on an 800px photo) so the plate fully overlaps
+        // and never lets the old mark peek out at the edges.
+        $margin = max(3, min((int) round($maxEdge * 0.008), 12));
         $panelX = $width - $panelW - $margin;
         $panelY = $height - $panelH - $margin;
         $dstX = $panelX + $pad;
@@ -200,7 +205,7 @@ class LegacyPhotoStorage
         imagealphablending($plate, true);
         $radius = max(6, (int) round(min($panelW, $panelH) * 0.18));
         $this->fillRoundedRect($plate, 0, 0, $panelW, $panelH, $radius, imagecolorallocate($plate, 255, 255, 255));
-        $this->copyMergeWithAlpha($base, $plate, $panelX, $panelY, $panelW, $panelH, 82);
+        $this->copyMergeWithAlpha($base, $plate, $panelX, $panelY, $panelW, $panelH, 85);
         imagedestroy($plate);
 
         $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 92);
