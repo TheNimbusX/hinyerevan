@@ -172,7 +172,29 @@ async function revealYandex() {
   })
 }
 
+function revealGoogleEmbed() {
+  if (!paneEl.value) return
+
+  const iframe = document.createElement('iframe')
+  iframe.setAttribute('title', 'Google Street View')
+  iframe.setAttribute('loading', 'lazy')
+  iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade')
+  iframe.setAttribute('allowfullscreen', '')
+  iframe.className = 'ba-google-embed'
+  // Classic svembed URL — works without a Maps JS API key.
+  iframe.src = `https://www.google.com/maps?layer=c&cbll=${lat.value},${lng.value}&cbp=11,${heading.value},0,0,0&output=svembed`
+  paneEl.value.appendChild(iframe)
+}
+
 async function revealGoogle() {
+  await nextTick()
+  if (!paneEl.value) return
+
+  if (!hasGoogleKey.value) {
+    revealGoogleEmbed()
+    return
+  }
+
   const maps = await loadGoogleMapsApi()
   const position = { lat: lat.value, lng: lng.value }
 
@@ -189,9 +211,6 @@ async function revealGoogle() {
       },
     )
   })
-
-  await nextTick()
-  if (!paneEl.value) return
 
   googlePanorama = new maps.StreetViewPanorama(paneEl.value, {
     position: panoData.location.latLng,
@@ -211,10 +230,6 @@ async function revealGoogle() {
 
 async function reveal() {
   if (!hasCoords.value || status.value === 'loading' || status.value === 'ready') return
-  if (provider.value === 'google' && !hasGoogleKey.value) {
-    status.value = 'error'
-    return
-  }
 
   status.value = 'loading'
   destroyPanorama()
@@ -306,10 +321,8 @@ onBeforeUnmount(() => {
             type="button"
             role="radio"
             class="ba-provider__btn"
-            :class="{ active: provider === 'google', disabled: !hasGoogleKey }"
+            :class="{ active: provider === 'google' }"
             :aria-checked="provider === 'google'"
-            :disabled="!hasGoogleKey"
-            :title="!hasGoogleKey ? t('beforeAfterGoogleNoKey') : ''"
             @click="setProvider('google')"
           >
             {{ t('beforeAfterGoogle') }}
@@ -383,15 +396,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else class="ba-overlay">
-          <p>
-            {{
-              status === 'none'
-                ? t('beforeAfterNone')
-                : provider === 'google' && !hasGoogleKey
-                  ? t('beforeAfterGoogleNoKey')
-                  : t('beforeAfterError')
-            }}
-          </p>
+          <p>{{ status === 'none' ? t('beforeAfterNone') : t('beforeAfterError') }}</p>
           <a
             v-if="status === 'none'"
             :href="externalMapsLink"
@@ -399,7 +404,7 @@ onBeforeUnmount(() => {
             rel="noopener"
             class="ba-link"
           >{{ externalMapsLabel }} →</a>
-          <button v-else-if="hasGoogleKey || provider === 'yandex'" type="button" class="ba-link" @click="reveal">
+          <button v-else type="button" class="ba-link" @click="reveal">
             {{ t('beforeAfterRetry') }}
           </button>
         </div>
@@ -619,6 +624,12 @@ onBeforeUnmount(() => {
 .ba-pane {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.ba-google-embed {
+  border: 0;
   width: 100%;
   height: 100%;
 }
