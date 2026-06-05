@@ -11,22 +11,25 @@ const props = defineProps({
   t: { type: Function, required: true },
 })
 
-// Yandex JS API keys are public client keys (always visible in the browser);
-// protection is the HTTP-referrer restriction set in the Yandex developer cabinet.
-const API_KEY = import.meta.env.VITE_YANDEX_MAPS_KEY || '4deda5a2-ba1c-445c-88bb-8837947e46f2'
+const YANDEX_KEY = import.meta.env.VITE_YANDEX_MAPS_KEY || '4deda5a2-ba1c-445c-88bb-8837947e46f2'
+const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || ''
+
+const STORAGE_KEY = 'ba-panorama-provider'
 
 const status = ref('idle') // idle | loading | ready | none | error
 const pos = ref(50)
 const dragging = ref(false)
 const paneEl = ref(null)
 const compareEl = ref(null)
-let player = null
+const provider = ref(readStoredProvider())
+let yandexPlayer = null
+let googlePanorama = null
 
 const lat = computed(() => Number(props.lat))
 const lng = computed(() => Number(props.lng))
 const hasCoords = computed(() => Number.isFinite(lat.value) && Number.isFinite(lng.value))
+const hasGoogleKey = computed(() => GOOGLE_KEY.trim() !== '')
 
-// direction: 0 = aerial (no heading), 1=N … 8=NW → degrees clockwise from north.
 const heading = computed(() => {
   const d = Number(props.direction)
   return Number.isInteger(d) && d >= 1 && d <= 8 ? ((d - 1) * 45) % 360 : 0
@@ -40,14 +43,44 @@ const yandexMapsLink = computed(() => {
   return `https://yandex.ru/maps/?ll=${point}&panorama%5Bpoint%5D=${point}&panorama%5Bdirection%5D=${heading.value}%2C0&l=stv%2Csta&z=18`
 })
 
-let apiPromise = null
+const googleMapsLink = computed(() => {
+  if (!hasCoords.value) return ''
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat.value},${lng.value}&heading=${heading.value}`
+})
+
+const externalMapsLink = computed(() =>
+  provider.value === 'google' ? googleMapsLink.value : yandexMapsLink.value,
+)
+
+const externalMapsLabel = computed(() =>
+  provider.value === 'google' ? props.t('beforeAfterOpenGoogle') : props.t('beforeAfterOpenYandex'),
+)
+
+function readStoredProvider() {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY)
+    return stored === 'google' ? 'google' : 'yandex'
+  } catch {
+    return 'yandex'
+  }
+}
+
+function storeProvider(value) {
+  try {
+    localStorage.setItem(STORAGE_KEY, value)
+  } catch {
+    // private mode / blocked storage
+  }
+}
+
+let yandexApiPromise = null
 function loadYandexApi() {
-  if (window.ymaps && window.ymaps.panorama) {
+  if (window.ymaps?.panorama) {
     return new Promise((resolve) => window.ymaps.ready(() => resolve(window.ymaps)))
   }
-  if (apiPromise) return apiPromise
+  if (yandexApiPromise) return yandexApiPromise
 
-  apiPromise = new Promise((resolve, reject) => {
+  yandexApiPromise = new Promise((resolve, reject) => {
     const ready = () => window.ymaps.ready(() => resolve(window.ymaps))
     const existing = document.getElementById('ymaps-api')
     if (existing) {
@@ -58,43 +91,156 @@ function loadYandexApi() {
     const script = document.createElement('script')
     script.id = 'ymaps-api'
     script.async = true
-    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${API_KEY}&lang=ru_RU`
+    script.src = `https://api-maps.yandex.ru/2.1/?apikey=${YANDEX_KEY}&lang=ru_RU`
     script.onload = ready
     script.onerror = reject
     document.head.appendChild(script)
   })
-  return apiPromise
+  return yandexApiPromise
+}
+
+let googleApiPromise = null
+function loadGoogleMapsApi() {
+  if (window.google?.maps?.StreetViewPanorama) {
+    return Promise.resolve(window.google.maps)
+  }
+  if (!hasGoogleKey.value) {
+    return Promise.reject(new Error('no_google_key'))
+  }
+  if (googleApiPromise) return googleApiPromise
+
+  googleApiPromise = new Promise((resolve, reject) => {
+    const callbackName = '__hinyerevanGmapsInit'
+    window[callbackName] = () => {
+      delete window[callbackName]
+      resolve(window.google.maps)
+    }
+    const existing = document.getElementById('gmaps-api')
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.google.maps), { once: true })
+      existing.addEventListener('error', reject, { once: true })
+      return
+    }
+    const script = document.createElement('script')
+    script.id = 'gmaps-api'
+    script.async = true
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_KEY}&callback=${callbackName}`
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+  return googleApiPromise
+}
+
+function clearPane() {
+  if (paneEl.value) {
+    paneEl.value.innerHTML = ''
+  }
+}
+
+function destroyPanorama() {
+  if (yandexPlayer) {
+    try {
+      yandexPlayer.destroy()
+    } catch {
+      // already torn down
+    }
+    yandexPlayer = null
+  }
+  googlePanorama = null
+  clearPane()
+}
+
+async function revealYandex() {
+  const ymaps = await loadYandexApi()
+  if (!ymaps.panorama?.isSupported()) {
+    throw new Error('unsupported')
+  }
+
+  const panoramas = await ymaps.panorama.locate([lat.value, lng.value])
+  if (!panoramas?.length) {
+    throw new Error('none')
+  }
+
+  await nextTick()
+  if (!paneEl.value) return
+
+  yandexPlayer = new ymaps.panorama.Player(paneEl.value, panoramas[0], {
+    direction: [heading.value, 0],
+    controls: ['zoomControl'],
+    suppressMapOpenBlock: true,
+    hotkeys: false,
+  })
+}
+
+async function revealGoogle() {
+  const maps = await loadGoogleMapsApi()
+  const position = { lat: lat.value, lng: lng.value }
+
+  const panoData = await new Promise((resolve, reject) => {
+    const service = new maps.StreetViewService()
+    service.getPanorama(
+      { location: position, radius: 100, source: maps.StreetViewSource.OUTDOOR },
+      (data, resultStatus) => {
+        if (resultStatus === maps.StreetViewStatus.OK) {
+          resolve(data)
+        } else {
+          reject(new Error(resultStatus))
+        }
+      },
+    )
+  })
+
+  await nextTick()
+  if (!paneEl.value) return
+
+  googlePanorama = new maps.StreetViewPanorama(paneEl.value, {
+    position: panoData.location.latLng,
+    pov: { heading: heading.value, pitch: 0 },
+    zoom: 1,
+    addressControl: false,
+    linksControl: true,
+    panControl: false,
+    zoomControl: true,
+    fullscreenControl: false,
+    motionTracking: false,
+    motionTrackingControl: false,
+    clickToGo: false,
+    scrollwheel: false,
+  })
 }
 
 async function reveal() {
   if (!hasCoords.value || status.value === 'loading' || status.value === 'ready') return
+  if (provider.value === 'google' && !hasGoogleKey.value) {
+    status.value = 'error'
+    return
+  }
+
   status.value = 'loading'
+  destroyPanorama()
 
   try {
-    const ymaps = await loadYandexApi()
-    if (!ymaps.panorama || !ymaps.panorama.isSupported()) {
-      status.value = 'none'
-      return
+    if (provider.value === 'yandex') {
+      await revealYandex()
+    } else {
+      await revealGoogle()
     }
-
-    const panoramas = await ymaps.panorama.locate([lat.value, lng.value])
-    if (!panoramas || !panoramas.length) {
-      status.value = 'none'
-      return
-    }
-
     status.value = 'ready'
-    await nextTick()
-    if (!paneEl.value) return
+  } catch (error) {
+    status.value = error?.message === 'none' || error?.message === 'ZERO_RESULTS' ? 'none' : 'error'
+  }
+}
 
-    player = new ymaps.panorama.Player(paneEl.value, panoramas[0], {
-      direction: [heading.value, 0],
-      controls: ['zoomControl'],
-      suppressMapOpenBlock: true,
-      hotkeys: false,
-    })
-  } catch {
-    status.value = 'error'
+async function setProvider(next) {
+  if (provider.value === next) return
+  provider.value = next
+  storeProvider(next)
+
+  const wasEngaged = status.value !== 'idle'
+  destroyPanorama()
+  if (wasEngaged) {
+    status.value = 'idle'
+    await reveal()
   }
 }
 
@@ -133,27 +279,46 @@ function nudge(step) {
 
 onBeforeUnmount(() => {
   endDrag()
-  if (player) {
-    try {
-      player.destroy()
-    } catch {
-      // player already torn down
-    }
-    player = null
-  }
+  destroyPanorama()
 })
 </script>
 
 <template>
   <section v-if="hasCoords" class="panel before-after">
     <header class="before-after__head">
-      <h2>{{ t('beforeAfterTitle') }}</h2>
-      <p class="before-after__sub">{{ t('beforeAfterSubtitle') }}</p>
+      <div class="before-after__title-row">
+        <div>
+          <h2>{{ t('beforeAfterTitle') }}</h2>
+          <p class="before-after__sub">{{ t('beforeAfterSubtitle') }}</p>
+        </div>
+        <div class="ba-provider" role="radiogroup" :aria-label="t('beforeAfterProvider')">
+          <button
+            type="button"
+            role="radio"
+            class="ba-provider__btn"
+            :class="{ active: provider === 'yandex' }"
+            :aria-checked="provider === 'yandex'"
+            @click="setProvider('yandex')"
+          >
+            {{ t('beforeAfterYandex') }}
+          </button>
+          <button
+            type="button"
+            role="radio"
+            class="ba-provider__btn"
+            :class="{ active: provider === 'google', disabled: !hasGoogleKey }"
+            :aria-checked="provider === 'google'"
+            :disabled="!hasGoogleKey"
+            :title="!hasGoogleKey ? t('beforeAfterGoogleNoKey') : ''"
+            @click="setProvider('google')"
+          >
+            {{ t('beforeAfterGoogle') }}
+          </button>
+        </div>
+      </div>
     </header>
 
-    <!-- Fixed-ratio frame so the layout never jumps between states. -->
     <div class="ba-frame">
-      <!-- Compare; kept in the DOM (v-show) so the player mounts into a sized element. -->
       <div
         v-show="status === 'ready'"
         ref="compareEl"
@@ -194,7 +359,6 @@ onBeforeUnmount(() => {
         </div>
       </div>
 
-      <!-- Until ready, keep the old photo on screen so nothing collapses. -->
       <template v-if="status !== 'ready'">
         <img class="ba-base" :src="oldSrc" :alt="title" />
         <span class="ba-base-veil" aria-hidden="true"></span>
@@ -219,15 +383,25 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-else class="ba-overlay">
-          <p>{{ status === 'none' ? t('beforeAfterNone') : t('beforeAfterError') }}</p>
+          <p>
+            {{
+              status === 'none'
+                ? t('beforeAfterNone')
+                : provider === 'google' && !hasGoogleKey
+                  ? t('beforeAfterGoogleNoKey')
+                  : t('beforeAfterError')
+            }}
+          </p>
           <a
             v-if="status === 'none'"
-            :href="yandexMapsLink"
+            :href="externalMapsLink"
             target="_blank"
             rel="noopener"
             class="ba-link"
-          >{{ t('beforeAfterOpenYandex') }} →</a>
-          <button v-else type="button" class="ba-link" @click="reveal">{{ t('beforeAfterRetry') }}</button>
+          >{{ externalMapsLabel }} →</a>
+          <button v-else-if="hasGoogleKey || provider === 'yandex'" type="button" class="ba-link" @click="reveal">
+            {{ t('beforeAfterRetry') }}
+          </button>
         </div>
       </template>
     </div>
@@ -245,10 +419,22 @@ onBeforeUnmount(() => {
 .before-after__head {
   display: grid;
   gap: 2px;
+}
+
+.before-after__title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
 
   h2 {
     margin: 0;
     font-size: 18px;
+  }
+
+  @include mq-down($bp-sm) {
+    flex-direction: column;
+    gap: 10px;
   }
 }
 
@@ -265,7 +451,41 @@ onBeforeUnmount(() => {
   text-align: center;
 }
 
-/* Frame: holds a stable box across every state -------------------- */
+.ba-provider {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: $radius-pill;
+  background: $surface-soft;
+  border: 1px solid rgba($primary, 0.08);
+}
+
+.ba-provider__btn {
+  border: 0;
+  padding: 6px 12px;
+  border-radius: $radius-pill;
+  background: transparent;
+  color: $muted;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  @include interactive((background, color));
+
+  &.active {
+    background: $surface;
+    color: $primary-dark;
+    box-shadow: 0 1px 4px rgba(7, 21, 60, 0.1);
+  }
+
+  &.disabled,
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  @include focus-ring(rgba($primary, 0.45), 2px);
+}
+
 .ba-frame {
   position: relative;
   width: 100%;
@@ -296,7 +516,6 @@ onBeforeUnmount(() => {
   background: linear-gradient(180deg, rgba(8, 16, 36, 0.08), rgba(8, 16, 36, 0.5));
 }
 
-/* Call to action -------------------------------------------------- */
 .ba-cta {
   position: absolute;
   left: 50%;
@@ -344,7 +563,6 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Loading / empty / error overlay --------------------------------- */
 .ba-overlay {
   position: absolute;
   inset: 0;
@@ -390,7 +608,6 @@ onBeforeUnmount(() => {
   }
 }
 
-/* Compare slider -------------------------------------------------- */
 .ba-compare {
   position: absolute;
   inset: 0;
@@ -406,7 +623,6 @@ onBeforeUnmount(() => {
   height: 100%;
 }
 
-/* While dragging, stop the panorama from grabbing pointer moves. */
 .ba-compare.dragging .ba-pane {
   pointer-events: none;
 }
@@ -481,12 +697,10 @@ onBeforeUnmount(() => {
   box-shadow: 0 6px 18px rgba(7, 21, 60, 0.34);
 }
 
-/* Yandex panorama chrome tweaks (scoped to our pane) -------------- */
 .ba-pane [class*='panorama-control__copyright'] {
   display: none !important;
 }
 
-/* Shrink zoom cluster; do NOT override icon display (sprites break with flex). */
 .ba-pane [class*='panorama-controls__zoom'] {
   transform: scale(0.68);
   transform-origin: left bottom;
@@ -500,6 +714,11 @@ onBeforeUnmount(() => {
   min-height: 26px !important;
   max-width: 26px !important;
   border-radius: 6px !important;
+}
+
+.ba-pane .gm-bundled-control {
+  transform: scale(0.72);
+  transform-origin: left bottom;
 }
 
 @include mq-down($bp-sm) {
@@ -517,6 +736,11 @@ onBeforeUnmount(() => {
 
   .ba-pane [class*='gotoymaps-container'] {
     display: none !important;
+  }
+
+  .ba-pane .gm-style-cc {
+    transform: scale(0.85);
+    transform-origin: right bottom;
   }
 }
 </style>

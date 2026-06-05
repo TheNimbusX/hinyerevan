@@ -158,13 +158,15 @@ class LegacyPhotoStorage
         $markW = imagesx($mark);
         $markH = imagesy($mark);
 
-        // The legacy mark (templates/white.png) is ~90x96 px and is stamped at a
-        // fixed size in the bottom-right corner of the display variant, so it is
-        // larger (relative to width) on narrow portraits than on wide photos.
-        // Size ours off the long edge so it always matches/covers that footprint,
-        // scaling up on big originals and down on small images.
-        $maxEdge = max($width, $height);
-        $targetW = max(64, min((int) round($maxEdge * 0.118), 160));
+        // Legacy mark is ~90x96 px at a fixed pixel size in the bottom-right.
+        // Portraits need the long edge so the plate fully covers the burn-in;
+        // landscapes are shown width-constrained in the UI, so sizing off the
+        // short edge keeps the badge visually compact (maxEdge made it huge).
+        $isLandscape = $width > $height;
+        $scaleEdge = $isLandscape ? min($width, $height) : max($width, $height);
+        $targetW = $isLandscape
+            ? max(72, min((int) round($scaleEdge * 0.115), 100))
+            : max(72, min((int) round($scaleEdge * 0.118), 160));
         $targetH = max(1, (int) round($markH * ($targetW / $markW)));
 
         $resized = imagecreatetruecolor($targetW, $targetH);
@@ -187,7 +189,7 @@ class LegacyPhotoStorage
         // Hug the bottom-right corner with a slightly smaller margin than the
         // legacy mark used (~8px on an 800px photo) so the plate fully overlaps
         // and never lets the old mark peek out at the edges.
-        $margin = max(3, min((int) round($maxEdge * 0.008), 12));
+        $margin = max(3, min((int) round($scaleEdge * 0.008), 12));
         $panelX = $width - $panelW - $margin;
         $panelY = $height - $panelH - $margin;
         $dstX = $panelX + $pad;

@@ -16,11 +16,15 @@ find storage -type d -exec chmod 775 {} \; || true
 # persist the rotated Page token.
 chown www-data:www-data .env || true
 cd ../frontend
-# Bake reCAPTCHA site key from backend .env (must match RECAPTCHA_SECRET pair).
+# Bake public frontend keys from backend .env.
 RECAPTCHA_SITE_KEY=$(grep -m1 '^RECAPTCHA_SITE_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
-if [ -n "$RECAPTCHA_SITE_KEY" ]; then
-  printf 'VITE_RECAPTCHA_SITE_KEY=%s\n' "$RECAPTCHA_SITE_KEY" > .env
-fi
+YANDEX_MAPS_KEY=$(grep -m1 '^YANDEX_MAPS_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
+GOOGLE_MAPS_KEY=$(grep -m1 '^GOOGLE_MAPS_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
+{
+  [ -n "$RECAPTCHA_SITE_KEY" ] && printf 'VITE_RECAPTCHA_SITE_KEY=%s\n' "$RECAPTCHA_SITE_KEY"
+  [ -n "$YANDEX_MAPS_KEY" ] && printf 'VITE_YANDEX_MAPS_KEY=%s\n' "$YANDEX_MAPS_KEY"
+  [ -n "$GOOGLE_MAPS_KEY" ] && printf 'VITE_GOOGLE_MAPS_KEY=%s\n' "$GOOGLE_MAPS_KEY"
+} > .env
 npm ci --silent 2>/dev/null || npm install --silent
 npm run build --silent
 echo "DEPLOYED: $(git -C /var/www/hinyerevan log -1 --oneline)"
