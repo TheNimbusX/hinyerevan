@@ -164,7 +164,7 @@ class LegacyPhotoStorage
         // Size ours off the long edge so it always matches/covers that footprint,
         // scaling up on big originals and down on small images.
         $maxEdge = max($width, $height);
-        $targetW = max(72, min((int) round($maxEdge * 0.135), 300));
+        $targetW = max(64, min((int) round($maxEdge * 0.118), 160));
         $targetH = max(1, (int) round($markH * ($targetW / $markW)));
 
         $resized = imagecreatetruecolor($targetW, $targetH);
