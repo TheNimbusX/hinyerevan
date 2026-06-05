@@ -610,7 +610,7 @@ watch(isAuthenticated, () => {
     <button v-else class="button comment-login-prompt" type="button" @click="promptLogin">
       {{ t('loginToComment') }}
     </button>
-    <p v-if="isAuthenticated" class="facebook-comments-note muted-hint">{{ t('facebookReplyOnSiteOnly') }}</p>
+    <p v-if="isAuthenticated && !crosspostFb" class="facebook-comments-note muted-hint">{{ t('facebookReplyOnSiteOnly') }}</p>
     <PhotoCommentThread
       v-if="photo.comments?.length"
       :threads="photo.comments"

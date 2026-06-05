@@ -134,7 +134,18 @@ class LegacyPhotoStorage
             return null;
         }
 
-        $mark = @imagecreatefrompng($watermarkPath);
+        // The watermark asset may not actually be a PNG (e.g. a JPEG saved with a
+        // .png name), so detect its real type instead of assuming PNG — otherwise
+        // imagecreatefrompng() silently fails and no mark is ever stamped.
+        $markInfo = @getimagesize($watermarkPath);
+        $markCreate = match ($markInfo[2] ?? IMAGETYPE_PNG) {
+            IMAGETYPE_PNG => 'imagecreatefrompng',
+            IMAGETYPE_WEBP => 'imagecreatefromwebp',
+            IMAGETYPE_GIF => 'imagecreatefromgif',
+            default => 'imagecreatefromjpeg',
+        };
+
+        $mark = @$markCreate($watermarkPath);
         if (! $mark) {
             imagedestroy($base);
 
