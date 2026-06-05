@@ -100,6 +100,7 @@ async function load(id, { soft = false } = {}) {
   try {
     const data = await fetchPhotoDetail(id)
     photo.value = data
+    crosspostFb.value = Boolean(data?.facebook?.post_id)
     isFavorite.value = Boolean(data?.is_favorite)
     detailImageSrc.value = imageUrl(data.images.large || data.images.original || data.images.thumb)
     void loadFreshComments(id)

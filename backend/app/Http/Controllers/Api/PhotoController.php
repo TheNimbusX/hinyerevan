@@ -426,9 +426,9 @@ class PhotoController extends Controller
                     return Response::file($display, $headers);
                 }
 
-                // Burn the site watermark into the full-size display variants so
+                // Burn the site watermark into every served photo variant so
                 // every visible photo carries our mark, just like the legacy site.
-                if (in_array($variant, ['large', 'original'], true)) {
+                if (in_array($variant, ['large', 'original', 'thumb'], true)) {
                     $watermarked = $storage->watermarkedPath($path);
                     if ($watermarked !== null) {
                         return Response::file($watermarked, ['Content-Type' => mime_content_type($watermarked)]);

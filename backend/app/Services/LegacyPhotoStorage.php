@@ -94,6 +94,14 @@ class LegacyPhotoStorage
 
     private function watermarkAssetPath(): ?string
     {
+        // Prefer the new brand watermark that ships with the app, so every served
+        // photo carries the current logo. The legacy white.png is often absent on
+        // production, which is why photos used to show no mark at all.
+        $upload = config('hinyerevan.watermark_upload');
+        if ($upload && is_file($upload)) {
+            return $upload;
+        }
+
         $configured = config('hinyerevan.watermark');
         if (! $configured) {
             return null;
@@ -151,6 +159,11 @@ class LegacyPhotoStorage
         imagecopyresampled($resized, $mark, 0, 0, 0, 0, $targetW, $targetH, $markW, $markH);
         imagedestroy($mark);
 
+        // The brand logo ships on a solid white background. Drop near-white
+        // pixels to transparent so only the mark itself is stamped on the photo
+        // instead of a translucent white box.
+        $this->makeWhiteTransparent($resized, $targetW, $targetH);
+
         $margin = max(10, min((int) round($width * 0.025), 32));
         $dstX = $width - $targetW - $margin;
         $dstY = $height - $targetH - $margin;
@@ -160,7 +173,7 @@ class LegacyPhotoStorage
             imagesavealpha($base, true);
         }
 
-        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 55);
+        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 72);
         imagedestroy($resized);
 
         $tmp = $cachePath . '.tmp';
@@ -181,6 +194,39 @@ class LegacyPhotoStorage
         @rename($tmp, $cachePath);
 
         return is_file($cachePath) ? $cachePath : null;
+    }
+
+    /**
+     * Turn the solid white background of the brand logo into transparency so the
+     * watermark reads as the mark only. Near-white pixels become fully
+     * transparent; light edge pixels fade out for a clean anti-aliased outline.
+     */
+    private function makeWhiteTransparent($img, int $w, int $h): void
+    {
+        imagealphablending($img, false);
+        imagesavealpha($img, true);
+
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $rgba = imagecolorat($img, $x, $y);
+                $alpha = ($rgba >> 24) & 0x7F;
+                if ($alpha === 0x7F) {
+                    continue;
+                }
+
+                $r = ($rgba >> 16) & 0xFF;
+                $g = ($rgba >> 8) & 0xFF;
+                $b = $rgba & 0xFF;
+                $min = min($r, $g, $b);
+
+                if ($min >= 236) {
+                    imagesetpixel($img, $x, $y, imagecolorallocatealpha($img, $r, $g, $b, 127));
+                } elseif ($min >= 200) {
+                    $fade = (int) round((($min - 200) / 36) * 127);
+                    imagesetpixel($img, $x, $y, imagecolorallocatealpha($img, $r, $g, $b, max(0, min(127, $fade))));
+                }
+            }
+        }
     }
 
     /**

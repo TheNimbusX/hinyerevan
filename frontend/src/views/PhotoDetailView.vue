@@ -132,6 +132,7 @@ async function load({ soft = false } = {}) {
   try {
     const data = await fetchPhotoDetail(route.params.id)
     photo.value = data
+    crosspostFb.value = Boolean(photo.value?.facebook?.post_id)
     isFavorite.value = Boolean(photo.value?.is_favorite)
     detailImageSrc.value = imageUrl(photo.value.images.large || photo.value.images.original || photo.value.images.thumb)
     setPageMeta({

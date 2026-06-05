@@ -82,7 +82,7 @@ watch(
     activeReplyId.value = null
     replyDraft.value = ''
     inlineError.value = ''
-    replyCrosspost.value = false
+    replyCrosspost.value = props.canCrosspost
   },
 )
 
@@ -100,14 +100,14 @@ function toggleReply(item) {
   activeReplyId.value = item.id
   replyDraft.value = ''
   inlineError.value = ''
-  replyCrosspost.value = false
+  replyCrosspost.value = props.canCrosspost
 }
 
 function cancelInlineReply() {
   activeReplyId.value = null
   replyDraft.value = ''
   inlineError.value = ''
-  replyCrosspost.value = false
+  replyCrosspost.value = props.canCrosspost
 }
 
 function submitInline(item) {

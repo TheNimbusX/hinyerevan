@@ -208,7 +208,14 @@ class FacebookPublishService
         // Strip raw URLs from comment so the photo link is not duplicated.
         $headline = trim(preg_replace('#https?://\S+#u', '', $headline) ?? $headline);
 
-        $lines = [$headline, $photoUrl];
+        $lines = [$headline];
+
+        $authorName = trim((string) ($photo->author?->name ?? ''));
+        if ($authorName !== '') {
+            $lines[] = '📷 ' . $authorName;
+        }
+
+        $lines[] = $photoUrl;
 
         if ($photo->video) {
             $lines[] = '';

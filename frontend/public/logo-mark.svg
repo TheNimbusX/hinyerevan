@@ -1,25 +1,27 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 212" fill="none" role="img" aria-label="HinYerevan">
   <defs>
-    <linearGradient id="hy-mark" x1="58" y1="8" x2="150" y2="202" gradientUnits="userSpaceOnUse">
+    <linearGradient id="hy-mark" x1="58" y1="8" x2="150" y2="206" gradientUnits="userSpaceOnUse">
       <stop offset="0" stop-color="#4a93e6"/>
       <stop offset="0.55" stop-color="#2f6fcc"/>
       <stop offset="1" stop-color="#1c4aa2"/>
     </linearGradient>
   </defs>
-  <!-- stepped fortress wall -->
-  <path d="M22 200 V176 H52 V160 H74 V144 H92 V170 H108 V144 H126 V160 H148 V176 H178 V200 Z" fill="url(#hy-mark)"/>
+  <!-- stepped fortress wall — steps descend toward the centre -->
+  <path d="M16 205 V150 H46 V168 H70 V186 H96 V205 Z" fill="url(#hy-mark)"/>
+  <path d="M184 205 V150 H154 V168 H130 V186 H104 V205 Z" fill="url(#hy-mark)"/>
   <!-- stem -->
-  <rect x="95.4" y="148" width="3.1" height="48" fill="url(#hy-mark)"/>
-  <rect x="101.5" y="148" width="3.1" height="48" fill="url(#hy-mark)"/>
+  <rect x="98" y="146" width="1.7" height="58" fill="url(#hy-mark)"/>
+  <rect x="100.3" y="146" width="1.7" height="58" fill="url(#hy-mark)"/>
   <!-- feather / leaf -->
-  <path d="M100 12 C128 52 128 112 100 150 C72 112 72 52 100 12 Z" fill="url(#hy-mark)"/>
+  <path d="M100 8 C124 44 124 110 100 150 C76 110 76 44 100 8 Z" fill="url(#hy-mark)"/>
   <!-- veins -->
-  <g stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" fill="none">
-    <path d="M100 150 V26"/>
-    <path d="M100 130 L90.5 118 M100 130 L109.5 118"/>
-    <path d="M100 108 L87 94 M100 108 L113 94"/>
-    <path d="M100 86 L86 72 M100 86 L114 72"/>
-    <path d="M100 64 L88 51 M100 64 L112 51"/>
-    <path d="M100 45 L92 36 M100 45 L108 36"/>
+  <g stroke="#ffffff" stroke-width="2.3" stroke-linecap="round" fill="none">
+    <path d="M100 148 V22"/>
+    <path d="M100 138 L88 126 M100 138 L112 126"/>
+    <path d="M100 118 L86 104 M100 118 L114 104"/>
+    <path d="M100 98 L86 84 M100 98 L114 84"/>
+    <path d="M100 78 L88 65 M100 78 L112 65"/>
+    <path d="M100 58 L90 47 M100 58 L110 47"/>
+    <path d="M100 40 L93 32 M100 40 L107 32"/>
   </g>
 </svg>
