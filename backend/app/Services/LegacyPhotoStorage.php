@@ -158,9 +158,9 @@ class LegacyPhotoStorage
         $markW = imagesx($mark);
         $markH = imagesy($mark);
 
-        // Watermark spans ~22% of the photo width, clamped so it stays legible
-        // on tiny legacy thumbnails yet never dominates large originals.
-        $targetW = max(56, min((int) round($width * 0.22), 260));
+        // Watermark spans ~18% of the photo width, clamped so it stays legible
+        // on small images yet never dominates large originals.
+        $targetW = max(64, min((int) round($width * 0.18), 220));
         $targetH = max(1, (int) round($markH * ($targetW / $markW)));
 
         $resized = imagecreatetruecolor($targetW, $targetH);
@@ -171,20 +171,37 @@ class LegacyPhotoStorage
         imagedestroy($mark);
 
         // The brand logo ships on a solid white background. Drop near-white
-        // pixels to transparent so only the mark itself is stamped on the photo
-        // instead of a translucent white box.
+        // pixels to transparent so only the mark itself is stamped on the photo.
         $this->makeWhiteTransparent($resized, $targetW, $targetH);
 
-        $margin = max(10, min((int) round($width * 0.025), 32));
-        $dstX = $width - $targetW - $margin;
-        $dstY = $height - $targetH - $margin;
+        // Place the mark on a soft rounded white plate in the bottom-right
+        // corner. Legacy photos carry an old watermark burned into that exact
+        // corner, and the semi-opaque plate masks it so only our mark shows.
+        $pad = max(6, (int) round($targetW * 0.09));
+        $panelW = $targetW + 2 * $pad;
+        $panelH = $targetH + 2 * $pad;
+        $margin = max(8, min((int) round($width * 0.02), 28));
+        $panelX = $width - $panelW - $margin;
+        $panelY = $height - $panelH - $margin;
+        $dstX = $panelX + $pad;
+        $dstY = $panelY + $pad;
 
         if ($type === IMAGETYPE_PNG) {
             imagealphablending($base, true);
             imagesavealpha($base, true);
         }
 
-        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 72);
+        $plate = imagecreatetruecolor($panelW, $panelH);
+        imagealphablending($plate, false);
+        imagesavealpha($plate, true);
+        imagefill($plate, 0, 0, imagecolorallocatealpha($plate, 0, 0, 0, 127));
+        imagealphablending($plate, true);
+        $radius = max(6, (int) round(min($panelW, $panelH) * 0.18));
+        $this->fillRoundedRect($plate, 0, 0, $panelW, $panelH, $radius, imagecolorallocate($plate, 255, 255, 255));
+        $this->copyMergeWithAlpha($base, $plate, $panelX, $panelY, $panelW, $panelH, 82);
+        imagedestroy($plate);
+
+        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 92);
         imagedestroy($resized);
 
         $tmp = $cachePath . '.tmp';
@@ -205,6 +222,25 @@ class LegacyPhotoStorage
         @rename($tmp, $cachePath);
 
         return is_file($cachePath) ? $cachePath : null;
+    }
+
+    /** Fill a rounded rectangle on an alpha-enabled image. */
+    private function fillRoundedRect($img, int $x, int $y, int $w, int $h, int $radius, int $color): void
+    {
+        $radius = max(0, min($radius, (int) floor(min($w, $h) / 2)));
+        $x2 = $x + $w - 1;
+        $y2 = $y + $h - 1;
+
+        imagefilledrectangle($img, $x + $radius, $y, $x2 - $radius, $y2, $color);
+        imagefilledrectangle($img, $x, $y + $radius, $x2, $y2 - $radius, $color);
+
+        $d = $radius * 2;
+        if ($d > 0) {
+            imagefilledellipse($img, $x + $radius, $y + $radius, $d, $d, $color);
+            imagefilledellipse($img, $x2 - $radius, $y + $radius, $d, $d, $color);
+            imagefilledellipse($img, $x + $radius, $y2 - $radius, $d, $d, $color);
+            imagefilledellipse($img, $x2 - $radius, $y2 - $radius, $d, $d, $color);
+        }
     }
 
     /**
