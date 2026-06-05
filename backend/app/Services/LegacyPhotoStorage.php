@@ -160,7 +160,7 @@ class LegacyPhotoStorage
 
         // Watermark spans ~18% of the photo width, clamped so it stays legible
         // on small images yet never dominates large originals.
-        $targetW = max(52, min((int) round($width * 0.13), 150));
+        $targetW = max(40, min((int) round($width * 0.095), 120));
         $targetH = max(1, (int) round($markH * ($targetW / $markW)));
 
         $resized = imagecreatetruecolor($targetW, $targetH);
@@ -177,7 +177,7 @@ class LegacyPhotoStorage
         // Place the mark on a soft rounded white plate in the bottom-right
         // corner. Legacy photos carry an old watermark burned into that exact
         // corner, and the semi-opaque plate masks it so only our mark shows.
-        $pad = max(5, (int) round($targetW * 0.08));
+        $pad = max(4, (int) round($targetW * 0.07));
         $panelW = $targetW + 2 * $pad;
         $panelH = $targetH + 2 * $pad;
         // Hug the bottom-right corner so the plate fully overlaps the legacy
