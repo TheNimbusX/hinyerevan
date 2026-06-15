@@ -52,7 +52,7 @@ class LegacyPhotoStorage
         $cacheDir = storage_path('app/watermarked');
         File::ensureDirectoryExists($cacheDir);
 
-        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|outline-v2');
+        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|outline-v3');
         $cachePath = $cacheDir . DIRECTORY_SEPARATOR . $key;
 
         if (is_file($cachePath) && filesize($cachePath) > 0) {
@@ -182,14 +182,21 @@ class LegacyPhotoStorage
         $this->decorateLogoMark($resized, $targetW, $targetH);
 
         $margin = max(3, min((int) round($scaleEdge * 0.008), 12));
-        $dstX = $width - $targetW - $margin;
-        $dstY = $height - $targetH - $margin;
+        $pad = max(3, (int) round($targetW * 0.04));
+        // Legacy burn-in is ~90x96px in the corner — the mask must fully cover it.
+        $maskW = max($targetW + 2 * $pad + 6, 98, (int) round($scaleEdge * 0.13));
+        $maskH = max($targetH + 2 * $pad + 10, 104, (int) round($scaleEdge * 0.135));
+        $maskX = $width - $maskW - $margin;
+        $maskY = $height - $maskH - $margin;
+        $dstX = $maskX + (int) round(($maskW - $targetW) / 2);
+        $dstY = $maskY + $maskH - $targetH - $pad;
 
         if ($type === IMAGETYPE_PNG) {
             imagealphablending($base, true);
             imagesavealpha($base, true);
         }
 
+        $this->maskLegacyCornerMark($base, $maskX, $maskY, $maskW, $maskH);
         $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 84);
         imagedestroy($resized);
 
@@ -214,8 +221,54 @@ class LegacyPhotoStorage
     }
 
     /**
+     * Frosted rounded patch that hides the legacy corner burn-in (~90x96px)
+     * while staying tighter and more translucent than the old solid square.
+     */
+    private function maskLegacyCornerMark(\GdImage $base, int $x, int $y, int $w, int $h): void
+    {
+        $baseW = imagesx($base);
+        $baseH = imagesy($base);
+        $r = $g = $b = $n = 0;
+
+        for ($py = max(0, $y); $py < min($baseH, $y + $h); $py++) {
+            for ($px = max(0, $x); $px < min($baseW, $x + $w); $px++) {
+                $rgb = imagecolorat($base, $px, $py);
+                $r += ($rgb >> 16) & 0xFF;
+                $g += ($rgb >> 8) & 0xFF;
+                $b += $rgb & 0xFF;
+                $n++;
+            }
+        }
+
+        if ($n > 0) {
+            $r = (int) round($r / $n);
+            $g = (int) round($g / $n);
+            $b = (int) round($b / $n);
+        } else {
+            $r = $g = $b = 235;
+        }
+
+        // Pull the local tone toward white so legacy white text vanishes underneath.
+        $frost = 0.78;
+        $r = (int) round($r * (1 - $frost) + 255 * $frost);
+        $g = (int) round($g * (1 - $frost) + 255 * $frost);
+        $b = (int) round($b * (1 - $frost) + 255 * $frost);
+
+        $plate = imagecreatetruecolor($w, $h);
+        imagealphablending($plate, false);
+        imagesavealpha($plate, true);
+        imagefill($plate, 0, 0, imagecolorallocatealpha($plate, 0, 0, 0, 127));
+        imagealphablending($plate, true);
+
+        $radius = max(8, (int) round(min($w, $h) * 0.22));
+        $this->fillRoundedRect($plate, 0, 0, $w, $h, $radius, imagecolorallocate($plate, $r, $g, $b));
+
+        $this->copyMergeWithAlpha($base, $plate, $x, $y, $w, $h, 93);
+        imagedestroy($plate);
+    }
+
+    /**
      * Tight logo badge: a faint white halo plus a white stroke around the mark.
-     * Replaces the old opaque rounded square plate.
      */
     private function decorateLogoMark(\GdImage $img, int $w, int $h): void
     {
