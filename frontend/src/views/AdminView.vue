@@ -5,6 +5,7 @@ import { api, imageUrl } from '../api'
 import { useI18n } from '../i18n'
 import { formatDate } from '../utils/locale'
 import { isAdminUser, parseBirthdate, sexLabel } from '../utils/user'
+import AdminPhotoEditor from '../components/AdminPhotoEditor.vue'
 
 const router = useRouter()
 const { t, currentLanguage } = useI18n()
@@ -31,6 +32,7 @@ const sentinel = ref(null)
 let observer
 
 const newsEditorOpen = ref(false)
+const photoEditorId = ref(null)
 const newsForm = ref(emptyNewsForm())
 const userEditorId = ref(null)
 const userDetailId = ref(null)
@@ -183,6 +185,7 @@ function removeRow(id) {
 
 function closeEditors() {
   newsEditorOpen.value = false
+  photoEditorId.value = null
   userEditorId.value = null
   userPassword.value = ''
   feedbackDetailId.value = null
@@ -409,6 +412,17 @@ async function deleteNewsItem() {
   }
 }
 
+function openPhotoEditor(photo) {
+  photoEditorId.value = photo.id
+}
+
+function onPhotoSaved(updated) {
+  const index = rows.value.findIndex((item) => item.id === updated.id)
+  if (index >= 0) rows.value[index] = updated
+  photoEditorId.value = null
+  loadDashboard()
+}
+
 function openPhoto(photo) {
   router.push(`/photos/${photo.id}`)
 }
@@ -597,6 +611,9 @@ watch([hasMore, loading], async () => {
                   <button v-if="row.needs_location_review" type="button" class="admin__act admin__act--review" :disabled="busyId === row.id" @click="markLocated(row)">
                     {{ t('markLocated') }}
                   </button>
+                  <button type="button" class="admin__act" :disabled="busyId === row.id" @click="openPhotoEditor(row)">
+                    {{ t('adminEdit') }}
+                  </button>
                   <button type="button" class="admin__act admin__act--danger" :disabled="busyId === row.id" @click="deletePhoto(row)">
                     {{ t('adminDelete') }}
                   </button>
@@ -708,6 +725,13 @@ watch([hasMore, loading], async () => {
         <p v-else-if="isPaginatedTab && meta && !hasMore && rows.length" class="admin__empty admin__empty--end">{{ t('allPhotosLoaded') }}</p>
       </template>
     </section>
+
+    <AdminPhotoEditor
+      v-if="photoEditorId"
+      :photo-id="photoEditorId"
+      @close="photoEditorId = null"
+      @saved="onPhotoSaved"
+    />
   </section>
 </template>
 

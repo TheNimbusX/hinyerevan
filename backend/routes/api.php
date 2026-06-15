@@ -96,7 +96,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('admin')->prefix('admin')->group(function () {
         Route::get('/dashboard', [AdminController::class, 'dashboard']);
         Route::get('/photos', [AdminController::class, 'photos']);
+        Route::get('/photos/{photo}', [AdminController::class, 'showPhoto'])->whereNumber('photo');
         Route::put('/photos/{photo}', [AdminController::class, 'updatePhoto'])->whereNumber('photo');
+        Route::post('/photos/{photo}', [AdminController::class, 'updatePhoto'])->whereNumber('photo');
         Route::delete('/photos/{photo}', [AdminController::class, 'deletePhoto'])->whereNumber('photo');
         Route::delete('/comments/{comment}', [CommentController::class, 'destroy'])->whereNumber('comment');
 

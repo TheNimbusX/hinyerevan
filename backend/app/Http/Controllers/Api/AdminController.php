@@ -10,6 +10,7 @@ use App\Models\Photo;
 use App\Models\User;
 use App\Jobs\PublishPhotoToFacebookJob;
 use App\Services\Facebook\FacebookPublishService;
+use App\Services\LegacyPhotoStorage;
 use App\Services\LegacySchema;
 use Illuminate\Http\Request;
 
@@ -92,7 +93,14 @@ class AdminController extends Controller
         return $photos->through(fn (Photo $photo) => $this->serializeAdminPhoto($photo));
     }
 
-    public function updatePhoto(Request $request, Photo $photo)
+    public function showPhoto(Photo $photo)
+    {
+        abort_unless($photo->id > 0, 404);
+
+        return $this->serializeAdminPhoto($photo->load(['author', 'viewCounter']));
+    }
+
+    public function updatePhoto(Request $request, Photo $photo, LegacyPhotoStorage $storage)
     {
         abort_unless($photo->id > 0, 404);
 
@@ -104,14 +112,60 @@ class AdminController extends Controller
             'direction' => ['sometimes', 'required', 'integer', 'between:0,8'],
             'published' => ['sometimes'],
             'needs_location_review' => ['sometimes', 'boolean'],
+            'is_winter' => ['sometimes', 'boolean'],
+            'media_type' => ['sometimes', 'in:photo,video'],
+            'file' => ['nullable', 'image', 'max:10240'],
+            'video' => ['nullable', 'string', 'max:512', 'regex:#^https?://(www\.)?(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/shorts/)[\w\-]{6,}#i'],
+            'publish_to_facebook' => ['nullable', 'boolean'],
+            'facebook_comment' => ['nullable', 'string', 'max:2000'],
+        ], [
+            'video.regex' => 'The video link must be a valid YouTube URL.',
         ]);
 
         if (array_key_exists('published', $data)) {
             $data['published'] = (int) filter_var($data['published'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
         }
 
-        if (array_key_exists('needs_location_review', $data)) {
-            $data['needs_location_review'] = (int) filter_var($data['needs_location_review'], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+        foreach (['needs_location_review', 'is_winter'] as $flag) {
+            if (array_key_exists($flag, $data)) {
+                $data[$flag] = (int) filter_var($data[$flag], FILTER_VALIDATE_BOOLEAN) ? 1 : 0;
+            }
+        }
+
+        $hasMediaChange = $request->hasFile('file')
+            || $request->filled('video')
+            || $request->has('media_type');
+
+        if ($hasMediaChange) {
+            $mediaType = $data['media_type'] ?? ($photo->video ? 'video' : 'photo');
+            unset($data['media_type']);
+
+            if ($mediaType === 'video') {
+                $video = trim((string) ($data['video'] ?? $photo->video ?? ''));
+                abort_if($video === '', 422, 'A YouTube link is required for video posts.');
+
+                if ($video !== $photo->video || ! $photo->video) {
+                    $data['file_id'] = $storage->storeYoutubeThumbnail($video, config('app.key'), $photo->file_id);
+                }
+                $data['video'] = $video;
+            } else {
+                $data['video'] = null;
+                if ($request->hasFile('file')) {
+                    $storage->replaceUpload($request->file('file'), $photo->file_id);
+                } elseif ($photo->video) {
+                    abort(422, 'Upload a photo file when switching from video.');
+                }
+            }
+        } else {
+            unset($data['media_type'], $data['video']);
+        }
+
+        unset($data['file']);
+
+        $publishToFacebook = filter_var($request->input('publish_to_facebook', false), FILTER_VALIDATE_BOOLEAN);
+        if ($publishToFacebook && ! $photo->facebook_post_id) {
+            $data['facebook_publish_pending'] = 1;
+            $data['facebook_comment'] = trim((string) $request->input('facebook_comment', '')) ?: null;
         }
 
         $wasPublished = (bool) $photo->published;
@@ -352,10 +406,17 @@ class AdminController extends Controller
             'direction' => $photo->direction,
             'published' => (bool) $photo->published,
             'needs_location_review' => (bool) $photo->needs_location_review,
+            'is_winter' => (bool) $photo->is_winter,
+            'video' => $photo->video,
+            'has_video' => (bool) $photo->video,
             'datetime' => optional($photo->datetime)->toISOString(),
             'user' => $photo->user,
             'views' => $photo->viewCounter?->count ?? 0,
             'images' => $photo->image_urls,
+            'facebook_post_id' => $photo->facebook_post_id,
+            'facebook_post_url' => $photo->facebook_post_url,
+            'facebook_publish_pending' => (bool) $photo->facebook_publish_pending,
+            'facebook_comment' => $photo->facebook_comment,
             'author' => $photo->author ? [
                 'id' => $photo->author->id,
                 'uid' => $photo->author->uid,

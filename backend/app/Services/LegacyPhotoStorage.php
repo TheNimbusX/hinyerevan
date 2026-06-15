@@ -302,6 +302,92 @@ class LegacyPhotoStorage
     public function storeUpload(UploadedFile $file, string $salt): string
     {
         $fileId = md5(microtime(true) . Str::random(24) . $salt);
+
+        $this->writeUploadVariants($file->getRealPath() ?: $file->getPathname(), $fileId, moveSource: function (string $original) use ($file) {
+            $file->move(dirname($original), basename($original));
+        });
+
+        return $fileId;
+    }
+
+    /** Overwrite original/large/thumb for an existing legacy file id. */
+    public function replaceUpload(UploadedFile $file, string $fileId): void
+    {
+        $source = $file->getRealPath() ?: $file->getPathname();
+        $this->writeUploadVariants($source, $fileId, moveSource: function (string $original) use ($file, $source) {
+            File::copy($source, $original);
+        });
+    }
+
+    /** Overwrite variants from an image already on disk (e.g. a fetched YouTube thumbnail). */
+    public function replaceImageFile(string $sourcePath, string $fileId): void
+    {
+        $this->writeUploadVariants($sourcePath, $fileId, moveSource: function (string $original) use ($sourcePath) {
+            File::copy($sourcePath, $original);
+        });
+    }
+
+    /**
+     * Fetch a YouTube preview and store it as photo variants.
+     * When $existingFileId is set, overwrite that id instead of minting a new one.
+     */
+    public function storeYoutubeThumbnail(string $videoUrl, string $salt, ?string $existingFileId = null): string
+    {
+        $videoId = $this->extractYoutubeId($videoUrl);
+        abort_if($videoId === null, 422, 'Could not read the YouTube video id.');
+
+        $candidates = [
+            "https://img.youtube.com/vi/{$videoId}/maxresdefault.jpg",
+            "https://img.youtube.com/vi/{$videoId}/sddefault.jpg",
+            "https://img.youtube.com/vi/{$videoId}/hqdefault.jpg",
+        ];
+
+        $binary = null;
+        foreach ($candidates as $url) {
+            try {
+                $response = Http::timeout(15)->get($url);
+                if ($response->ok() && strlen($response->body()) > 2000) {
+                    $binary = $response->body();
+                    break;
+                }
+            } catch (\Throwable) {
+                // try the next candidate
+            }
+        }
+
+        abort_if($binary === null, 422, 'Could not fetch the video thumbnail.');
+
+        $tmp = tempnam(sys_get_temp_dir(), 'ythumb_') . '.jpg';
+        file_put_contents($tmp, $binary);
+
+        try {
+            if ($existingFileId) {
+                $this->replaceImageFile($tmp, $existingFileId);
+
+                return $existingFileId;
+            }
+
+            return $this->storeImageFile($tmp, $salt);
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
+    private function extractYoutubeId(?string $url): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        if (preg_match('#(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/shorts/)([\w\-]{6,})#i', $url, $matches)) {
+            return $matches[1];
+        }
+
+        return null;
+    }
+
+    private function writeUploadVariants(string $sourcePath, string $fileId, callable $moveSource): void
+    {
         $original = $this->absolutePath('original', $fileId);
         $large = $this->absolutePath('large', $fileId);
         $thumb = $this->absolutePath('thumb', $fileId);
@@ -310,15 +396,13 @@ class LegacyPhotoStorage
         File::ensureDirectoryExists(dirname($large));
         File::ensureDirectoryExists(dirname($thumb));
 
-        $file->move(dirname($original), basename($original));
+        $moveSource($original);
         $this->resize($original, $large, 800, 800);
         $this->resize($original, $thumb, 192, 192, true);
 
         $this->burnUploadWatermark($original);
         $this->burnUploadWatermark($large);
         $this->burnUploadWatermark($thumb);
-
-        return $fileId;
     }
 
     /**
