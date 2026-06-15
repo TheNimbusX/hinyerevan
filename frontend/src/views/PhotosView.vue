@@ -25,18 +25,8 @@ const authorQuery = ref('')
 const authorSuggestions = ref([])
 const selectedAuthor = ref(null)
 const authorLoading = ref(false)
-const directionOpen = ref(false)
-const directionOptions = [
-  { value: 1, label: 'north', short: 'N' },
-  { value: 2, label: 'northEast', short: 'NE' },
-  { value: 3, label: 'east', short: 'E' },
-  { value: 4, label: 'southEast', short: 'SE' },
-  { value: 5, label: 'south', short: 'S' },
-  { value: 6, label: 'southWest', short: 'SW' },
-  { value: 7, label: 'west', short: 'W' },
-  { value: 8, label: 'northWest', short: 'NW' },
-  { value: 0, label: 'topShot', short: '↑' },
-]
+const filtersOpen = ref(false)
+const compassOpen = ref(false)
 const mediaOptions = [
   { value: '', label: 'allPhotos' },
   { value: 'photo', label: 'mediaTabPhoto' },
@@ -54,9 +44,26 @@ const compassDirection = computed(() =>
   filters.value.direction === '' ? 1 : Number(filters.value.direction),
 )
 
+const directionFilterLabel = computed(() => {
+  if (filters.value.direction === '') return t('filterAllDirections')
+  return directionLabel(Number(filters.value.direction), t)
+})
+
 const hasExtraFilters = computed(() =>
   Boolean(filters.value.direction || filters.value.user || filters.value.winter || selectedAuthor.value),
 )
+
+const activeFilterCount = computed(() => {
+  let count = 0
+  if (filters.value.search) count += 1
+  if (filters.value.year_from) count += 1
+  if (filters.value.year_to) count += 1
+  if (filters.value.media) count += 1
+  if (filters.value.direction) count += 1
+  if (filters.value.user) count += 1
+  if (filters.value.winter) count += 1
+  return count
+})
 
 async function load(page = 1, append = false, { soft = false } = {}) {
   if (loading.value || loadingMore.value) return
@@ -99,7 +106,7 @@ function clearExtraFilters() {
   selectedAuthor.value = null
   authorQuery.value = ''
   authorSuggestions.value = []
-  directionOpen.value = false
+  compassOpen.value = false
   applyFilters()
 }
 
@@ -192,7 +199,7 @@ onBeforeUnmount(() => {
   </section>
 
   <section class="gallery-toolbar panel">
-    <div class="gallery-toolbar__top">
+    <div class="gallery-toolbar__bar">
       <div class="gallery-toolbar__media" role="tablist" :aria-label="t('photos')">
         <button
           v-for="option in mediaOptions"
@@ -208,108 +215,118 @@ onBeforeUnmount(() => {
         </button>
       </div>
 
+      <button
+        type="button"
+        class="gallery-filters-toggle"
+        :class="{ open: filtersOpen, active: activeFilterCount > 0 }"
+        :aria-expanded="filtersOpen"
+        @click="filtersOpen = !filtersOpen"
+      >
+        <span>{{ t('galleryFilters') }}</span>
+        <span v-if="activeFilterCount" class="gallery-filters-toggle__count">{{ activeFilterCount }}</span>
+        <svg class="gallery-filters-toggle__caret" viewBox="0 0 12 12" aria-hidden="true">
+          <path d="M3 4.5 6 7.5l3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </button>
+    </div>
+
+    <div v-show="filtersOpen" class="gallery-toolbar__panel">
       <form class="gallery-toolbar__search" @submit.prevent="applyFilters">
         <input v-model="filters.search" :placeholder="t('search')" />
-        <input v-model="filters.year_from" :placeholder="t('fromYear')" inputmode="numeric" />
-        <input v-model="filters.year_to" :placeholder="t('toYear')" inputmode="numeric" />
+        <input v-model="filters.year_from" class="gallery-toolbar__year" :placeholder="t('fromYear')" inputmode="numeric" />
+        <input v-model="filters.year_to" class="gallery-toolbar__year" :placeholder="t('toYear')" inputmode="numeric" />
         <button class="button" type="submit">{{ t('filter') }}</button>
       </form>
-    </div>
 
-    <div class="gallery-toolbar__section">
-      <div class="gallery-toolbar__section-head">
-        <span class="gallery-toolbar__title">{{ t('filterByDirection') }}</span>
-        <button type="button" class="gallery-chip gallery-chip--ghost" @click="directionOpen = !directionOpen">
-          {{ directionOpen ? t('hideCompass') : t('showCompass') }}
-        </button>
-      </div>
-      <div class="gallery-toolbar__chips gallery-toolbar__chips--scroll" role="listbox" :aria-label="t('filterByDirection')">
+      <div class="gallery-toolbar__row">
         <button
           type="button"
-          role="option"
-          class="gallery-chip"
-          :class="{ on: filters.direction === '' }"
-          :aria-selected="filters.direction === ''"
-          @click="setDirection('')"
+          class="gallery-chip gallery-chip--direction"
+          :class="{ on: filters.direction !== '' }"
+          @click="compassOpen = !compassOpen"
         >
-          {{ t('filterAllDirections') }}
-        </button>
-        <button
-          v-for="item in directionOptions"
-          :key="item.value"
-          type="button"
-          role="option"
-          class="gallery-chip gallery-chip--dir"
-          :class="{ on: filters.direction === String(item.value) }"
-          :aria-selected="filters.direction === String(item.value)"
-          :title="t(item.label)"
-          @click="setDirection(item.value)"
-        >
-          <span class="gallery-chip__short">{{ item.short }}</span>
-          <span class="gallery-chip__full">{{ t(item.label) }}</span>
-        </button>
-      </div>
-      <div v-if="directionOpen" class="gallery-toolbar__compass">
-        <DirectionCompassPicker :model-value="compassDirection" @update:model-value="setDirection" />
-      </div>
-    </div>
-
-    <div class="gallery-toolbar__section gallery-toolbar__section--footer">
-      <div class="gallery-toolbar__author">
-        <label class="gallery-toolbar__title" for="author-filter">{{ t('filterByAuthor') }}</label>
-        <div class="gallery-toolbar__input-wrap" :class="{ filled: Boolean(selectedAuthor || filters.user) }">
-          <svg class="gallery-toolbar__input-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
-            <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" />
-            <path d="M16.5 16.5 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
-          </svg>
-          <input
-            id="author-filter"
-            v-model="authorQuery"
-            type="search"
-            class="gallery-toolbar__input"
-            :placeholder="t('authorSearchPlaceholder')"
-            autocomplete="off"
+          <DirectionMarker
+            v-if="filters.direction !== ''"
+            :direction="Number(filters.direction)"
+            :label="directionFilterLabel"
+            size="small"
           />
-          <button
-            v-if="selectedAuthor || filters.user"
-            type="button"
-            class="gallery-toolbar__input-clear"
-            :aria-label="t('clearAuthorFilter')"
-            @click="clearAuthor"
-          >
-            ×
-          </button>
-          <ul v-if="authorSuggestions.length" class="gallery-toolbar__suggestions">
-            <li v-for="author in authorSuggestions" :key="author.unique">
-              <button type="button" @click="selectAuthor(author)">
-                {{ author.name || author.uid }}
-              </button>
-            </li>
-          </ul>
-          <span v-else-if="authorLoading" class="gallery-toolbar__hint">{{ t('loading') }}</span>
-        </div>
-      </div>
-
-      <div class="gallery-toolbar__actions">
-        <button
-          type="button"
-          class="gallery-chip gallery-chip--winter"
-          :class="{ on: filters.winter }"
-          :aria-pressed="filters.winter"
-          @click="toggleWinter"
-        >
-          <WinterBadgeIcon size="sm" />
-          <span>{{ t('filterWinterPhotos') }}</span>
+          <span>{{ directionFilterLabel }}</span>
+          <svg class="gallery-chip__caret" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M3 4.5 6 7.5l3-3" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
         </button>
-
         <button
-          v-if="hasExtraFilters"
+          v-if="filters.direction !== ''"
           type="button"
           class="gallery-chip gallery-chip--ghost"
-          @click="clearExtraFilters"
+          @click="setDirection('')"
         >
-          {{ t('clearFilters') }}
+          ×
         </button>
+      </div>
+
+      <div v-if="compassOpen" class="gallery-toolbar__compass">
+        <DirectionCompassPicker :model-value="compassDirection" @update:model-value="setDirection" />
+      </div>
+
+      <div class="gallery-toolbar__row gallery-toolbar__row--meta">
+        <div class="gallery-toolbar__author">
+          <label class="gallery-toolbar__title" for="author-filter">{{ t('filterByAuthor') }}</label>
+          <div class="gallery-toolbar__input-wrap" :class="{ filled: Boolean(selectedAuthor || filters.user) }">
+            <svg class="gallery-toolbar__input-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+              <path d="M16.5 16.5 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+            </svg>
+            <input
+              id="author-filter"
+              v-model="authorQuery"
+              type="search"
+              class="gallery-toolbar__input"
+              :placeholder="t('authorSearchPlaceholder')"
+              autocomplete="off"
+            />
+            <button
+              v-if="selectedAuthor || filters.user"
+              type="button"
+              class="gallery-toolbar__input-clear"
+              :aria-label="t('clearAuthorFilter')"
+              @click="clearAuthor"
+            >
+              ×
+            </button>
+            <ul v-if="authorSuggestions.length" class="gallery-toolbar__suggestions">
+              <li v-for="author in authorSuggestions" :key="author.unique">
+                <button type="button" @click="selectAuthor(author)">
+                  {{ author.name || author.uid }}
+                </button>
+              </li>
+            </ul>
+            <span v-else-if="authorLoading" class="gallery-toolbar__hint">{{ t('loading') }}</span>
+          </div>
+        </div>
+
+        <div class="gallery-toolbar__actions">
+          <button
+            type="button"
+            class="gallery-chip gallery-chip--winter"
+            :class="{ on: filters.winter }"
+            :aria-pressed="filters.winter"
+            @click="toggleWinter"
+          >
+            <WinterBadgeIcon size="sm" />
+            <span>{{ t('filterWinterPhotos') }}</span>
+          </button>
+
+          <button
+            type="button"
+            class="gallery-chip gallery-chip--ghost gallery-chip--reset"
+            :disabled="!hasExtraFilters"
+            @click="clearExtraFilters"
+          >
+            {{ t('clearFilters') }}
+          </button>
+        </div>
       </div>
     </div>
   </section>
@@ -353,42 +370,81 @@ onBeforeUnmount(() => {
 <style lang="scss">
 .gallery-toolbar {
   display: grid;
-  gap: 12px;
+  gap: 0;
   margin-bottom: 18px;
-  padding: 14px 16px;
+  padding: 12px 14px;
 }
 
-.gallery-toolbar__top {
-  display: grid;
-  gap: 12px;
-
-  @include mq-up($bp-md) {
-    grid-template-columns: auto 1fr;
-    align-items: center;
-  }
+.gallery-toolbar__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.gallery-toolbar__media,
-.gallery-toolbar__chips {
+.gallery-toolbar__media {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.gallery-toolbar__chips--scroll {
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
+.gallery-filters-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid $line;
+  border-radius: $radius-pill;
+  background: $surface-soft;
+  color: $ink;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition: border-color 0.15s ease, background 0.15s ease;
 
-  &::-webkit-scrollbar {
-    height: 4px;
+  &:hover {
+    border-color: rgba($primary, 0.35);
+    background: $surface;
   }
 
-  &::-webkit-scrollbar-thumb {
-    border-radius: $radius-pill;
-    background: rgba($primary, 0.22);
+  &.active {
+    border-color: rgba($primary, 0.4);
+    color: $primary;
   }
+
+  &.open .gallery-filters-toggle__caret {
+    transform: rotate(180deg);
+  }
+}
+
+.gallery-filters-toggle__count {
+  display: inline-grid;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  place-items: center;
+  border-radius: $radius-pill;
+  background: $accent;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.gallery-filters-toggle__caret {
+  width: 12px;
+  height: 12px;
+  color: $muted;
+  transition: transform 0.2s ease;
+}
+
+.gallery-toolbar__panel {
+  display: grid;
+  gap: 10px;
+  padding-top: 12px;
+  margin-top: 12px;
+  border-top: 1px solid $line;
 }
 
 .gallery-toolbar__search {
@@ -398,9 +454,9 @@ onBeforeUnmount(() => {
   align-items: center;
 
   input {
-    flex: 1 1 120px;
-    min-height: 38px;
-    padding: 8px 12px;
+    flex: 1 1 140px;
+    min-height: 36px;
+    padding: 7px 11px;
     border: 1px solid $line;
     border-radius: $radius-sm;
     background: $surface;
@@ -414,38 +470,32 @@ onBeforeUnmount(() => {
     }
   }
 
+  .gallery-toolbar__year {
+    flex: 0 1 92px;
+    min-width: 80px;
+  }
+
   .button {
-    min-height: 38px;
-    padding-inline: 16px;
+    min-height: 36px;
+    padding-inline: 14px;
     font-size: 13px;
   }
 }
 
-.gallery-toolbar__section {
-  display: grid;
-  gap: 8px;
-  padding-top: 10px;
-  border-top: 1px solid $line;
-}
-
-.gallery-toolbar__section--footer {
-  grid-template-columns: 1fr;
-  gap: 10px;
-
-  @include mq-up($bp-md) {
-    grid-template-columns: minmax(220px, 1fr) auto;
-    align-items: end;
-  }
-}
-
-.gallery-toolbar__section-head {
+.gallery-toolbar__row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
+}
+
+.gallery-toolbar__row--meta {
+  align-items: end;
 }
 
 .gallery-toolbar__title {
+  display: block;
+  margin-bottom: 6px;
   color: $muted;
   font-size: 11px;
   font-weight: 700;
@@ -454,7 +504,7 @@ onBeforeUnmount(() => {
 }
 
 .gallery-toolbar__compass {
-  padding-top: 2px;
+  max-width: 320px;
 }
 
 .gallery-chip {
@@ -509,40 +559,45 @@ onBeforeUnmount(() => {
     box-shadow: 0 4px 12px rgba(47, 116, 184, 0.28);
   }
 
-  &--dir {
-    padding-inline: 10px;
+  &--direction.on {
+    color: #fff;
+    background: linear-gradient(135deg, $primary, $primary-dark);
+  }
+
+  &--reset {
+    min-width: 118px;
+
+    &:disabled {
+      opacity: 0.38;
+      cursor: default;
+      pointer-events: none;
+    }
+  }
+
+  &__caret {
+    width: 11px;
+    height: 11px;
+    color: $muted;
+    transition: transform 0.2s ease;
   }
 
   @include focus-ring(rgba($primary, 0.4), 2px);
 }
 
-.gallery-chip__short {
-  display: none;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-}
-
-.gallery-chip__full {
-  font-size: 12px;
-}
-
-@include mq-down($bp-lg) {
-  .gallery-chip--dir {
-    .gallery-chip__short {
-      display: inline;
-    }
-
-    .gallery-chip__full {
-      display: none;
-    }
-  }
-}
-
 .gallery-toolbar__author {
+  flex: 0 1 200px;
+  width: 200px;
+  max-width: 100%;
   display: grid;
-  gap: 6px;
+  gap: 0;
   min-width: 0;
+}
+
+.gallery-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .gallery-toolbar__input-wrap {
@@ -642,13 +697,6 @@ onBeforeUnmount(() => {
   left: 0;
   color: $muted;
   font-size: 11px;
-}
-
-.gallery-toolbar__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
 }
 
 .photo-video-badge {
@@ -811,6 +859,25 @@ onBeforeUnmount(() => {
 }
 
 [data-theme='dark'] {
+  .gallery-filters-toggle {
+    background: #1c212c;
+    border-color: #2a313d;
+    color: #e7ebf3;
+
+    &:hover {
+      background: #232a36;
+    }
+
+    &.active {
+      color: #9eb4ff;
+      border-color: #354052;
+    }
+  }
+
+  .gallery-toolbar__panel {
+    border-top-color: #2a313d;
+  }
+
   .gallery-toolbar__search input,
   .gallery-toolbar__input-wrap {
     background: #161b25;
@@ -835,10 +902,6 @@ onBeforeUnmount(() => {
 
   .gallery-toolbar__input-icon {
     color: #98a0ae;
-  }
-
-  .gallery-toolbar__section {
-    border-top-color: #2a313d;
   }
 
   .gallery-chip {
