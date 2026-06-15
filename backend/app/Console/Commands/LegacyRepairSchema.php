@@ -37,6 +37,9 @@ class LegacyRepairSchema extends Command
 
         $this->warn('Legacy dump is missing app columns — re-applying additive migrations…');
 
+        $this->sanitizeLegacyRows();
+        $this->relaxSqlMode();
+
         DB::table('migrations')
             ->whereIn('migration', self::PATCH_MIGRATIONS)
             ->delete();
@@ -96,5 +99,23 @@ class LegacyRepairSchema extends Command
         }
 
         return false;
+    }
+
+    private function relaxSqlMode(): void
+    {
+        DB::statement(
+            "SET SESSION sql_mode = REPLACE(REPLACE(REPLACE(@@SESSION.sql_mode, 'NO_ZERO_DATE', ''), 'NO_ZERO_IN_DATE', ''), 'STRICT_TRANS_TABLES', '')"
+        );
+    }
+
+    private function sanitizeLegacyRows(): void
+    {
+        if (! Schema::hasTable('photos') || ! Schema::hasColumn('photos', 'datetime')) {
+            return;
+        }
+
+        DB::table('photos')
+            ->where('datetime', '0000-00-00 00:00:00')
+            ->update(['datetime' => '1970-01-01 00:00:00']);
     }
 }
