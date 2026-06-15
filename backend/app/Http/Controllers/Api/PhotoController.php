@@ -124,10 +124,14 @@ class PhotoController extends Controller
             return $this->serializeDemoPhoto($data, $lang);
         }
 
-        $photo = Photo::query()
+        $photoModel = Photo::query()
             ->withCount(['comments', 'favorites as likes_count'])
-            ->findOrFail($photo);
-        abort_unless($photo->id > 0, 404);
+            ->alive()
+            ->find($photo);
+
+        abort_unless($photoModel, 404, 'Photo not found.');
+
+        $photo = $photoModel;
 
         $viewer = $request->user() ?: Auth::guard('sanctum')->user();
         $canView = $photo->published

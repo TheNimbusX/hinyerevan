@@ -50,7 +50,7 @@ async function fetchPhotoDetail(id) {
     clearApiCacheForPath(path)
     return api(path, { translateScope: 'main' })
   }
-  return localizedApi(path, { ttl: 30 * 60 * 1000 })
+  return localizedApi(path, { translateScope: 'main' })
 }
 
 async function refreshPhotoFacebookMeta(id) {

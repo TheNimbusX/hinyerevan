@@ -63,7 +63,7 @@ async function fetchPhotoDetail(id) {
     clearApiCacheForPath(path)
     return api(path, { translateScope: 'main' })
   }
-  return localizedApi(path, { ttl: 30 * 60 * 1000 })
+  return localizedApi(path, { translateScope: 'main' })
 }
 
 function openLightbox() {
@@ -147,7 +147,7 @@ async function load({ soft = false } = {}) {
   } catch (event) {
     if (!soft) {
       photo.value = null
-      error.value = event?.message || t('loading')
+      error.value = event?.status === 404 ? t('photoNotFound') : (event?.message || t('loading'))
     }
   } finally {
     loading.value = false
@@ -449,6 +449,7 @@ watch(isAuthenticated, () => {
   <div v-if="loading" class="panel photo-detail-loading">{{ t('loading') }}</div>
   <div v-else-if="error && !photo" class="panel photo-detail-error">
     <p class="error">{{ error }}</p>
+    <RouterLink class="button" to="/photos">{{ t('photos') }}</RouterLink>
   </div>
 
   <section v-else-if="photo" class="detail-layout">

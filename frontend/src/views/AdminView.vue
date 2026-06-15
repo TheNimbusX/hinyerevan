@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, imageUrl } from '../api'
+import { api, imageUrl, clearPhotosApiCache } from '../api'
 import { useI18n } from '../i18n'
 import { formatDate } from '../utils/locale'
 import { isAdminUser, parseBirthdate, sexLabel } from '../utils/user'
@@ -247,6 +247,7 @@ async function approvePhoto(photo, published) {
       method: 'PUT',
       body: { published: published ? 1 : 0 },
     })
+    clearPhotosApiCache(photo.id)
     const droppedFromList =
       (photoFilter.value === 'pending' && published) ||
       (photoFilter.value === 'published' && !published)
@@ -293,6 +294,7 @@ async function deletePhoto(photo) {
   actionError.value = ''
   try {
     await api(`/admin/photos/${photo.id}`, { method: 'DELETE' })
+    clearPhotosApiCache(photo.id)
     removeRow(photo.id)
     await loadDashboard()
   } catch (event) {
@@ -417,6 +419,7 @@ function openPhotoEditor(photo) {
 }
 
 function onPhotoSaved(updated) {
+  clearPhotosApiCache(updated.id)
   const index = rows.value.findIndex((item) => item.id === updated.id)
   if (index >= 0) rows.value[index] = updated
   photoEditorId.value = null

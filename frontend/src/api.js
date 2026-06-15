@@ -26,6 +26,17 @@ function isPhotoDetailPath(path) {
   return /^\/photos\/\d+$/.test(path.split('?')[0])
 }
 
+function isPhotosListPath(path) {
+  const base = path.split('?')[0]
+  return base === '/photos' && path.includes('?')
+}
+
+function defaultCacheTtl(path) {
+  if (isPhotosListPath(path)) return 90 * 1000
+  if (isPhotoDetailPath(path.split('?')[0])) return 5 * 60 * 1000
+  return 10 * 60 * 1000
+}
+
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
 }
@@ -58,6 +69,20 @@ export function clearApiCacheForPath(path) {
   const base = path.split('?')[0]
   Object.keys(localStorage)
     .filter((key) => key.startsWith(CACHE_PREFIX) && key.includes(`:${base}`))
+    .forEach((key) => localStorage.removeItem(key))
+}
+
+/** Invalidate gallery, map markers, and optional photo detail caches. */
+export function clearPhotosApiCache(photoId = null) {
+  Object.keys(localStorage)
+    .filter((key) => {
+      if (!key.startsWith(CACHE_PREFIX)) return false
+      const entry = key.slice(CACHE_PREFIX.length)
+      if (entry.includes('/photos?')) return true
+      if (entry.includes('/photos/markers')) return true
+      if (photoId && entry.includes(`/photos/${photoId}`)) return true
+      return false
+    })
     .forEach((key) => localStorage.removeItem(key))
 }
 
@@ -101,7 +126,7 @@ export async function localizedApi(path, options = {}) {
     return api(path, { translateScope: options.translateScope })
   }
 
-  const ttl = options.ttl ?? 10 * 60 * 1000
+  const ttl = options.ttl ?? defaultCacheTtl(path)
   const lang = getUiLanguage()
   const cacheKey = options.cacheKey || `${CACHE_PREFIX}${lang}:${path}`
   const hyKey = `${CACHE_PREFIX}hy:${path}`
