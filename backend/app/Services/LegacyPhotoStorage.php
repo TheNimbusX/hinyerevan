@@ -9,6 +9,14 @@ use Illuminate\Support\Str;
 
 class LegacyPhotoStorage
 {
+    /** Legacy site used a fixed ~90px logo in the bottom-right corner. */
+    private const WATERMARK_LOGO_WIDTH = 90;
+
+    /** Blur zone that fully covers the old ~90x96px burn-in. */
+    private const WATERMARK_BLUR_WIDTH = 100;
+
+    private const WATERMARK_BLUR_HEIGHT = 104;
+
     public function absolutePath(string $variant, string $fileId): string
     {
         $paths = config('hinyerevan.photo_paths');
@@ -52,7 +60,7 @@ class LegacyPhotoStorage
         $cacheDir = storage_path('app/watermarked');
         File::ensureDirectoryExists($cacheDir);
 
-        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|blur-v4');
+        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|blur-v5');
         $cachePath = $cacheDir . DIRECTORY_SEPARATOR . $key;
 
         if (is_file($cachePath) && filesize($cachePath) > 0) {
@@ -158,15 +166,7 @@ class LegacyPhotoStorage
         $markW = imagesx($mark);
         $markH = imagesy($mark);
 
-        // Legacy mark is ~90x96 px at a fixed pixel size in the bottom-right.
-        // Portraits need the long edge so the plate fully covers the burn-in;
-        // landscapes are shown width-constrained in the UI, so sizing off the
-        // short edge keeps the badge visually compact (maxEdge made it huge).
-        $isLandscape = $width > $height;
-        $scaleEdge = $isLandscape ? min($width, $height) : max($width, $height);
-        $targetW = $isLandscape
-            ? max(72, min((int) round($scaleEdge * 0.115), 100))
-            : max(72, min((int) round($scaleEdge * 0.118), 160));
+        $targetW = self::WATERMARK_LOGO_WIDTH;
         $targetH = max(1, (int) round($markH * ($targetW / $markW)));
 
         $resized = imagecreatetruecolor($targetW, $targetH);
@@ -181,15 +181,12 @@ class LegacyPhotoStorage
         $this->makeWhiteTransparent($resized, $targetW, $targetH);
         $this->decorateLogoMark($resized, $targetW, $targetH);
 
-        $margin = max(3, min((int) round($scaleEdge * 0.008), 12));
-        $pad = max(3, (int) round($targetW * 0.04));
-        // Legacy burn-in is ~90x96px in the corner — the mask must fully cover it.
-        $maskW = max($targetW + 2 * $pad + 6, 98, (int) round($scaleEdge * 0.13));
-        $maskH = max($targetH + 2 * $pad + 10, 104, (int) round($scaleEdge * 0.135));
-        $maskX = $width - $maskW - $margin;
-        $maskY = $height - $maskH - $margin;
-        $dstX = $maskX + $maskW - $targetW - $pad;
-        $dstY = $maskY + $maskH - $targetH - $pad;
+        $maskW = min(self::WATERMARK_BLUR_WIDTH, $width);
+        $maskH = min(self::WATERMARK_BLUR_HEIGHT, $height);
+        $maskX = $width - $maskW;
+        $maskY = $height - $maskH;
+        $dstX = $width - min($targetW, $width);
+        $dstY = $height - min($targetH, $height);
 
         if ($type === IMAGETYPE_PNG) {
             imagealphablending($base, true);
@@ -222,23 +219,27 @@ class LegacyPhotoStorage
 
     /**
      * Blur the corner patch so legacy burn-in text disappears under the new logo.
-     * Soft rounded falloff avoids a visible white/frosted square.
+     * Radial falloff from the photo corner keeps edges soft (no square block).
      */
     private function blurLegacyCornerMark(\GdImage $base, int $x, int $y, int $w, int $h): void
     {
+        if ($w <= 0 || $h <= 0) {
+            return;
+        }
+
         $patch = imagecreatetruecolor($w, $h);
         imagecopy($patch, $base, 0, 0, $x, $y, $w, $h);
 
-        for ($i = 0; $i < 16; $i++) {
+        for ($i = 0; $i < 18; $i++) {
             imagefilter($patch, IMG_FILTER_GAUSSIAN_BLUR);
         }
 
-        $radius = max(10, (int) round(min($w, $h) * 0.24));
-        $feather = 5.0;
+        $core = min($w, $h) * 0.58;
+        $fade = min($w, $h) * 0.52;
 
         for ($py = 0; $py < $h; $py++) {
             for ($px = 0; $px < $w; $px++) {
-                $weight = $this->roundedRectBlendWeight($px, $py, $w, $h, $radius, $feather);
+                $weight = $this->cornerRadialBlendWeight($px, $py, $w, $h, $core, $fade);
                 if ($weight <= 0) {
                     continue;
                 }
@@ -264,27 +265,25 @@ class LegacyPhotoStorage
         imagedestroy($patch);
     }
 
-    /** Signed distance to a rounded-rectangle boundary (negative = inside). */
-    private function roundedRectSdf(float $px, float $py, float $w, float $h, float $radius): float
+    /** Soft radial mask anchored at the bottom-right of the blur patch. */
+    private function cornerRadialBlendWeight(int $px, int $py, int $w, int $h, float $core, float $fade): float
     {
-        $radius = min($radius, min($w, $h) / 2);
-        $qx = abs($px - $w / 2) - ($w / 2 - $radius);
-        $qy = abs($py - $h / 2) - ($h / 2 - $radius);
-        $ax = max($qx, 0.0);
-        $ay = max($qy, 0.0);
+        $dx = ($w - 1 - $px) + 0.5;
+        $dy = ($h - 1 - $py) + 0.5;
+        $dist = sqrt(($dx * $dx) + ($dy * $dy));
 
-        return sqrt($ax * $ax + $ay * $ay) + min(max($qx, $qy), 0.0) - $radius;
-    }
-
-    /** 0 outside, 1 inside with a soft edge for compositing blurred pixels. */
-    private function roundedRectBlendWeight(int $px, int $py, int $w, int $h, int $radius, float $feather): float
-    {
-        $sdf = $this->roundedRectSdf($px + 0.5, $py + 0.5, (float) $w, (float) $h, (float) $radius);
-        if ($sdf <= 0.0) {
+        if ($dist <= $core) {
             return 1.0;
         }
 
-        return max(0.0, 1.0 - ($sdf / max(1.0, $feather)));
+        if ($dist >= $core + $fade) {
+            return 0.0;
+        }
+
+        $t = ($dist - $core) / max(1.0, $fade);
+
+        // Smoothstep for a gentler transition than linear fade.
+        return 1.0 - ($t * $t * (3 - 2 * $t));
     }
 
     /**
@@ -336,25 +335,6 @@ class LegacyPhotoStorage
                     imagesetpixel($img, $x, $y, $whiteOutline);
                 }
             }
-        }
-    }
-
-    /** Fill a rounded rectangle on an alpha-enabled image. */
-    private function fillRoundedRect($img, int $x, int $y, int $w, int $h, int $radius, int $color): void
-    {
-        $radius = max(0, min($radius, (int) floor(min($w, $h) / 2)));
-        $x2 = $x + $w - 1;
-        $y2 = $y + $h - 1;
-
-        imagefilledrectangle($img, $x + $radius, $y, $x2 - $radius, $y2, $color);
-        imagefilledrectangle($img, $x, $y + $radius, $x2, $y2 - $radius, $color);
-
-        $d = $radius * 2;
-        if ($d > 0) {
-            imagefilledellipse($img, $x + $radius, $y + $radius, $d, $d, $color);
-            imagefilledellipse($img, $x2 - $radius, $y + $radius, $d, $d, $color);
-            imagefilledellipse($img, $x + $radius, $y2 - $radius, $d, $d, $color);
-            imagefilledellipse($img, $x2 - $radius, $y2 - $radius, $d, $d, $color);
         }
     }
 
