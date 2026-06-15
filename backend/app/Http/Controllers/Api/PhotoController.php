@@ -56,6 +56,8 @@ class PhotoController extends Controller
             ->when($request->filled('year_from'), fn ($query) => $query->where('year', '>=', (int) $request->year_from))
             ->when($request->filled('year_to'), fn ($query) => $query->where('year', '<=', (int) $request->year_to))
             ->when($request->filled('search'), fn ($query) => $query->where('title', 'like', '%' . $request->search . '%'))
+            ->when($request->filled('direction'), fn ($query) => $query->where('direction', (int) $request->direction))
+            ->when($request->boolean('winter'), fn ($query) => $query->where('is_winter', 1))
             ->when($request->query('media') === 'video', fn ($query) => $query->whereNotNull('video')->where('video', '!=', ''))
             ->when($request->query('media') === 'photo', fn ($query) => $query->where(fn ($q) => $q->whereNull('video')->orWhere('video', '')))
             ->latest('id')
@@ -291,6 +293,7 @@ class PhotoController extends Controller
             'file' => ['required_without:video', 'nullable', 'image', 'max:10240'],
             'video' => ['required_without:file', 'nullable', 'string', 'max:512', 'regex:#^https?://(www\.)?(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/shorts/)[\w\-]{6,}#i'],
             'needs_location_review' => ['nullable', 'boolean'],
+            'is_winter' => ['nullable', 'boolean'],
             'publish_to_facebook' => ['nullable', 'boolean'],
             'facebook_comment' => ['nullable', 'string', 'max:2000'],
         ], [
@@ -322,6 +325,7 @@ class PhotoController extends Controller
             'file_id' => $fileId,
             'video' => $video,
             'needs_location_review' => (bool) ($data['needs_location_review'] ?? false),
+            'is_winter' => (bool) ($data['is_winter'] ?? false),
             'facebook_publish_pending' => $publishToFacebook,
             'facebook_comment' => $publishToFacebook ? trim((string) $request->input('facebook_comment', '')) : null,
         ]);
@@ -471,6 +475,7 @@ class PhotoController extends Controller
             'direction_label' => $photo->direction_label,
             'published' => $photo->published,
             'needs_location_review' => (bool) $photo->needs_location_review,
+            'is_winter' => (bool) ($photo->is_winter ?? false),
             'datetime' => optional($photo->datetime)->toISOString(),
             'video' => $photo->video ?: null,
             'views' => $photo->viewCounter?->count ?? 0,

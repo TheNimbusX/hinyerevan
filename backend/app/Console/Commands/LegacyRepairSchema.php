@@ -25,6 +25,7 @@ class LegacyRepairSchema extends Command
         '2026_06_03_000006_add_facebook_views_to_photos',
         '2026_06_03_000007_widen_author_picture_on_photo_facebook_comments',
         '2026_06_03_000008_add_facebook_comment_id_to_comments',
+        '2026_06_05_000001_add_is_winter_to_photos_table',
     ];
 
     public function handle(): int
@@ -76,6 +77,7 @@ class LegacyRepairSchema extends Command
             'facebook_synced_at',
             'legacy_likes_count',
             'facebook_views',
+            'is_winter',
         ];
 
         foreach ($photoColumns as $column) {

@@ -1,7 +1,8 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', $lang ?? app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
+    <meta http-equiv="Content-Language" content="{{ str_replace('_', '-', $lang ?? app()->getLocale()) }}">
     <title>{{ __('register.mail_subject') }}</title>
 </head>
 <body style="font-family: Arial, sans-serif; line-height: 1.5; color: #1a1a1a;">

@@ -1,16 +1,30 @@
 <script setup>
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { imageUrl, localizedApi } from '../api'
 import { useI18n } from '../i18n'
-import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
+import { useLanguageReload } from '../composables/useLanguageReload'
 import { directionLabel } from '../utils/locale'
 import { photoDisplayLikes } from '../utils/photoStats'
 import DirectionMarker from '../components/DirectionMarker.vue'
+import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
 
 const photos = ref([])
 const meta = ref(null)
-const filters = ref({ search: '', year_from: '', year_to: '', media: '' })
+const filters = ref({
+  search: '',
+  year_from: '',
+  year_to: '',
+  media: '',
+  direction: '',
+  user: '',
+  winter: false,
+})
+const authorQuery = ref('')
+const authorSuggestions = ref([])
+const selectedAuthor = ref(null)
+const authorLoading = ref(false)
+const directionOpen = ref(false)
 const mediaOptions = [
   { value: '', label: 'allPhotos' },
   { value: 'photo', label: 'mediaTabPhoto' },
@@ -20,8 +34,27 @@ const loading = ref(false)
 const loadingMore = ref(false)
 const sentinel = ref(null)
 let observer
+let authorTimer
 const { t, currentLanguage } = useI18n()
 const skeletonItems = Array.from({ length: 12 }, (_, index) => index)
+
+const compassDirection = computed(() =>
+  filters.value.direction === '' ? 1 : Number(filters.value.direction),
+)
+
+const directionFilterLabel = computed(() => {
+  if (filters.value.direction === '') return t('filterAllDirections')
+  return directionLabel(Number(filters.value.direction), t)
+})
+
+const hasExtraFilters = computed(() =>
+  Boolean(
+    filters.value.direction
+    || filters.value.user
+    || filters.value.winter
+    || selectedAuthor.value,
+  ),
+)
 
 async function load(page = 1, append = false, { soft = false } = {}) {
   if (loading.value || loadingMore.value) return
@@ -33,7 +66,15 @@ async function load(page = 1, append = false, { soft = false } = {}) {
   }
   try {
     const params = new URLSearchParams({ page })
-    Object.entries(filters.value).forEach(([key, value]) => value && params.set(key, value))
+    Object.entries(filters.value).forEach(([key, value]) => {
+      if (key === 'winter') {
+        if (value) params.set('winter', '1')
+        return
+      }
+      if (value !== '' && value !== false && value !== null && value !== undefined) {
+        params.set(key, value)
+      }
+    })
     const payload = await localizedApi(`/photos?${params}`)
     photos.value = append ? [...photos.value, ...payload.data] : payload.data
     meta.value = payload
@@ -49,9 +90,62 @@ function applyFilters() {
   load()
 }
 
+function clearExtraFilters() {
+  filters.value.direction = ''
+  filters.value.user = ''
+  filters.value.winter = false
+  selectedAuthor.value = null
+  authorQuery.value = ''
+  authorSuggestions.value = []
+  applyFilters()
+}
+
 function setMedia(value) {
   if (filters.value.media === value) return
   filters.value.media = value
+  applyFilters()
+}
+
+function setDirection(value) {
+  filters.value.direction = value === '' || value === null ? '' : String(value)
+  applyFilters()
+}
+
+function toggleWinter() {
+  filters.value.winter = !filters.value.winter
+  applyFilters()
+}
+
+async function searchAuthors(query) {
+  const q = query.trim()
+  if (q.length < 2) {
+    authorSuggestions.value = []
+    return
+  }
+
+  authorLoading.value = true
+  try {
+    authorSuggestions.value = await localizedApi(`/users/search?q=${encodeURIComponent(q)}`, { ttl: 60 * 1000 })
+  } catch {
+    authorSuggestions.value = []
+  } finally {
+    authorLoading.value = false
+  }
+}
+
+function selectAuthor(author) {
+  selectedAuthor.value = author
+  authorQuery.value = author.name || author.uid
+  filters.value.user = author.unique
+  authorSuggestions.value = []
+  applyFilters()
+}
+
+function clearAuthor() {
+  selectedAuthor.value = null
+  authorQuery.value = ''
+  filters.value.user = ''
+  authorSuggestions.value = []
   applyFilters()
 }
 
@@ -59,6 +153,14 @@ function loadMore() {
   if (!meta.value || meta.value.current_page >= meta.value.last_page) return
   load(meta.value.current_page + 1, true)
 }
+
+watch(authorQuery, (value) => {
+  if (selectedAuthor.value && value === (selectedAuthor.value.name || selectedAuthor.value.uid)) return
+  selectedAuthor.value = null
+  filters.value.user = ''
+  clearTimeout(authorTimer)
+  authorTimer = setTimeout(() => searchAuthors(value), 280)
+})
 
 onMounted(() => {
   load()
@@ -74,7 +176,10 @@ onMounted(() => {
 
 useLanguageReload(() => load(1, false, { soft: true }))
 
-onBeforeUnmount(() => observer?.disconnect())
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  clearTimeout(authorTimer)
+})
 </script>
 
 <template>
@@ -105,6 +210,86 @@ onBeforeUnmount(() => observer?.disconnect())
     <button class="button" type="submit">{{ t('filter') }}</button>
   </form>
 
+  <section class="gallery-filters panel">
+    <div class="gallery-filters__row">
+      <div class="gallery-filters__group gallery-filters__group--direction">
+        <span class="gallery-filters__label">{{ t('filterByDirection') }}</span>
+        <div class="direction-filter">
+          <button type="button" class="direction-filter__toggle" @click="directionOpen = !directionOpen">
+            <DirectionMarker
+              v-if="filters.direction !== ''"
+              :direction="Number(filters.direction)"
+              :label="directionFilterLabel"
+              size="small"
+            />
+            <span>{{ directionFilterLabel }}</span>
+          </button>
+          <button
+            v-if="filters.direction !== ''"
+            type="button"
+            class="direction-filter__clear"
+            @click="setDirection('')"
+          >
+            ×
+          </button>
+          <div v-if="directionOpen" class="direction-filter__panel">
+            <button type="button" class="direction-filter__all" @click="directionOpen = false; setDirection('')">
+              {{ t('filterAllDirections') }}
+            </button>
+            <DirectionCompassPicker
+              :model-value="compassDirection"
+              @update:model-value="(value) => { setDirection(value); directionOpen = false }"
+            />
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery-filters__group gallery-filters__group--author">
+        <label class="gallery-filters__label" for="author-filter">{{ t('filterByAuthor') }}</label>
+        <div class="author-filter">
+          <input
+            id="author-filter"
+            v-model="authorQuery"
+            type="search"
+            :placeholder="t('authorSearchPlaceholder')"
+            autocomplete="off"
+          />
+          <button
+            v-if="selectedAuthor || filters.user"
+            type="button"
+            class="author-filter__clear"
+            :aria-label="t('clearAuthorFilter')"
+            @click="clearAuthor"
+          >
+            ×
+          </button>
+          <ul v-if="authorSuggestions.length" class="author-filter__suggestions">
+            <li v-for="author in authorSuggestions" :key="author.unique">
+              <button type="button" @click="selectAuthor(author)">
+                {{ author.name || author.uid }}
+              </button>
+            </li>
+          </ul>
+          <span v-else-if="authorLoading" class="author-filter__hint">{{ t('loading') }}</span>
+        </div>
+      </div>
+
+      <label class="gallery-filters__winter check-line">
+        <input :checked="filters.winter" type="checkbox" @change="toggleWinter" />
+        <span>{{ t('filterWinterPhotos') }}</span>
+      </label>
+
+      <button
+        v-if="hasExtraFilters"
+        type="button"
+        class="link-button gallery-filters__reset"
+        @click="clearExtraFilters"
+      >
+        {{ t('clearFilters') }}
+      </button>
+    </div>
+  </section>
+
   <section v-if="loading" class="photo-grid masonry-grid">
     <article v-for="item in skeletonItems" :key="item" class="photo-card photo-skeleton">
       <span></span>
@@ -118,6 +303,7 @@ onBeforeUnmount(() => observer?.disconnect())
       <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
       </span>
+      <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">❄</span>
       <span class="photo-year">{{ photo.year }}</span>
       <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
       <h3>{{ photo.title }}</h3>
@@ -173,6 +359,164 @@ onBeforeUnmount(() => observer?.disconnect())
   @include focus-ring(rgba($primary, 0.42), 2px);
 }
 
+.gallery-filters {
+  margin-bottom: 18px;
+  padding: 14px 16px;
+}
+
+.gallery-filters__row {
+  display: grid;
+  gap: 14px;
+
+  @include mq-up($bp-md) {
+    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto auto;
+    align-items: end;
+  }
+}
+
+.gallery-filters__group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.gallery-filters__label {
+  color: $muted;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.direction-filter {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.direction-filter__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid $line;
+  border-radius: $radius-md;
+  background: $surface-soft;
+  color: $ink;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.direction-filter__clear,
+.author-filter__clear {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba($primary, 0.08);
+  color: $primary;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.direction-filter__panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: min(100%, 320px);
+  padding: 12px;
+  border: 1px solid $line;
+  border-radius: $radius-lg;
+  background: $surface;
+  box-shadow: $shadow-lg;
+}
+
+.direction-filter__all {
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border: 1px solid $line;
+  border-radius: $radius-md;
+  background: $surface-soft;
+  color: $ink;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.author-filter {
+  position: relative;
+}
+
+.author-filter input {
+  width: 100%;
+  min-height: 42px;
+  padding-right: 36px;
+}
+
+.author-filter__clear {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+}
+
+.author-filter__suggestions {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  border: 1px solid $line;
+  border-radius: $radius-md;
+  background: $surface;
+  box-shadow: $shadow-md;
+
+  button {
+    display: block;
+    width: 100%;
+    padding: 8px 10px;
+    border: 0;
+    border-radius: $radius-sm;
+    background: transparent;
+    color: $ink;
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+
+    &:hover {
+      background: $surface-soft;
+    }
+  }
+}
+
+.author-filter__hint {
+  display: block;
+  margin-top: 6px;
+  color: $muted;
+  font-size: 12px;
+}
+
+.gallery-filters__winter {
+  align-self: end;
+  margin: 0;
+  white-space: nowrap;
+}
+
+.gallery-filters__reset {
+  align-self: end;
+  justify-self: start;
+}
+
 .photo-video-badge {
   position: absolute;
   top: 16px;
@@ -190,6 +534,21 @@ onBeforeUnmount(() => observer?.disconnect())
   svg {
     margin-left: 1px;
   }
+}
+
+.photo-winter-badge {
+  position: absolute;
+  top: 16px;
+  left: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 .photo-card {
@@ -269,7 +628,6 @@ onBeforeUnmount(() => observer?.disconnect())
   font-weight: 600;
 }
 
-// Variable aspect ratios for masonry-like rhythm
 .masonry-grid {
   .photo-card:nth-child(8n + 2) img,
   .photo-card:nth-child(8n + 7) img {
@@ -285,7 +643,6 @@ onBeforeUnmount(() => observer?.disconnect())
   }
 }
 
-// ---------- Skeleton --------------------------------------------
 .photo-skeleton {
   min-height: 260px;
   background:

@@ -38,6 +38,7 @@ const form = ref({
   file: null,
   video: '',
   needs_location_review: false,
+  is_winter: false,
   facebook_comment: '',
 })
 
@@ -123,6 +124,7 @@ function resetForm() {
     file: null,
     video: '',
     needs_location_review: false,
+    is_winter: false,
     facebook_comment: '',
   }
   previewUrl.value = ''
@@ -167,6 +169,7 @@ async function submit() {
   body.append('lng', form.value.lng)
   body.append('direction', form.value.direction)
   body.append('needs_location_review', form.value.needs_location_review ? '1' : '0')
+  body.append('is_winter', form.value.is_winter ? '1' : '0')
   if (isVideo) {
     body.append('video', form.value.video)
   } else {
@@ -242,6 +245,13 @@ onBeforeUnmount(() => {
             <span>
               {{ t('needsLocationReview') }}
               <small>{{ t('needsLocationReviewHelp') }}</small>
+            </span>
+          </label>
+          <label class="check-line review-check">
+            <input v-model="form.is_winter" type="checkbox" />
+            <span>
+              {{ t('winterPhoto') }}
+              <small>{{ t('winterPhotoHelp') }}</small>
             </span>
           </label>
           <div class="upload-field">

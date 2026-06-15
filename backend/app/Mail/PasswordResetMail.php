@@ -39,6 +39,7 @@ class PasswordResetMail extends Mailable
 
         return new Content(
             view: 'emails.password-reset',
+            with: ['lang' => $this->lang],
         );
     }
 }

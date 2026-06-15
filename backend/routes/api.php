@@ -71,6 +71,7 @@ Route::post('/feedback', [FeedbackController::class, 'store']);
 Route::get('/ratings', [RatingController::class, 'index']);
 Route::get('/facebook/page', [FacebookController::class, 'page']);
 Route::get('/facebook/plugin-config', [FacebookController::class, 'pluginConfig']);
+Route::get('/users/search', [UserController::class, 'search']);
 Route::get('/users/{unique}', [UserController::class, 'show']);
 Route::get('/photos/{photo}/comments', [CommentController::class, 'index'])->whereNumber('photo');
 

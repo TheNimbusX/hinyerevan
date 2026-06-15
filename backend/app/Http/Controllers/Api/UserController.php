@@ -7,11 +7,51 @@ use App\Models\Comment;
 use App\Models\Photo;
 use App\Models\User;
 use App\Services\LegacySchema;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
+    public function search(Request $request)
+    {
+        abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
+
+        $q = trim((string) $request->query('q', ''));
+        if (mb_strlen($q) < 2) {
+            return [];
+        }
+
+        $like = '%' . addcslashes($q, '%_\\') . '%';
+
+        return User::query()
+            ->select(['id', 'unique', 'uid', 'first_name', 'last_name', 'photo', 'identity'])
+            ->where(function ($query) use ($like) {
+                $query->where('first_name', 'like', $like)
+                    ->orWhere('last_name', 'like', $like)
+                    ->orWhere('uid', 'like', $like)
+                    ->orWhereRaw("CONCAT(first_name, ' ', last_name) LIKE ?", [$like]);
+            })
+            ->whereExists(function ($query) {
+                $query->selectRaw('1')
+                    ->from('photos')
+                    ->whereColumn('photos.user', 'users.unique')
+                    ->where('photos.published', 1)
+                    ->where('photos.id', '>', 0);
+            })
+            ->orderByDesc('id')
+            ->limit(12)
+            ->get()
+            ->map(fn (User $user) => [
+                'unique' => $user->unique,
+                'uid' => $user->uid,
+                'name' => $user->name,
+                'photo' => $user->photo,
+            ])
+            ->values()
+            ->all();
+    }
+
     public function show(string $unique)
     {
         abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');

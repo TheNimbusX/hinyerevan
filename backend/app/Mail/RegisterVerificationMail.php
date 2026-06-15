@@ -38,6 +38,7 @@ class RegisterVerificationMail extends Mailable
 
         return new Content(
             view: 'emails.register-verification',
+            with: ['lang' => $this->lang],
         );
     }
 }

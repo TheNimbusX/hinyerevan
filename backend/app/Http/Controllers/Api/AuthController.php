@@ -77,13 +77,18 @@ class AuthController extends Controller
             'birth_day' => ['nullable', 'integer', 'between:1,31'],
             'birth_month' => ['nullable', 'integer', 'between:1,12'],
             'birth_year' => ['nullable', 'integer', 'between:1900,2026'],
-            'photo' => ['nullable', 'image', 'max:4096'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
             'recaptcha_token' => ['nullable', 'string'],
         ]);
 
+        if ($request->hasFile('photo')) {
+            $request->validate([
+                'photo' => ['image', 'max:4096'],
+            ]);
+        }
+
         $this->verifyRecaptcha((string) ($data['recaptcha_token'] ?? ''));
-        unset($data['recaptcha_token']);
+        unset($data['recaptcha_token'], $data['password_confirmation']);
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $emailKey = strtolower($data['email']);
