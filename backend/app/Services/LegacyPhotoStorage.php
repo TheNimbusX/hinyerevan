@@ -52,7 +52,7 @@ class LegacyPhotoStorage
         $cacheDir = storage_path('app/watermarked');
         File::ensureDirectoryExists($cacheDir);
 
-        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|outline-v3');
+        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|blur-v4');
         $cachePath = $cacheDir . DIRECTORY_SEPARATOR . $key;
 
         if (is_file($cachePath) && filesize($cachePath) > 0) {
@@ -188,7 +188,7 @@ class LegacyPhotoStorage
         $maskH = max($targetH + 2 * $pad + 10, 104, (int) round($scaleEdge * 0.135));
         $maskX = $width - $maskW - $margin;
         $maskY = $height - $maskH - $margin;
-        $dstX = $maskX + (int) round(($maskW - $targetW) / 2);
+        $dstX = $maskX + $maskW - $targetW - $pad;
         $dstY = $maskY + $maskH - $targetH - $pad;
 
         if ($type === IMAGETYPE_PNG) {
@@ -196,8 +196,8 @@ class LegacyPhotoStorage
             imagesavealpha($base, true);
         }
 
-        $this->maskLegacyCornerMark($base, $maskX, $maskY, $maskW, $maskH);
-        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 84);
+        $this->blurLegacyCornerMark($base, $maskX, $maskY, $maskW, $maskH);
+        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 88);
         imagedestroy($resized);
 
         $tmp = $cachePath . '.tmp';
@@ -221,54 +221,74 @@ class LegacyPhotoStorage
     }
 
     /**
-     * Frosted rounded patch that hides the legacy corner burn-in (~90x96px)
-     * while staying tighter and more translucent than the old solid square.
+     * Blur the corner patch so legacy burn-in text disappears under the new logo.
+     * Soft rounded falloff avoids a visible white/frosted square.
      */
-    private function maskLegacyCornerMark(\GdImage $base, int $x, int $y, int $w, int $h): void
+    private function blurLegacyCornerMark(\GdImage $base, int $x, int $y, int $w, int $h): void
     {
-        $baseW = imagesx($base);
-        $baseH = imagesy($base);
-        $r = $g = $b = $n = 0;
+        $patch = imagecreatetruecolor($w, $h);
+        imagecopy($patch, $base, 0, 0, $x, $y, $w, $h);
 
-        for ($py = max(0, $y); $py < min($baseH, $y + $h); $py++) {
-            for ($px = max(0, $x); $px < min($baseW, $x + $w); $px++) {
-                $rgb = imagecolorat($base, $px, $py);
-                $r += ($rgb >> 16) & 0xFF;
-                $g += ($rgb >> 8) & 0xFF;
-                $b += $rgb & 0xFF;
-                $n++;
+        for ($i = 0; $i < 16; $i++) {
+            imagefilter($patch, IMG_FILTER_GAUSSIAN_BLUR);
+        }
+
+        $radius = max(10, (int) round(min($w, $h) * 0.24));
+        $feather = 5.0;
+
+        for ($py = 0; $py < $h; $py++) {
+            for ($px = 0; $px < $w; $px++) {
+                $weight = $this->roundedRectBlendWeight($px, $py, $w, $h, $radius, $feather);
+                if ($weight <= 0) {
+                    continue;
+                }
+
+                $blurred = imagecolorat($patch, $px, $py);
+                $br = ($blurred >> 16) & 0xFF;
+                $bg = ($blurred >> 8) & 0xFF;
+                $bb = $blurred & 0xFF;
+
+                $orig = imagecolorat($base, $x + $px, $y + $py);
+                $or = ($orig >> 16) & 0xFF;
+                $og = ($orig >> 8) & 0xFF;
+                $ob = $orig & 0xFF;
+
+                $r = (int) round($br * $weight + $or * (1 - $weight));
+                $g = (int) round($bg * $weight + $og * (1 - $weight));
+                $b = (int) round($bb * $weight + $ob * (1 - $weight));
+
+                imagesetpixel($base, $x + $px, $y + $py, imagecolorallocate($base, $r, $g, $b));
             }
         }
 
-        if ($n > 0) {
-            $r = (int) round($r / $n);
-            $g = (int) round($g / $n);
-            $b = (int) round($b / $n);
-        } else {
-            $r = $g = $b = 235;
+        imagedestroy($patch);
+    }
+
+    /** Signed distance to a rounded-rectangle boundary (negative = inside). */
+    private function roundedRectSdf(float $px, float $py, float $w, float $h, float $radius): float
+    {
+        $radius = min($radius, min($w, $h) / 2);
+        $qx = abs($px - $w / 2) - ($w / 2 - $radius);
+        $qy = abs($py - $h / 2) - ($h / 2 - $radius);
+        $ax = max($qx, 0.0);
+        $ay = max($qy, 0.0);
+
+        return sqrt($ax * $ax + $ay * $ay) + min(max($qx, $qy), 0.0) - $radius;
+    }
+
+    /** 0 outside, 1 inside with a soft edge for compositing blurred pixels. */
+    private function roundedRectBlendWeight(int $px, int $py, int $w, int $h, int $radius, float $feather): float
+    {
+        $sdf = $this->roundedRectSdf($px + 0.5, $py + 0.5, (float) $w, (float) $h, (float) $radius);
+        if ($sdf <= 0.0) {
+            return 1.0;
         }
 
-        // Pull the local tone toward white so legacy white text vanishes underneath.
-        $frost = 0.78;
-        $r = (int) round($r * (1 - $frost) + 255 * $frost);
-        $g = (int) round($g * (1 - $frost) + 255 * $frost);
-        $b = (int) round($b * (1 - $frost) + 255 * $frost);
-
-        $plate = imagecreatetruecolor($w, $h);
-        imagealphablending($plate, false);
-        imagesavealpha($plate, true);
-        imagefill($plate, 0, 0, imagecolorallocatealpha($plate, 0, 0, 0, 127));
-        imagealphablending($plate, true);
-
-        $radius = max(8, (int) round(min($w, $h) * 0.22));
-        $this->fillRoundedRect($plate, 0, 0, $w, $h, $radius, imagecolorallocate($plate, $r, $g, $b));
-
-        $this->copyMergeWithAlpha($base, $plate, $x, $y, $w, $h, 93);
-        imagedestroy($plate);
+        return max(0.0, 1.0 - ($sdf / max(1.0, $feather)));
     }
 
     /**
-     * Tight logo badge: a faint white halo plus a white stroke around the mark.
+     * White stroke around the logo shape only (no frosted halo / square).
      */
     private function decorateLogoMark(\GdImage $img, int $w, int $h): void
     {
@@ -283,12 +303,8 @@ class LegacyPhotoStorage
             }
         }
 
-        $outlinePx = max(1, (int) round(min($w, $h) * 0.022));
-        $haloPx = 2;
-        $haloAlpha = 116;
-        $outlineAlpha = 24;
-
-        $whiteHalo = imagecolorallocatealpha($img, 255, 255, 255, $haloAlpha);
+        $outlinePx = max(2, (int) round(min($w, $h) * 0.028));
+        $outlineAlpha = 18;
         $whiteOutline = imagecolorallocatealpha($img, 255, 255, 255, $outlineAlpha);
 
         for ($y = 0; $y < $h; $y++) {
@@ -298,7 +314,6 @@ class LegacyPhotoStorage
                 }
 
                 $touchOutline = false;
-                $touchHalo = false;
 
                 for ($dy = -$outlinePx; $dy <= $outlinePx; $dy++) {
                     for ($dx = -$outlinePx; $dx <= $outlinePx; $dx++) {
@@ -312,20 +327,13 @@ class LegacyPhotoStorage
                             continue;
                         }
 
-                        $dist = sqrt(($dx * $dx) + ($dy * $dy));
-                        if ($dist <= $outlinePx + 0.5) {
-                            $touchOutline = true;
-                        }
-                        if ($dist <= $haloPx + 0.5) {
-                            $touchHalo = true;
-                        }
+                        $touchOutline = true;
+                        break 2;
                     }
                 }
 
                 if ($touchOutline) {
                     imagesetpixel($img, $x, $y, $whiteOutline);
-                } elseif ($touchHalo) {
-                    imagesetpixel($img, $x, $y, $whiteHalo);
                 }
             }
         }
