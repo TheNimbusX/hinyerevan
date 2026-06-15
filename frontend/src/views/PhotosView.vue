@@ -8,6 +8,7 @@ import { photoDisplayLikes } from '../utils/photoStats'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
+import WinterBadgeIcon from '../components/WinterBadgeIcon.vue'
 
 const photos = ref([])
 const meta = ref(null)
@@ -26,15 +27,15 @@ const selectedAuthor = ref(null)
 const authorLoading = ref(false)
 const directionOpen = ref(false)
 const directionOptions = [
-  { value: 1, label: 'north' },
-  { value: 2, label: 'northEast' },
-  { value: 3, label: 'east' },
-  { value: 4, label: 'southEast' },
-  { value: 5, label: 'south' },
-  { value: 6, label: 'southWest' },
-  { value: 7, label: 'west' },
-  { value: 8, label: 'northWest' },
-  { value: 0, label: 'topShot' },
+  { value: 1, label: 'north', short: 'N' },
+  { value: 2, label: 'northEast', short: 'NE' },
+  { value: 3, label: 'east', short: 'E' },
+  { value: 4, label: 'southEast', short: 'SE' },
+  { value: 5, label: 'south', short: 'S' },
+  { value: 6, label: 'southWest', short: 'SW' },
+  { value: 7, label: 'west', short: 'W' },
+  { value: 8, label: 'northWest', short: 'NW' },
+  { value: 0, label: 'topShot', short: '↑' },
 ]
 const mediaOptions = [
   { value: '', label: 'allPhotos' },
@@ -46,25 +47,15 @@ const loadingMore = ref(false)
 const sentinel = ref(null)
 let observer
 let authorTimer
-const { t, currentLanguage } = useI18n()
+const { t } = useI18n()
 const skeletonItems = Array.from({ length: 12 }, (_, index) => index)
 
 const compassDirection = computed(() =>
   filters.value.direction === '' ? 1 : Number(filters.value.direction),
 )
 
-const directionFilterLabel = computed(() => {
-  if (filters.value.direction === '') return t('filterAllDirections')
-  return directionLabel(Number(filters.value.direction), t)
-})
-
 const hasExtraFilters = computed(() =>
-  Boolean(
-    filters.value.direction
-    || filters.value.user
-    || filters.value.winter
-    || selectedAuthor.value,
-  ),
+  Boolean(filters.value.direction || filters.value.user || filters.value.winter || selectedAuthor.value),
 )
 
 async function load(page = 1, append = false, { soft = false } = {}) {
@@ -108,6 +99,7 @@ function clearExtraFilters() {
   selectedAuthor.value = null
   authorQuery.value = ''
   authorSuggestions.value = []
+  directionOpen.value = false
   applyFilters()
 }
 
@@ -199,49 +191,44 @@ onBeforeUnmount(() => {
     <h1>{{ t('photos') }}</h1>
   </section>
 
-  <div class="media-filter" role="tablist" :aria-label="t('photos')">
-    <button
-      v-for="option in mediaOptions"
-      :key="option.value"
-      type="button"
-      role="tab"
-      class="media-filter__chip"
-      :class="{ on: filters.media === option.value }"
-      :aria-selected="filters.media === option.value"
-      @click="setMedia(option.value)"
-    >
-      {{ t(option.label) }}
-    </button>
-  </div>
-
-  <form class="filter-bar" @submit.prevent="applyFilters">
-    <input v-model="filters.search" :placeholder="t('search')" />
-    <input v-model="filters.year_from" :placeholder="t('fromYear')" inputmode="numeric" />
-    <input v-model="filters.year_to" :placeholder="t('toYear')" inputmode="numeric" />
-    <button class="button" type="submit">{{ t('filter') }}</button>
-  </form>
-
-  <section class="gallery-filters panel">
-    <div class="gallery-filters__direction-block">
-      <div class="gallery-filters__direction-head">
-        <span class="gallery-filters__label">{{ t('filterByDirection') }}</span>
-        <button type="button" class="direction-filter__compass-btn" @click="directionOpen = !directionOpen">
-          <DirectionMarker
-            v-if="filters.direction !== ''"
-            :direction="Number(filters.direction)"
-            :label="directionFilterLabel"
-            size="small"
-          />
-          <span>{{ directionOpen ? t('hideCompass') : t('showCompass') }}</span>
+  <section class="gallery-toolbar panel">
+    <div class="gallery-toolbar__top">
+      <div class="gallery-toolbar__media" role="tablist" :aria-label="t('photos')">
+        <button
+          v-for="option in mediaOptions"
+          :key="option.value"
+          type="button"
+          role="tab"
+          class="gallery-chip"
+          :class="{ on: filters.media === option.value }"
+          :aria-selected="filters.media === option.value"
+          @click="setMedia(option.value)"
+        >
+          {{ t(option.label) }}
         </button>
       </div>
 
-      <div class="gallery-direction-chips" role="listbox" :aria-label="t('filterByDirection')">
+      <form class="gallery-toolbar__search" @submit.prevent="applyFilters">
+        <input v-model="filters.search" :placeholder="t('search')" />
+        <input v-model="filters.year_from" :placeholder="t('fromYear')" inputmode="numeric" />
+        <input v-model="filters.year_to" :placeholder="t('toYear')" inputmode="numeric" />
+        <button class="button" type="submit">{{ t('filter') }}</button>
+      </form>
+    </div>
+
+    <div class="gallery-toolbar__section">
+      <div class="gallery-toolbar__section-head">
+        <span class="gallery-toolbar__title">{{ t('filterByDirection') }}</span>
+        <button type="button" class="gallery-chip gallery-chip--ghost" @click="directionOpen = !directionOpen">
+          {{ directionOpen ? t('hideCompass') : t('showCompass') }}
+        </button>
+      </div>
+      <div class="gallery-toolbar__chips gallery-toolbar__chips--scroll" role="listbox" :aria-label="t('filterByDirection')">
         <button
           type="button"
           role="option"
-          class="gallery-direction-chip"
-          :class="{ active: filters.direction === '' }"
+          class="gallery-chip"
+          :class="{ on: filters.direction === '' }"
           :aria-selected="filters.direction === ''"
           @click="setDirection('')"
         >
@@ -252,67 +239,78 @@ onBeforeUnmount(() => {
           :key="item.value"
           type="button"
           role="option"
-          class="gallery-direction-chip"
-          :class="{ active: filters.direction === String(item.value) }"
+          class="gallery-chip gallery-chip--dir"
+          :class="{ on: filters.direction === String(item.value) }"
           :aria-selected="filters.direction === String(item.value)"
+          :title="t(item.label)"
           @click="setDirection(item.value)"
         >
-          {{ t(item.label) }}
+          <span class="gallery-chip__short">{{ item.short }}</span>
+          <span class="gallery-chip__full">{{ t(item.label) }}</span>
         </button>
       </div>
-
-      <div v-if="directionOpen" class="gallery-filters__compass">
-        <DirectionCompassPicker
-          :model-value="compassDirection"
-          @update:model-value="setDirection"
-        />
+      <div v-if="directionOpen" class="gallery-toolbar__compass">
+        <DirectionCompassPicker :model-value="compassDirection" @update:model-value="setDirection" />
       </div>
     </div>
 
-    <div class="gallery-filters__extras">
-      <div class="gallery-filters__group gallery-filters__group--author">
-        <label class="gallery-filters__label" for="author-filter">{{ t('filterByAuthor') }}</label>
-        <div class="author-filter">
+    <div class="gallery-toolbar__section gallery-toolbar__section--footer">
+      <div class="gallery-toolbar__author">
+        <label class="gallery-toolbar__title" for="author-filter">{{ t('filterByAuthor') }}</label>
+        <div class="gallery-toolbar__input-wrap" :class="{ filled: Boolean(selectedAuthor || filters.user) }">
+          <svg class="gallery-toolbar__input-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+            <circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+            <path d="M16.5 16.5 20 20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          </svg>
           <input
             id="author-filter"
             v-model="authorQuery"
             type="search"
+            class="gallery-toolbar__input"
             :placeholder="t('authorSearchPlaceholder')"
             autocomplete="off"
           />
           <button
             v-if="selectedAuthor || filters.user"
             type="button"
-            class="author-filter__clear"
+            class="gallery-toolbar__input-clear"
             :aria-label="t('clearAuthorFilter')"
             @click="clearAuthor"
           >
             ×
           </button>
-          <ul v-if="authorSuggestions.length" class="author-filter__suggestions">
+          <ul v-if="authorSuggestions.length" class="gallery-toolbar__suggestions">
             <li v-for="author in authorSuggestions" :key="author.unique">
               <button type="button" @click="selectAuthor(author)">
                 {{ author.name || author.uid }}
               </button>
             </li>
           </ul>
-          <span v-else-if="authorLoading" class="author-filter__hint">{{ t('loading') }}</span>
+          <span v-else-if="authorLoading" class="gallery-toolbar__hint">{{ t('loading') }}</span>
         </div>
       </div>
 
-      <label class="gallery-filters__winter check-line">
-        <input :checked="filters.winter" type="checkbox" @change="toggleWinter" />
-        <span>{{ t('filterWinterPhotos') }}</span>
-      </label>
+      <div class="gallery-toolbar__actions">
+        <button
+          type="button"
+          class="gallery-chip gallery-chip--winter"
+          :class="{ on: filters.winter }"
+          :aria-pressed="filters.winter"
+          @click="toggleWinter"
+        >
+          <WinterBadgeIcon size="sm" />
+          <span>{{ t('filterWinterPhotos') }}</span>
+        </button>
 
-      <button
-        v-if="hasExtraFilters"
-        type="button"
-        class="link-button gallery-filters__reset"
-        @click="clearExtraFilters"
-      >
-        {{ t('clearFilters') }}
-      </button>
+        <button
+          v-if="hasExtraFilters"
+          type="button"
+          class="gallery-chip gallery-chip--ghost"
+          @click="clearExtraFilters"
+        >
+          {{ t('clearFilters') }}
+        </button>
+      </div>
     </div>
   </section>
 
@@ -329,7 +327,9 @@ onBeforeUnmount(() => {
       <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
       </span>
-      <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">❄</span>
+      <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
+        <WinterBadgeIcon size="sm" />
+      </span>
       <span class="photo-year">{{ photo.year }}</span>
       <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
       <h3>{{ photo.title }}</h3>
@@ -351,79 +351,125 @@ onBeforeUnmount(() => {
 </template>
 
 <style lang="scss">
-.media-filter {
-  display: inline-flex;
-  gap: 4px;
-  margin-bottom: 12px;
-  padding: 4px;
-  border: 1px solid $line;
-  border-radius: $radius-pill;
-  background: $surface-soft;
-}
-
-.media-filter__chip {
-  padding: 7px 16px;
-  border: 0;
-  border-radius: $radius-pill;
-  background: transparent;
-  color: $muted;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  @include interactive((background, color, box-shadow));
-
-  &:hover {
-    color: $ink;
-  }
-
-  &.on {
-    color: #fff;
-    background: linear-gradient(135deg, $primary, $primary-dark);
-    box-shadow: 0 6px 14px rgba($primary, 0.26);
-  }
-
-  @include focus-ring(rgba($primary, 0.42), 2px);
-}
-
-.gallery-filters {
+.gallery-toolbar {
+  display: grid;
+  gap: 12px;
   margin-bottom: 18px;
   padding: 14px 16px;
-  display: grid;
-  gap: 16px;
 }
 
-.gallery-filters__direction-block {
+.gallery-toolbar__top {
   display: grid;
-  gap: 10px;
+  gap: 12px;
+
+  @include mq-up($bp-md) {
+    grid-template-columns: auto 1fr;
+    align-items: center;
+  }
 }
 
-.gallery-filters__direction-head {
+.gallery-toolbar__media,
+.gallery-toolbar__chips {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
+  gap: 6px;
 }
 
-.gallery-filters__compass {
-  padding-top: 4px;
+.gallery-toolbar__chips--scroll {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: $radius-pill;
+    background: rgba($primary, 0.22);
+  }
 }
 
-.gallery-direction-chips {
+.gallery-toolbar__search {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+
+  input {
+    flex: 1 1 120px;
+    min-height: 38px;
+    padding: 8px 12px;
+    border: 1px solid $line;
+    border-radius: $radius-sm;
+    background: $surface;
+    color: $ink;
+    font-size: 13px;
+
+    &:focus {
+      outline: none;
+      border-color: $primary;
+      box-shadow: 0 0 0 3px rgba($primary, 0.16);
+    }
+  }
+
+  .button {
+    min-height: 38px;
+    padding-inline: 16px;
+    font-size: 13px;
+  }
 }
 
-.gallery-direction-chip {
-  border: 1px solid rgba($primary, 0.14);
+.gallery-toolbar__section {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid $line;
+}
+
+.gallery-toolbar__section--footer {
+  grid-template-columns: 1fr;
+  gap: 10px;
+
+  @include mq-up($bp-md) {
+    grid-template-columns: minmax(220px, 1fr) auto;
+    align-items: end;
+  }
+}
+
+.gallery-toolbar__section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.gallery-toolbar__title {
+  color: $muted;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.gallery-toolbar__compass {
+  padding-top: 2px;
+}
+
+.gallery-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid $line;
   border-radius: $radius-pill;
-  padding: 8px 14px;
   background: $surface-soft;
-  color: $primary;
+  color: $muted;
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
+  white-space: nowrap;
   transition:
     background 0.15s ease,
     border-color 0.15s ease,
@@ -431,99 +477,141 @@ onBeforeUnmount(() => {
     box-shadow 0.15s ease;
 
   &:hover {
-    border-color: $primary;
-    background: #fff;
+    border-color: rgba($primary, 0.35);
+    color: $ink;
+    background: $surface;
   }
 
-  &.active {
-    border-color: $accent;
-    background: $accent;
+  &.on {
+    border-color: transparent;
     color: #fff;
-    box-shadow: 0 6px 14px rgba($accent, 0.24);
+    background: linear-gradient(135deg, $primary, $primary-dark);
+    box-shadow: 0 4px 12px rgba($primary, 0.22);
+  }
+
+  &--ghost {
+    background: transparent;
+    border-color: rgba($primary, 0.18);
+    color: $primary;
+
+    &:hover {
+      background: rgba($primary, 0.06);
+    }
+
+    &.on {
+      color: #fff;
+      background: linear-gradient(135deg, $primary, $primary-dark);
+    }
+  }
+
+  &--winter.on {
+    background: linear-gradient(135deg, #4f9fd8, #2f74b8);
+    box-shadow: 0 4px 12px rgba(47, 116, 184, 0.28);
+  }
+
+  &--dir {
+    padding-inline: 10px;
   }
 
   @include focus-ring(rgba($primary, 0.4), 2px);
 }
 
-.direction-filter__compass-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  padding: 6px 12px;
-  border: 1px solid $line;
-  border-radius: $radius-pill;
-  background: $surface-soft;
-  color: $ink;
-  cursor: pointer;
+.gallery-chip__short {
+  display: none;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.gallery-chip__full {
   font-size: 12px;
-  font-weight: 600;
 }
 
-.gallery-filters__extras {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: end;
-  padding-top: 4px;
-  border-top: 1px solid $line;
-}
-.gallery-filters__group--author {
-  flex: 1 1 240px;
-  min-width: 200px;
+@include mq-down($bp-lg) {
+  .gallery-chip--dir {
+    .gallery-chip__short {
+      display: inline;
+    }
+
+    .gallery-chip__full {
+      display: none;
+    }
+  }
 }
 
-.gallery-filters__label {
-  display: block;
-  margin-bottom: 8px;
-  color: $muted;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.gallery-filters__group {
+.gallery-toolbar__author {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
-.author-filter {
+.gallery-toolbar__input-wrap {
   position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 38px;
+  border: 1px solid $line;
+  border-radius: $radius-sm;
+  background: $surface;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+
+  &:focus-within,
+  &.filled {
+    border-color: rgba($primary, 0.45);
+    box-shadow: 0 0 0 3px rgba($primary, 0.12);
+  }
 }
 
-.author-filter__clear {
+.gallery-toolbar__input-icon {
+  margin-left: 11px;
+  color: $muted;
+  flex-shrink: 0;
+}
+
+.gallery-toolbar__input {
+  width: 100%;
+  min-width: 0;
+  padding: 8px 34px 8px 8px;
+  border: 0;
+  background: transparent;
+  color: $ink;
+  font-size: 13px;
+
+  &:focus {
+    outline: none;
+  }
+
+  &::placeholder {
+    color: rgba($muted, 0.9);
+  }
+}
+
+.gallery-toolbar__input-clear {
+  position: absolute;
+  top: 50%;
+  right: 6px;
   display: grid;
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
   place-items: center;
   border: 0;
   border-radius: 50%;
-  background: rgba($primary, 0.08);
+  background: rgba($primary, 0.1);
   color: $primary;
   cursor: pointer;
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
-  position: absolute;
-  top: 5px;
-  right: 5px;
+  transform: translateY(-50%);
 }
 
-.author-filter input {
-  width: 100%;
-  min-height: 42px;
-  padding-right: 36px;
-}
-
-.author-filter__suggestions {
+.gallery-toolbar__suggestions {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   right: 0;
-  z-index: 20;
+  z-index: 30;
   margin: 0;
-  padding: 6px;
+  padding: 4px;
   list-style: none;
   border: 1px solid $line;
   border-radius: $radius-md;
@@ -548,22 +636,19 @@ onBeforeUnmount(() => {
   }
 }
 
-.author-filter__hint {
-  display: block;
-  margin-top: 6px;
+.gallery-toolbar__hint {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
   color: $muted;
-  font-size: 12px;
+  font-size: 11px;
 }
 
-.gallery-filters__winter {
-  align-self: end;
-  margin: 0;
-  white-space: nowrap;
-}
-
-.gallery-filters__reset {
-  align-self: end;
-  justify-self: start;
+.gallery-toolbar__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
 }
 
 .photo-video-badge {
@@ -573,11 +658,11 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   color: #fff;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(0, 0, 0, 0.58);
   backdrop-filter: blur(2px);
 
   svg {
@@ -588,16 +673,16 @@ onBeforeUnmount(() => {
 .photo-winter-badge {
   position: absolute;
   top: 16px;
-  left: 52px;
+  left: 50px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  font-size: 14px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
+  color: #2f74b8;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 3px 10px rgba(20, 24, 34, 0.14);
 }
 
 .photo-card {
@@ -722,6 +807,84 @@ onBeforeUnmount(() => {
     width: 60%;
     height: 14px;
     margin-top: 10px;
+  }
+}
+
+[data-theme='dark'] {
+  .gallery-toolbar__search input,
+  .gallery-toolbar__input-wrap {
+    background: #161b25;
+    border-color: #2a313d;
+    color: #e7ebf3;
+  }
+
+  .gallery-toolbar__search input:focus,
+  .gallery-toolbar__input-wrap:focus-within,
+  .gallery-toolbar__input-wrap.filled {
+    border-color: rgba(120, 156, 255, 0.45);
+    box-shadow: 0 0 0 3px rgba(120, 156, 255, 0.12);
+  }
+
+  .gallery-toolbar__input {
+    color: #e7ebf3;
+
+    &::placeholder {
+      color: #7f8796;
+    }
+  }
+
+  .gallery-toolbar__input-icon {
+    color: #98a0ae;
+  }
+
+  .gallery-toolbar__section {
+    border-top-color: #2a313d;
+  }
+
+  .gallery-chip {
+    background: #1c212c;
+    border-color: #2a313d;
+    color: #c5cad6;
+
+    &:hover {
+      background: #232a36;
+      color: #f4f7ff;
+    }
+
+    &--ghost {
+      background: transparent;
+      border-color: #354052;
+      color: #9eb4ff;
+
+      &:hover {
+        background: rgba(120, 156, 255, 0.08);
+      }
+    }
+  }
+
+  .gallery-toolbar__suggestions {
+    background: #161b25;
+    border-color: #2a313d;
+
+    button {
+      color: #e7ebf3;
+
+      &:hover {
+        background: #232a36;
+      }
+    }
+  }
+
+  .photo-winter-badge {
+    color: #8ec8ff;
+    background: rgba(22, 27, 37, 0.92);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
+  }
+
+  .photo-skeleton {
+    background:
+      linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent),
+      #1c212c;
   }
 }
 </style>
