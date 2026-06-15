@@ -39,7 +39,8 @@ Route::get('/', fn () => [
 Route::get('/health', fn () => ['status' => 'ok']);
 
 Route::post('/auth/login', [AuthController::class, 'login']);
-Route::post('/auth/register', [AuthController::class, 'register']);
+Route::post('/auth/register/send-code', [AuthController::class, 'registerSendCode'])->middleware('throttle:6,1');
+Route::post('/auth/register/confirm', [AuthController::class, 'registerConfirm'])->middleware('throttle:12,1');
 Route::post('/auth/forgot-password', [AuthController::class, 'forgotPassword'])->middleware('throttle:6,1');
 Route::post('/auth/reset-password', [AuthController::class, 'resetPassword'])->middleware('throttle:12,1');
 

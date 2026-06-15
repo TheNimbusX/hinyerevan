@@ -218,6 +218,16 @@ export function imageUrl(path) {
   return `${API_URL.replace(/\/api$/, '')}${path}`
 }
 
+/** Watermarked large/original image URL with Content-Disposition download. */
+export function photoDownloadUrl(images, title = 'photo') {
+  const variant = images?.large || images?.original
+  if (!variant) return ''
+  const base = imageUrl(variant)
+  const separator = base.includes('?') ? '&' : '?'
+  const filename = encodeURIComponent(String(title).replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 80) || 'photo')
+  return `${base}${separator}download=1&filename=${filename}`
+}
+
 export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
   if (!photo) return fallback
 

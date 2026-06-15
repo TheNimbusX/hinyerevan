@@ -18,4 +18,5 @@ return [
     'validation_token_required' => 'This reset link is invalid.',
     'captcha_required' => 'Please complete the captcha.',
     'captcha_failed' => 'Captcha verification failed. Please try again.',
+    'mail_signature' => 'Best regards, HinYerevan.com',
 ];

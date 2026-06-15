@@ -10,6 +10,7 @@ use App\Services\LegacyPhotoStorage;
 use App\Services\LegacySchema;
 use App\Services\TranslationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -18,6 +19,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use App\Mail\PasswordResetMail;
+use App\Mail\RegisterVerificationMail;
 use App\Support\UiLocale;
 
 class AuthController extends Controller
@@ -60,11 +62,11 @@ class AuthController extends Controller
         ];
     }
 
-    public function register(Request $request, LegacyPhotoStorage $storage)
+    public function registerSendCode(Request $request)
     {
         abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
 
-        UiLocale::apply($request);
+        $lang = UiLocale::apply($request);
 
         $data = $request->validate([
             'uid' => ['required', 'alpha_num', 'min:3', 'max:32', 'unique:users,uid'],
@@ -81,40 +83,133 @@ class AuthController extends Controller
         ]);
 
         $this->verifyRecaptcha((string) ($data['recaptcha_token'] ?? ''));
+        unset($data['recaptcha_token']);
+
+        $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        $emailKey = strtolower($data['email']);
+
+        $pending = [
+            'code_hash' => hash('sha256', $code),
+            'attributes' => $data,
+            'photo_temp_path' => $request->hasFile('photo')
+                ? $request->file('photo')->store('register-pending')
+                : null,
+        ];
+
+        Cache::put('register_pending:' . hash('sha256', $emailKey), $pending, now()->addMinutes(15));
+
+        try {
+            Mail::to($data['email'])->send(new RegisterVerificationMail($data['first_name'], $code, $lang));
+        } catch (\Throwable $exception) {
+            Cache::forget('register_pending:' . hash('sha256', $emailKey));
+            Log::error('Register verification mail failed', [
+                'email' => $data['email'],
+                'message' => $exception->getMessage(),
+            ]);
+
+            throw ValidationException::withMessages([
+                'email' => __('password.mail_send_failed'),
+            ]);
+        }
+
+        return ['message' => __('register.code_sent'), 'lang' => $lang];
+    }
+
+    public function registerConfirm(Request $request, LegacyPhotoStorage $storage)
+    {
+        abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
+
+        UiLocale::apply($request);
+
+        $data = $request->validate([
+            'email' => ['required', 'email', 'max:190'],
+            'code' => ['required', 'string', 'size:6'],
+        ], [
+            'email.required' => __('password.validation_email_required'),
+            'email.email' => __('password.validation_email_invalid'),
+            'code.required' => __('register.validation_code_required'),
+            'code.size' => __('register.validation_code_size'),
+        ]);
+
+        $cacheKey = 'register_pending:' . hash('sha256', strtolower($data['email']));
+        $pending = Cache::get($cacheKey);
+
+        if (
+            ! $pending
+            || ! hash_equals((string) $pending['code_hash'], hash('sha256', $data['code']))
+        ) {
+            throw ValidationException::withMessages([
+                'code' => __('register.code_invalid'),
+            ]);
+        }
+
+        $reg = $pending['attributes'];
+
+        if (
+            User::query()->where('uid', $reg['uid'])->exists()
+            || User::query()->where('email', $data['email'])->exists()
+        ) {
+            Cache::forget($cacheKey);
+
+            throw ValidationException::withMessages([
+                'email' => __('register.code_invalid'),
+            ]);
+        }
 
         $photo = 'http://www.hinyerevan.com/photos/user.png';
-        if ($request->hasFile('photo')) {
-            $fileId = $storage->storeUserPhoto($request->file('photo'), config('app.key'));
-            $photo = 'http://www.hinyerevan.com/photos/users/' . $fileId;
+        if (! empty($pending['photo_temp_path'])) {
+            $tempPath = storage_path('app/' . $pending['photo_temp_path']);
+            if (is_file($tempPath)) {
+                $uploaded = new \Illuminate\Http\UploadedFile(
+                    $tempPath,
+                    basename($tempPath),
+                    mime_content_type($tempPath) ?: null,
+                    null,
+                    true,
+                );
+                $fileId = $storage->storeUserPhoto($uploaded, config('app.key'));
+                $photo = 'http://www.hinyerevan.com/photos/users/' . $fileId;
+                @unlink($tempPath);
+            }
         }
 
         $attributes = [
-            'uid' => $data['uid'],
+            'uid' => $reg['uid'],
             'network' => 'hinyerevan',
-            'unique' => md5($data['uid']),
-            'first_name' => $data['first_name'],
-            'last_name' => $data['last_name'],
+            'unique' => md5($reg['uid']),
+            'first_name' => $reg['first_name'],
+            'last_name' => $reg['last_name'],
             'email' => $data['email'],
             'identity' => '',
-            'sex' => $data['sex'],
+            'sex' => $reg['sex'],
             'photo' => $photo,
             'type' => User::TYPE_USER,
-            // Keep the first-write format compatible with the legacy varchar(32) password column.
-            'password' => md5($data['password']),
+            'password' => md5($reg['password']),
             'last_ip' => $request->ip(),
         ];
 
-        // Birthday is optional; only store it when all three parts are provided.
-        if (! empty($data['birth_year']) && ! empty($data['birth_month']) && ! empty($data['birth_day'])) {
-            $attributes['bdate'] = sprintf('%04d-%02d-%02d', $data['birth_year'], $data['birth_month'], $data['birth_day']);
+        if (! empty($reg['birth_year']) && ! empty($reg['birth_month']) && ! empty($reg['birth_day'])) {
+            $attributes['bdate'] = sprintf(
+                '%04d-%02d-%02d',
+                (int) $reg['birth_year'],
+                (int) $reg['birth_month'],
+                (int) $reg['birth_day'],
+            );
         }
 
         $user = User::query()->create($attributes);
+        Cache::forget($cacheKey);
 
         return response()->json([
             'token' => $user->createToken('spa')->plainTextToken,
             'user' => $this->serializeUser($user),
         ], 201);
+    }
+
+    /** @deprecated Use registerSendCode + registerConfirm */
+    public function register(Request $request, LegacyPhotoStorage $storage)
+    {
+        abort(410, 'Email verification is required. Use /auth/register/send-code and /auth/register/confirm.');
     }
 
     public function me(Request $request)

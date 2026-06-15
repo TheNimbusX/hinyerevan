@@ -285,8 +285,8 @@ class PhotoController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'year' => ['required', 'integer', 'min:1', 'max:2100'],
-            'lat' => ['required', 'numeric', 'between:-90,90'],
-            'lng' => ['required', 'numeric', 'between:-180,180'],
+            'lat' => ['nullable', 'numeric', 'between:-90,90'],
+            'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'direction' => ['nullable', 'integer', 'between:0,8'],
             'file' => ['required_without:video', 'nullable', 'image', 'max:10240'],
             'video' => ['required_without:file', 'nullable', 'string', 'max:512', 'regex:#^https?://(www\.)?(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/|youtube\.com/shorts/)[\w\-]{6,}#i'],
@@ -313,8 +313,8 @@ class PhotoController extends Controller
         $photo = Photo::query()->create([
             'title' => $data['title'],
             'year' => $data['year'],
-            'lat' => $data['lat'],
-            'lng' => $data['lng'],
+            'lat' => $data['lat'] ?? 40.179136,
+            'lng' => $data['lng'] ?? 44.511623,
             'direction' => $data['direction'] ?? 0,
             'datetime' => now(),
             'user' => $request->user()->unique,
@@ -431,11 +431,11 @@ class PhotoController extends Controller
                 if (in_array($variant, ['large', 'original'], true)) {
                     $watermarked = $storage->watermarkedPath($path);
                     if ($watermarked !== null) {
-                        return Response::file($watermarked, ['Content-Type' => mime_content_type($watermarked)]);
+                        return $this->fileImageResponse($watermarked, $fileId);
                     }
                 }
 
-                return Response::file($path);
+                return $this->fileImageResponse($path, $fileId);
             }
         }
 
@@ -603,5 +603,22 @@ class PhotoController extends Controller
             'comments_count' => max((int) ($photo->facebook_comments_count ?? 0), $storedComments),
             'synced_at' => optional($photo->facebook_synced_at)->toISOString(),
         ];
+    }
+
+    private function fileImageResponse(string $path, string $fileId)
+    {
+        $mime = mime_content_type($path) ?: 'image/jpeg';
+        $headers = [
+            'Content-Type' => $mime,
+            'Cache-Control' => 'public, max-age=604800',
+        ];
+
+        if (request()->boolean('download')) {
+            $rawName = (string) request()->query('filename', $fileId);
+            $safeName = preg_replace('/[^\p{L}\p{N}._-]+/u', '_', $rawName) ?: $fileId;
+            $headers['Content-Disposition'] = 'attachment; filename="' . $safeName . '.jpg"';
+        }
+
+        return Response::file($path, $headers);
     }
 }

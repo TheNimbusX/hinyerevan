@@ -18,4 +18,5 @@ return [
     'validation_token_required' => 'Վերականգնման հղումը անվավեր է։',
     'captcha_required' => 'Նշեք captcha-ն («Ես ռոբոտ չեմ»)։',
     'captcha_failed' => 'Captcha-ի ստուգումը չհաջողվեց։ Կրկին փորձեք։',
+    'mail_signature' => 'Հարգանքներով, HinYerevan.com',
 ];

@@ -18,4 +18,5 @@ return [
     'validation_token_required' => 'Ссылка для сброса недействительна.',
     'captcha_required' => 'Отметьте «Я не робот» в captcha.',
     'captcha_failed' => 'Проверка captcha не прошла. Попробуйте ещё раз.',
+    'mail_signature' => 'С уважением, HinYerevan.com',
 ];

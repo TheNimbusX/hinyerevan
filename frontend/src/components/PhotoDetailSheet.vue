@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
-import { api, clearApiCacheForPath, getToken, imageUrl, localizedApi, safeAvatarUrl } from '../api'
+import { api, clearApiCacheForPath, getToken, imageUrl, localizedApi, photoDownloadUrl, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel, formatDateTime } from '../utils/locale'
@@ -31,6 +31,7 @@ const crosspostFb = ref(false)
 const isFavorite = ref(false)
 const favoritePending = ref(false)
 const shareNotice = ref('')
+const downloadPending = ref(false)
 const lightboxOpen = ref(false)
 const detailImageSrc = ref('')
 
@@ -254,6 +255,32 @@ async function sharePhoto() {
   }
 }
 
+async function downloadPhoto() {
+  if (!photo.value || downloadPending.value) return
+
+  const url = photoDownloadUrl(photo.value.images, photo.value.title)
+  if (!url) return
+
+  downloadPending.value = true
+  try {
+    const response = await fetch(url)
+    if (!response.ok) throw new Error('download failed')
+    const blob = await response.blob()
+    const safeTitle = String(photo.value.title || 'photo').replace(/[^\p{L}\p{N}._-]+/gu, '_').slice(0, 80)
+    const filename = `${safeTitle}-${photo.value.year}.jpg`
+    const link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.download = filename
+    link.click()
+    URL.revokeObjectURL(link.href)
+  } catch {
+    shareNotice.value = t('downloadFailed')
+    setTimeout(() => (shareNotice.value = ''), 2400)
+  } finally {
+    downloadPending.value = false
+  }
+}
+
 async function postComment({ replyTo, body, postToFacebook = false }) {
   commentPostError.value = ''
   if (!photo.value) return false
@@ -389,6 +416,34 @@ onBeforeUnmount(() => {
                     <button type="button" class="action-chip" :aria-label="t('sharePhoto')" @click="sharePhoto">
                       <span class="action-icon" aria-hidden="true">↗</span>
                       <span class="action-label">{{ t('sharePhoto') }}</span>
+                    </button>
+                    <button
+                      type="button"
+                      class="action-chip download-chip"
+                      :disabled="downloadPending"
+                      :aria-label="t('downloadPhoto')"
+                      @click="downloadPhoto"
+                    >
+                      <span class="action-icon download-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" width="18" height="18">
+                          <path
+                            d="M12 3v12m0 0l4-4m-4 4L8 11"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                          />
+                          <path
+                            d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                          />
+                        </svg>
+                      </span>
+                      <span class="action-label">{{ t('downloadPhoto') }}</span>
                     </button>
                   </div>
                   <transition name="fade">

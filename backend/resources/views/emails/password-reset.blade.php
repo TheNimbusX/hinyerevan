@@ -15,5 +15,6 @@
     <p>{{ __('password.mail_copy_hint') }}</p>
     <p style="word-break:break-all;"><a href="{{ $resetUrl }}">{{ $resetUrl }}</a></p>
     <p style="color:#666;font-size:13px;">{{ __('password.mail_expiry') }}</p>
+    <p style="margin-top:28px;color:#444;">{{ __('password.mail_signature') }}</p>
 </body>
 </html>

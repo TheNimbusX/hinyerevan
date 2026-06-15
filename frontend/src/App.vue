@@ -44,6 +44,9 @@ const forgotMessage = ref('')
 const forgotLoading = ref(false)
 const recaptchaToken = ref('')
 const recaptchaField = ref(null)
+const registerStep = ref('form')
+const registerCode = ref('')
+const registerMessage = ref('')
 const socialProviders = ref([])
 const socialRedirecting = ref(null)
 function providerIcon(id) {
@@ -55,7 +58,11 @@ const { t } = useI18n()
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
 const months = Array.from({ length: 12 }, (_, index) => index + 1)
 const years = Array.from({ length: 127 }, (_, index) => new Date().getFullYear() - index)
-const needsCaptcha = computed(() => authOpen.value && ['login', 'register', 'forgot'].includes(authMode.value))
+const needsCaptcha = computed(() => {
+  if (!authOpen.value) return false
+  if (authMode.value === 'login' || authMode.value === 'forgot') return true
+  return authMode.value === 'register' && registerStep.value === 'form'
+})
 
 function avatarUrl(user) {
   return safeAvatarUrl(user?.photo, siteLogo)
@@ -214,7 +221,13 @@ function requireAuthForUpload() {
 
 async function submitAuth() {
   authError.value = ''
+  registerMessage.value = ''
   try {
+    if (authMode.value === 'register' && registerStep.value === 'form') {
+      await sendRegisterCode()
+      return
+    }
+
     const payload = authMode.value === 'login'
       ? await api('/auth/login', {
           method: 'POST',
@@ -224,13 +237,15 @@ async function submitAuth() {
             recaptcha_token: recaptchaToken.value,
           },
         })
-      : await register()
+      : await confirmRegister()
 
     setToken(payload.token)
     currentUser.value = payload.user
     authOpen.value = false
     const next = authRedirect.value
     authRedirect.value = null
+    registerStep.value = 'form'
+    registerCode.value = ''
     recaptchaToken.value = ''
     if (next && router.currentRoute.value.fullPath !== next) {
       await router.push(next)
@@ -241,7 +256,7 @@ async function submitAuth() {
   }
 }
 
-async function register() {
+async function sendRegisterCode() {
   if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken.value) {
     throw new Error(t('captchaRequired'))
   }
@@ -255,7 +270,30 @@ async function register() {
   body.append('lang', getUiLanguage())
   body.set('recaptcha_token', recaptchaToken.value)
 
-  return api('/auth/register', { method: 'POST', body })
+  await api('/auth/register/send-code', { method: 'POST', body })
+  registerStep.value = 'verify'
+  registerMessage.value = t('registerCodeSent')
+  recaptchaToken.value = ''
+  recaptchaField.value?.reset()
+}
+
+async function confirmRegister() {
+  return api('/auth/register/confirm', {
+    method: 'POST',
+    body: {
+      email: authForm.value.email,
+      code: registerCode.value,
+      lang: getUiLanguage(),
+    },
+  })
+}
+
+
+function backToRegisterForm() {
+  registerStep.value = 'form'
+  registerCode.value = ''
+  registerMessage.value = ''
+  authError.value = ''
 }
 
 function selectAvatar(event) {
@@ -283,6 +321,9 @@ function handleOpenAuth(event) {
 }
 
 watch(authMode, () => {
+  registerStep.value = 'form'
+  registerCode.value = ''
+  registerMessage.value = ''
   recaptchaToken.value = ''
 })
 
@@ -403,15 +444,23 @@ onBeforeUnmount(() => {
 
           <header class="auth-modal__head">
             <h2>{{ authMode === 'forgot' ? t('forgotPasswordTitle') : authMode === 'login' ? t('signIn') : t('createAccount') }}</h2>
-            <p>{{ authMode === 'forgot' ? t('forgotPasswordIntro') : authMode === 'login' ? t('loginIntro') : t('registerIntro') }}</p>
+            <p>{{
+              authMode === 'forgot'
+                ? t('forgotPasswordIntro')
+                : authMode === 'login'
+                  ? t('loginIntro')
+                  : registerStep === 'verify'
+                    ? t('registerVerifyIntro')
+                    : t('registerIntro')
+            }}</p>
           </header>
 
-          <div v-if="authMode !== 'forgot'" class="auth-tabs">
+          <div v-if="authMode !== 'forgot' && registerStep === 'form'" class="auth-tabs">
             <button type="button" :class="{ on: authMode === 'login' }" @click="authMode = 'login'">{{ t('login') }}</button>
             <button type="button" :class="{ on: authMode === 'register' }" @click="authMode = 'register'">{{ t('register') }}</button>
           </div>
 
-          <div v-if="authMode !== 'forgot' && socialProviders.length" class="auth-social">
+          <div v-if="authMode !== 'forgot' && registerStep === 'form' && socialProviders.length" class="auth-social">
             <button
               v-for="provider in socialProviders"
               :key="provider.id"
@@ -425,9 +474,9 @@ onBeforeUnmount(() => {
               <span class="auth-social__icon" v-html="providerIcon(provider.id)"></span>
             </button>
           </div>
-          <p v-else-if="authMode !== 'forgot'" class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
+          <p v-else-if="authMode !== 'forgot' && registerStep === 'form'" class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
 
-          <p v-if="authMode !== 'forgot' && socialProviders.length" class="auth-divider"><span>{{ t('orContinueWithEmail') }}</span></p>
+          <p v-if="authMode !== 'forgot' && registerStep === 'form' && socialProviders.length" class="auth-divider"><span>{{ t('orContinueWithEmail') }}</span></p>
 
           <form v-if="authMode === 'forgot'" class="auth-form" @submit.prevent="submitForgotPassword">
             <input
@@ -449,6 +498,28 @@ onBeforeUnmount(() => {
           </form>
 
           <form v-else class="auth-form" @submit.prevent="submitAuth">
+            <template v-if="authMode === 'register' && registerStep === 'verify'">
+              <p v-if="registerMessage" class="success">{{ registerMessage }}</p>
+              <label class="register-field">
+                <span>{{ t('verificationCode') }}</span>
+                <input
+                  v-model="registerCode"
+                  inputmode="numeric"
+                  pattern="[0-9]{6}"
+                  maxlength="6"
+                  minlength="6"
+                  :placeholder="t('verificationCode')"
+                  required
+                />
+              </label>
+              <small class="form-help">{{ t('registerResendHint') }}</small>
+              <button class="button" type="submit">{{ t('registerConfirm') }}</button>
+              <button class="link-button auth-forgot-back" type="button" @click="backToRegisterForm">
+                {{ t('backToLogin') }}
+              </button>
+              <p v-if="authError" class="error">{{ authError }}</p>
+            </template>
+            <template v-else>
             <input v-if="authMode === 'login'" v-model="authForm.login" :placeholder="t('usernameOrEmail')" required />
             <template v-else>
               <label class="register-field">
@@ -525,6 +596,7 @@ onBeforeUnmount(() => {
             <RecaptchaField ref="recaptchaField" v-model:token="recaptchaToken" :active="needsCaptcha" />
             <button class="button" type="submit">{{ t('continue') }}</button>
             <p v-if="authError" class="error">{{ authError }}</p>
+            </template>
           </form>
         </section>
       </div>

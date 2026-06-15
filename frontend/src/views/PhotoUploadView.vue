@@ -153,6 +153,11 @@ async function submit() {
     }
   }
 
+  if (!form.value.lat || !form.value.lng) {
+    error.value = t('clickMapToSetPoint')
+    return
+  }
+
   submitting.value = true
 
   const body = new FormData()
@@ -228,16 +233,6 @@ onBeforeUnmount(() => {
             <span>{{ t('title') }}</span>
             <input v-model="form.title" :placeholder="t('title')" required />
           </label>
-          <div class="form-two">
-            <label>
-              <span>{{ t('latitude') }}</span>
-              <input v-model="form.lat" inputmode="decimal" :placeholder="t('latitude')" required />
-            </label>
-            <label>
-              <span>{{ t('longitude') }}</span>
-              <input v-model="form.lng" inputmode="decimal" :placeholder="t('longitude')" required />
-            </label>
-          </div>
           <div class="upload-map-shell">
             <div ref="uploadMapElement" class="upload-map"></div>
             <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
