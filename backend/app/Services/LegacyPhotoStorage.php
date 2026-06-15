@@ -12,10 +12,10 @@ class LegacyPhotoStorage
     /** Legacy site used a fixed ~90px logo in the bottom-right corner. */
     private const WATERMARK_LOGO_WIDTH = 90;
 
-    /** Blur zone that fully covers the old ~90x96px burn-in. */
-    private const WATERMARK_BLUR_WIDTH = 100;
+    /** Blur zone that fully covers the old burn-in (~90px wide, ~110px tall with www line). */
+    private const WATERMARK_BLUR_WIDTH = 108;
 
-    private const WATERMARK_BLUR_HEIGHT = 104;
+    private const WATERMARK_BLUR_HEIGHT = 116;
 
     public function absolutePath(string $variant, string $fileId): string
     {
@@ -60,7 +60,7 @@ class LegacyPhotoStorage
         $cacheDir = storage_path('app/watermarked');
         File::ensureDirectoryExists($cacheDir);
 
-        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|blur-v5');
+        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|blur-v6');
         $cachePath = $cacheDir . DIRECTORY_SEPARATOR . $key;
 
         if (is_file($cachePath) && filesize($cachePath) > 0) {
@@ -219,7 +219,7 @@ class LegacyPhotoStorage
 
     /**
      * Blur the corner patch so legacy burn-in text disappears under the new logo.
-     * Radial falloff from the photo corner keeps edges soft (no square block).
+     * Samples extra bleed around the patch, then downscale-blur for a strong smear.
      */
     private function blurLegacyCornerMark(\GdImage $base, int $x, int $y, int $w, int $h): void
     {
@@ -227,15 +227,25 @@ class LegacyPhotoStorage
             return;
         }
 
-        $patch = imagecreatetruecolor($w, $h);
-        imagecopy($patch, $base, 0, 0, $x, $y, $w, $h);
+        $imgW = imagesx($base);
+        $imgH = imagesy($base);
 
-        for ($i = 0; $i < 18; $i++) {
-            imagefilter($patch, IMG_FILTER_GAUSSIAN_BLUR);
-        }
+        // Extra context lets blur smear high-contrast legacy text edges.
+        $bleed = 16;
+        $grabX = max(0, $x - $bleed);
+        $grabY = max(0, $y - $bleed);
+        $grabW = min($imgW - $grabX, $w + ($x - $grabX) + $bleed);
+        $grabH = min($imgH - $grabY, $h + ($y - $grabY) + $bleed);
 
-        $core = min($w, $h) * 0.58;
-        $fade = min($w, $h) * 0.52;
+        $grab = imagecreatetruecolor($grabW, $grabH);
+        imagecopy($grab, $base, 0, 0, $grabX, $grabY, $grabW, $grabH);
+        $this->heavyBlurImage($grab, $grabW, $grabH);
+
+        $offX = $x - $grabX;
+        $offY = $y - $grabY;
+
+        $core = min($w, $h) * 0.78;
+        $fade = min($w, $h) * 0.34;
 
         for ($py = 0; $py < $h; $py++) {
             for ($px = 0; $px < $w; $px++) {
@@ -244,7 +254,7 @@ class LegacyPhotoStorage
                     continue;
                 }
 
-                $blurred = imagecolorat($patch, $px, $py);
+                $blurred = imagecolorat($grab, $offX + $px, $offY + $py);
                 $br = ($blurred >> 16) & 0xFF;
                 $bg = ($blurred >> 8) & 0xFF;
                 $bb = $blurred & 0xFF;
@@ -262,7 +272,27 @@ class LegacyPhotoStorage
             }
         }
 
-        imagedestroy($patch);
+        imagedestroy($grab);
+    }
+
+    /** Strong blur via downscale-upscale plus stacked Gaussian passes. */
+    private function heavyBlurImage(\GdImage $img, int $w, int $h): void
+    {
+        $smallW = max(1, (int) round($w / 5));
+        $smallH = max(1, (int) round($h / 5));
+        $small = imagecreatetruecolor($smallW, $smallH);
+        imagecopyresampled($small, $img, 0, 0, 0, 0, $smallW, $smallH, $w, $h);
+
+        for ($i = 0; $i < 5; $i++) {
+            imagefilter($small, IMG_FILTER_GAUSSIAN_BLUR);
+        }
+
+        imagecopyresampled($img, $small, 0, 0, 0, 0, $w, $h, $smallW, $smallH);
+        imagedestroy($small);
+
+        for ($i = 0; $i < 14; $i++) {
+            imagefilter($img, IMG_FILTER_GAUSSIAN_BLUR);
+        }
     }
 
     /** Soft radial mask anchored at the bottom-right of the blur patch. */
