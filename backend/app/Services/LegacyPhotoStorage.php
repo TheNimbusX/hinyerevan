@@ -52,7 +52,7 @@ class LegacyPhotoStorage
         $cacheDir = storage_path('app/watermarked');
         File::ensureDirectoryExists($cacheDir);
 
-        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark));
+        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|outline-v2');
         $cachePath = $cacheDir . DIRECTORY_SEPARATOR . $key;
 
         if (is_file($cachePath) && filesize($cachePath) > 0) {
@@ -179,38 +179,18 @@ class LegacyPhotoStorage
         // The brand logo ships on a solid white background. Drop near-white
         // pixels to transparent so only the mark itself is stamped on the photo.
         $this->makeWhiteTransparent($resized, $targetW, $targetH);
+        $this->decorateLogoMark($resized, $targetW, $targetH);
 
-        // Place the mark on a soft rounded white plate in the bottom-right
-        // corner. Legacy photos carry an old watermark burned into that exact
-        // corner, and the semi-opaque plate masks it so only our mark shows.
-        $pad = max(4, (int) round($targetW * 0.06));
-        $panelW = $targetW + 2 * $pad;
-        $panelH = $targetH + 2 * $pad;
-        // Hug the bottom-right corner with a slightly smaller margin than the
-        // legacy mark used (~8px on an 800px photo) so the plate fully overlaps
-        // and never lets the old mark peek out at the edges.
         $margin = max(3, min((int) round($scaleEdge * 0.008), 12));
-        $panelX = $width - $panelW - $margin;
-        $panelY = $height - $panelH - $margin;
-        $dstX = $panelX + $pad;
-        $dstY = $panelY + $pad;
+        $dstX = $width - $targetW - $margin;
+        $dstY = $height - $targetH - $margin;
 
         if ($type === IMAGETYPE_PNG) {
             imagealphablending($base, true);
             imagesavealpha($base, true);
         }
 
-        $plate = imagecreatetruecolor($panelW, $panelH);
-        imagealphablending($plate, false);
-        imagesavealpha($plate, true);
-        imagefill($plate, 0, 0, imagecolorallocatealpha($plate, 0, 0, 0, 127));
-        imagealphablending($plate, true);
-        $radius = max(6, (int) round(min($panelW, $panelH) * 0.18));
-        $this->fillRoundedRect($plate, 0, 0, $panelW, $panelH, $radius, imagecolorallocate($plate, 255, 255, 255));
-        $this->copyMergeWithAlpha($base, $plate, $panelX, $panelY, $panelW, $panelH, 85);
-        imagedestroy($plate);
-
-        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 92);
+        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 84);
         imagedestroy($resized);
 
         $tmp = $cachePath . '.tmp';
@@ -231,6 +211,71 @@ class LegacyPhotoStorage
         @rename($tmp, $cachePath);
 
         return is_file($cachePath) ? $cachePath : null;
+    }
+
+    /**
+     * Tight logo badge: a faint white halo plus a white stroke around the mark.
+     * Replaces the old opaque rounded square plate.
+     */
+    private function decorateLogoMark(\GdImage $img, int $w, int $h): void
+    {
+        imagealphablending($img, false);
+        imagesavealpha($img, true);
+
+        $isLogo = [];
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                $alpha = (imagecolorat($img, $x, $y) >> 24) & 0x7F;
+                $isLogo[$y][$x] = $alpha < 90;
+            }
+        }
+
+        $outlinePx = max(1, (int) round(min($w, $h) * 0.022));
+        $haloPx = 2;
+        $haloAlpha = 116;
+        $outlineAlpha = 24;
+
+        $whiteHalo = imagecolorallocatealpha($img, 255, 255, 255, $haloAlpha);
+        $whiteOutline = imagecolorallocatealpha($img, 255, 255, 255, $outlineAlpha);
+
+        for ($y = 0; $y < $h; $y++) {
+            for ($x = 0; $x < $w; $x++) {
+                if ($isLogo[$y][$x]) {
+                    continue;
+                }
+
+                $touchOutline = false;
+                $touchHalo = false;
+
+                for ($dy = -$outlinePx; $dy <= $outlinePx; $dy++) {
+                    for ($dx = -$outlinePx; $dx <= $outlinePx; $dx++) {
+                        if (($dx * $dx) + ($dy * $dy) > (($outlinePx + 0.5) ** 2)) {
+                            continue;
+                        }
+
+                        $nx = $x + $dx;
+                        $ny = $y + $dy;
+                        if ($nx < 0 || $nx >= $w || $ny < 0 || $ny >= $h || ! ($isLogo[$ny][$nx] ?? false)) {
+                            continue;
+                        }
+
+                        $dist = sqrt(($dx * $dx) + ($dy * $dy));
+                        if ($dist <= $outlinePx + 0.5) {
+                            $touchOutline = true;
+                        }
+                        if ($dist <= $haloPx + 0.5) {
+                            $touchHalo = true;
+                        }
+                    }
+                }
+
+                if ($touchOutline) {
+                    imagesetpixel($img, $x, $y, $whiteOutline);
+                } elseif ($touchHalo) {
+                    imagesetpixel($img, $x, $y, $whiteHalo);
+                }
+            }
+        }
     }
 
     /** Fill a rounded rectangle on an alpha-enabled image. */
