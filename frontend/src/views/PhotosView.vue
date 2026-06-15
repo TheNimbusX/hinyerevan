@@ -25,6 +25,17 @@ const authorSuggestions = ref([])
 const selectedAuthor = ref(null)
 const authorLoading = ref(false)
 const directionOpen = ref(false)
+const directionOptions = [
+  { value: 1, label: 'north' },
+  { value: 2, label: 'northEast' },
+  { value: 3, label: 'east' },
+  { value: 4, label: 'southEast' },
+  { value: 5, label: 'south' },
+  { value: 6, label: 'southWest' },
+  { value: 7, label: 'west' },
+  { value: 8, label: 'northWest' },
+  { value: 0, label: 'topShot' },
+]
 const mediaOptions = [
   { value: '', label: 'allPhotos' },
   { value: 'photo', label: 'mediaTabPhoto' },
@@ -211,39 +222,54 @@ onBeforeUnmount(() => {
   </form>
 
   <section class="gallery-filters panel">
-    <div class="gallery-filters__row">
-      <div class="gallery-filters__group gallery-filters__group--direction">
+    <div class="gallery-filters__direction-block">
+      <div class="gallery-filters__direction-head">
         <span class="gallery-filters__label">{{ t('filterByDirection') }}</span>
-        <div class="direction-filter">
-          <button type="button" class="direction-filter__toggle" @click="directionOpen = !directionOpen">
-            <DirectionMarker
-              v-if="filters.direction !== ''"
-              :direction="Number(filters.direction)"
-              :label="directionFilterLabel"
-              size="small"
-            />
-            <span>{{ directionFilterLabel }}</span>
-          </button>
-          <button
+        <button type="button" class="direction-filter__compass-btn" @click="directionOpen = !directionOpen">
+          <DirectionMarker
             v-if="filters.direction !== ''"
-            type="button"
-            class="direction-filter__clear"
-            @click="setDirection('')"
-          >
-            ×
-          </button>
-          <div v-if="directionOpen" class="direction-filter__panel">
-            <button type="button" class="direction-filter__all" @click="directionOpen = false; setDirection('')">
-              {{ t('filterAllDirections') }}
-            </button>
-            <DirectionCompassPicker
-              :model-value="compassDirection"
-              @update:model-value="(value) => { setDirection(value); directionOpen = false }"
-            />
-          </div>
-        </div>
+            :direction="Number(filters.direction)"
+            :label="directionFilterLabel"
+            size="small"
+          />
+          <span>{{ directionOpen ? t('hideCompass') : t('showCompass') }}</span>
+        </button>
       </div>
 
+      <div class="gallery-direction-chips" role="listbox" :aria-label="t('filterByDirection')">
+        <button
+          type="button"
+          role="option"
+          class="gallery-direction-chip"
+          :class="{ active: filters.direction === '' }"
+          :aria-selected="filters.direction === ''"
+          @click="setDirection('')"
+        >
+          {{ t('filterAllDirections') }}
+        </button>
+        <button
+          v-for="item in directionOptions"
+          :key="item.value"
+          type="button"
+          role="option"
+          class="gallery-direction-chip"
+          :class="{ active: filters.direction === String(item.value) }"
+          :aria-selected="filters.direction === String(item.value)"
+          @click="setDirection(item.value)"
+        >
+          {{ t(item.label) }}
+        </button>
+      </div>
+
+      <div v-if="directionOpen" class="gallery-filters__compass">
+        <DirectionCompassPicker
+          :model-value="compassDirection"
+          @update:model-value="setDirection"
+        />
+      </div>
+    </div>
+
+    <div class="gallery-filters__extras">
       <div class="gallery-filters__group gallery-filters__group--author">
         <label class="gallery-filters__label" for="author-filter">{{ t('filterByAuthor') }}</label>
         <div class="author-filter">
@@ -362,16 +388,99 @@ onBeforeUnmount(() => {
 .gallery-filters {
   margin-bottom: 18px;
   padding: 14px 16px;
+  display: grid;
+  gap: 16px;
 }
 
-.gallery-filters__row {
+.gallery-filters__direction-block {
   display: grid;
-  gap: 14px;
+  gap: 10px;
+}
 
-  @include mq-up($bp-md) {
-    grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) auto auto;
-    align-items: end;
+.gallery-filters__direction-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gallery-filters__compass {
+  padding-top: 4px;
+}
+
+.gallery-direction-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.gallery-direction-chip {
+  border: 1px solid rgba($primary, 0.14);
+  border-radius: $radius-pill;
+  padding: 8px 14px;
+  background: $surface-soft;
+  color: $primary;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &:hover {
+    border-color: $primary;
+    background: #fff;
   }
+
+  &.active {
+    border-color: $accent;
+    background: $accent;
+    color: #fff;
+    box-shadow: 0 6px 14px rgba($accent, 0.24);
+  }
+
+  @include focus-ring(rgba($primary, 0.4), 2px);
+}
+
+.direction-filter__compass-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 6px 12px;
+  border: 1px solid $line;
+  border-radius: $radius-pill;
+  background: $surface-soft;
+  color: $ink;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gallery-filters__extras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: end;
+  padding-top: 4px;
+  border-top: 1px solid $line;
+}
+.gallery-filters__group--author {
+  flex: 1 1 240px;
+  min-width: 200px;
+}
+
+.gallery-filters__label {
+  display: block;
+  margin-bottom: 8px;
+  color: $muted;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .gallery-filters__group {
@@ -380,37 +489,10 @@ onBeforeUnmount(() => {
   min-width: 0;
 }
 
-.gallery-filters__label {
-  color: $muted;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.direction-filter {
+.author-filter {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
-.direction-filter__toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 8px 12px;
-  border: 1px solid $line;
-  border-radius: $radius-md;
-  background: $surface-soft;
-  color: $ink;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.direction-filter__clear,
 .author-filter__clear {
   display: grid;
   width: 32px;
@@ -423,48 +505,15 @@ onBeforeUnmount(() => {
   cursor: pointer;
   font-size: 18px;
   line-height: 1;
-}
-
-.direction-filter__panel {
   position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
-  z-index: 20;
-  width: min(100%, 320px);
-  padding: 12px;
-  border: 1px solid $line;
-  border-radius: $radius-lg;
-  background: $surface;
-  box-shadow: $shadow-lg;
-}
-
-.direction-filter__all {
-  width: 100%;
-  margin-bottom: 10px;
-  padding: 8px 12px;
-  border: 1px solid $line;
-  border-radius: $radius-md;
-  background: $surface-soft;
-  color: $ink;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.author-filter {
-  position: relative;
+  top: 5px;
+  right: 5px;
 }
 
 .author-filter input {
   width: 100%;
   min-height: 42px;
   padding-right: 36px;
-}
-
-.author-filter__clear {
-  position: absolute;
-  top: 5px;
-  right: 5px;
 }
 
 .author-filter__suggestions {
