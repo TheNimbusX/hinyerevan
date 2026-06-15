@@ -48,6 +48,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  isAdmin: {
+    type: Boolean,
+    default: false,
+  },
+  allowReply: {
+    type: Boolean,
+    default: true,
+  },
 })
 
 const emit = defineEmits(['submit', 'delete'])
@@ -59,11 +67,13 @@ const confirmDeleteId = ref(null)
 const replyCrosspost = ref(false)
 
 function canDelete(item) {
+  const isSite = item.source === 'site' || item.source == null
+
   return (
-    item.source === 'site' &&
+    isSite &&
     typeof item.id === 'number' &&
     !!props.currentUserUnique &&
-    item.author?.unique === props.currentUserUnique
+    (props.isAdmin || item.author?.unique === props.currentUserUnique)
   )
 }
 
@@ -87,7 +97,7 @@ watch(
 )
 
 function canReply(item) {
-  return item.source === 'site' || item.source === 'facebook'
+  return props.allowReply && (item.source === 'site' || item.source === 'facebook')
 }
 
 function toggleReply(item) {

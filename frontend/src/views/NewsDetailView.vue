@@ -1,26 +1,40 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { api, localizedApi } from '../api'
+import PhotoCommentThread from '../components/PhotoCommentThread.vue'
+import { api, clearApiCacheForPath, getToken, localizedApi } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { formatDate } from '../utils/locale'
-import { formatCommentBody } from '../utils/commentBody'
-import { userDisplayName, userProfilePath } from '../utils/user'
+import { isAdminUser } from '../utils/user'
 import { setPageMeta } from '../utils/seo'
 
 const route = useRoute()
 const { t, currentLanguage } = useI18n()
+const currentUser = inject('currentUser', ref(null))
 const item = ref(null)
 const comments = ref([])
 const comment = ref('')
 const error = ref('')
+const commentError = ref('')
+
+const isAuthenticated = computed(() => Boolean(currentUser.value || getToken()))
+const isAdmin = computed(() => isAdminUser(currentUser.value))
+const currentUserUnique = computed(() => currentUser.value?.unique || '')
 
 function plainText(html) {
   if (!html) return ''
   const node = document.createElement('div')
   node.innerHTML = html
   return (node.textContent || '').trim()
+}
+
+function normalizeComments(rows) {
+  return (rows || []).map((entry) => ({
+    ...entry,
+    source: entry.source || 'site',
+    replies: entry.replies || [],
+  }))
 }
 
 async function load({ soft = false } = {}) {
@@ -30,7 +44,7 @@ async function load({ soft = false } = {}) {
   const newsPath = `/news/${route.params.id}`
   const commentsPath = `/news/${route.params.id}/comments`
   item.value = await localizedApi(newsPath)
-  comments.value = await localizedApi(commentsPath)
+  comments.value = normalizeComments(await localizedApi(commentsPath))
   setPageMeta({
     title: item.value.title,
     description: plainText(item.value.content).slice(0, 160) || item.value.title,
@@ -52,7 +66,7 @@ async function applyLocalized({ path }) {
     })
   }
   if (path === commentsPath) {
-    comments.value = await localizedApi(commentsPath)
+    comments.value = normalizeComments(await localizedApi(commentsPath))
   }
 }
 
@@ -64,9 +78,26 @@ async function submitComment() {
       body: { body: comment.value },
     })
     comment.value = ''
+    clearApiCacheForPath(`/news/${route.params.id}/comments`)
     await load()
   } catch (event) {
     error.value = event.message
+  }
+}
+
+async function deleteComment(entry) {
+  if (!entry || typeof entry.id !== 'number') return
+
+  const snapshot = comments.value
+  comments.value = comments.value.filter((row) => row.id !== entry.id)
+  commentError.value = ''
+
+  try {
+    await api(`/comments/${entry.id}`, { method: 'DELETE' })
+    clearApiCacheForPath(`/news/${route.params.id}/comments`)
+  } catch (event) {
+    comments.value = snapshot
+    commentError.value = event.message
   }
 }
 
@@ -90,15 +121,17 @@ useLocalizedReady(applyLocalized)
       <button class="button" type="submit">{{ t('postComment') }}</button>
       <p v-if="error" class="error">{{ error }}</p>
     </form>
-    <div v-for="entry in comments" :key="entry.id" class="comment">
-      <span class="comment-avatar placeholder-avatar">{{ userDisplayName(entry.author, t).slice(0, 1) }}</span>
-      <span>
-        <RouterLink class="comment-author" :to="userProfilePath(entry.author)">
-          {{ userDisplayName(entry.author, t) }}
-        </RouterLink>
-        <p class="comment-body">{{ formatCommentBody(entry.body) }}</p>
-      </span>
-    </div>
+    <PhotoCommentThread
+      :threads="comments"
+      :t="t"
+      :lang="currentLanguage"
+      :is-authenticated="isAuthenticated"
+      :is-admin="isAdmin"
+      :allow-reply="false"
+      :current-user-unique="currentUserUnique"
+      @delete="deleteComment"
+    />
+    <p v-if="commentError" class="error">{{ commentError }}</p>
   </section>
 </template>
 
@@ -109,13 +142,5 @@ useLocalizedReady(applyLocalized)
   max-width: min(920px, 100%);
   padding: 28px;
   line-height: 1.65;
-}
-
-.placeholder-avatar {
-  display: grid;
-  place-items: center;
-  color: #fff;
-  background: linear-gradient(135deg, $primary, $accent);
-  font-weight: 600;
 }
 </style>
