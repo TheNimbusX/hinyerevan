@@ -4,9 +4,11 @@ import { getToken } from '../api'
 export function useAuthGate() {
   const router = useRouter()
 
-  function requireAuth(redirectPath = '/profile', mode = 'login') {
+  function requireAuth(redirectPath = null, mode = 'login') {
     if (getToken()) {
-      router.push(redirectPath)
+      if (redirectPath) {
+        router.push(redirectPath)
+      }
       return true
     }
 

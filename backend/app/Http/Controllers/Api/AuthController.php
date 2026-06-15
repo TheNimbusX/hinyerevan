@@ -33,7 +33,11 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'login' => ['required', 'string'],
             'password' => ['required', 'string'],
+            'recaptcha_token' => ['nullable', 'string'],
         ]);
+
+        $this->verifyRecaptcha((string) ($credentials['recaptcha_token'] ?? ''));
+        unset($credentials['recaptcha_token']);
 
         $user = User::query()
             ->where('uid', $credentials['login'])
@@ -157,7 +161,10 @@ class AuthController extends Controller
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
+            'recaptcha_token' => ['nullable', 'string'],
         ]);
+
+        $this->verifyRecaptcha((string) ($data['recaptcha_token'] ?? ''));
 
         $user = $request->user();
 
@@ -180,10 +187,13 @@ class AuthController extends Controller
 
         $data = $request->validate([
             'email' => ['required', 'email', 'max:190'],
+            'recaptcha_token' => ['nullable', 'string'],
         ], [
             'email.required' => __('password.validation_email_required'),
             'email.email' => __('password.validation_email_invalid'),
         ]);
+
+        $this->verifyRecaptcha((string) ($data['recaptcha_token'] ?? ''));
 
         $message = __('password.forgot_sent');
 
@@ -231,6 +241,7 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'max:190'],
             'token' => ['required', 'string', 'min:32'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
+            'recaptcha_token' => ['nullable', 'string'],
         ], [
             'email.required' => __('password.validation_email_required'),
             'email.email' => __('password.validation_email_invalid'),
@@ -239,6 +250,8 @@ class AuthController extends Controller
             'password.min' => __('password.validation_password_min'),
             'password.confirmed' => __('password.validation_password_confirmed'),
         ]);
+
+        $this->verifyRecaptcha((string) ($data['recaptcha_token'] ?? ''));
 
         $record = DB::table('password_reset_tokens')->where('email', $data['email'])->first();
         $tokenValid = $record

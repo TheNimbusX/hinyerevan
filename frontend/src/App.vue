@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { api, apiUrl, getToken, safeAvatarUrl, setToken } from './api'
 import { getUiLanguage } from './utils/browserTranslate'
@@ -12,6 +12,9 @@ import SiteFooter from './components/SiteFooter.vue'
 import FacebookPageBadge from './components/FacebookPageBadge.vue'
 import FacebookPageModal from './components/FacebookPageModal.vue'
 import HeaderUserMenu from './components/HeaderUserMenu.vue'
+import RecaptchaField from './components/RecaptchaField.vue'
+
+const AUTH_RETURN_KEY = 'hinyerevan_auth_return'
 
 const menuOpen = ref(false)
 const facebookOpen = ref(false)
@@ -39,6 +42,8 @@ const authForm = ref({
 const forgotEmail = ref('')
 const forgotMessage = ref('')
 const forgotLoading = ref(false)
+const recaptchaToken = ref('')
+const recaptchaField = ref(null)
 const socialProviders = ref([])
 const socialRedirecting = ref(null)
 function providerIcon(id) {
@@ -50,112 +55,7 @@ const { t } = useI18n()
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
 const months = Array.from({ length: 12 }, (_, index) => index + 1)
 const years = Array.from({ length: 127 }, (_, index) => new Date().getFullYear() - index)
-const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY || ''
-const recaptchaReady = computed(() => recaptchaSiteKey !== '')
-const recaptchaEl = ref(null)
-const recaptchaLoadFailed = ref(false)
-let recaptchaWidgetId = null
-let recaptchaScriptPromise = null
-
-function recaptchaLang() {
-  const lang = getUiLanguage()
-  return lang === 'ru' ? 'ru' : lang === 'en' ? 'en' : 'hy'
-}
-
-function loadRecaptchaScript() {
-  if (recaptchaScriptPromise) return recaptchaScriptPromise
-
-  recaptchaScriptPromise = new Promise((resolve, reject) => {
-    if (window.grecaptcha?.render) {
-      resolve()
-      return
-    }
-    const script = document.createElement('script')
-    // recaptcha.net mirror — google.com is often blocked in RU/AM.
-    const hl = recaptchaLang()
-    script.src = `https://www.recaptcha.net/recaptcha/api.js?render=explicit&hl=${hl}`
-    script.async = true
-    script.defer = true
-    script.onload = resolve
-    script.onerror = reject
-    document.head.appendChild(script)
-  })
-  return recaptchaScriptPromise
-}
-
-// The api.js onload fires slightly before grecaptcha.render is wired up, so poll briefly.
-function whenGrecaptchaReady(timeout = 6000) {
-  return new Promise((resolve) => {
-    const start = Date.now()
-    const tick = () => {
-      if (window.grecaptcha?.render) {
-        resolve(true)
-      } else if (Date.now() - start > timeout) {
-        resolve(false)
-      } else {
-        setTimeout(tick, 100)
-      }
-    }
-    tick()
-  })
-}
-
-async function renderRecaptcha() {
-  if (!recaptchaReady.value) return
-
-  recaptchaLoadFailed.value = false
-  await nextTick()
-
-  if (!recaptchaEl.value) {
-    await nextTick()
-  }
-
-  try {
-    await loadRecaptchaScript()
-  } catch {
-    recaptchaLoadFailed.value = true
-    return
-  }
-
-  const ready = await whenGrecaptchaReady()
-  await nextTick()
-  const grecaptcha = window.grecaptcha
-  if (!ready || !grecaptcha?.render || !recaptchaEl.value) {
-    recaptchaLoadFailed.value = true
-    return
-  }
-
-  if (recaptchaWidgetId !== null) {
-    grecaptcha.reset(recaptchaWidgetId)
-    authForm.value.recaptcha_token = ''
-    return
-  }
-
-  try {
-    recaptchaWidgetId = grecaptcha.render(recaptchaEl.value, {
-      sitekey: recaptchaSiteKey,
-      callback: (token) => {
-        authForm.value.recaptcha_token = token
-        recaptchaLoadFailed.value = false
-      },
-      'expired-callback': () => {
-        authForm.value.recaptcha_token = ''
-      },
-      'error-callback': () => {
-        recaptchaLoadFailed.value = true
-      },
-    })
-  } catch {
-    recaptchaLoadFailed.value = true
-  }
-}
-
-function resetRecaptcha() {
-  authForm.value.recaptcha_token = ''
-  if (recaptchaWidgetId !== null && window.grecaptcha?.reset) {
-    window.grecaptcha.reset(recaptchaWidgetId)
-  }
-}
+const needsCaptcha = computed(() => authOpen.value && ['login', 'register', 'forgot'].includes(authMode.value))
 
 function avatarUrl(user) {
   return safeAvatarUrl(user?.photo, siteLogo)
@@ -203,7 +103,11 @@ async function handleSocialCallback() {
     setToken(String(token))
     try {
       currentUser.value = await api('/auth/me')
-      await router.push('/profile')
+      const returnTo = sessionStorage.getItem(AUTH_RETURN_KEY)
+      sessionStorage.removeItem(AUTH_RETURN_KEY)
+      if (returnTo && returnTo !== route.fullPath) {
+        await router.push(returnTo)
+      }
       return true
     } catch (event) {
       setToken(null)
@@ -241,10 +145,18 @@ function shareSite() {
   }
 }
 
+function rememberAuthReturn(path) {
+  const target = path || router.currentRoute.value.fullPath
+  if (target && target !== '/') {
+    sessionStorage.setItem(AUTH_RETURN_KEY, target)
+  }
+}
+
 function openAuth(mode = 'login') {
   authMode.value = mode
   authError.value = ''
   forgotMessage.value = ''
+  recaptchaToken.value = ''
   authOpen.value = true
   closeMenu()
 }
@@ -265,7 +177,7 @@ async function submitForgotPassword() {
   try {
     const payload = await api('/auth/forgot-password', {
       method: 'POST',
-      body: { email, lang: getUiLanguage() },
+      body: { email, lang: getUiLanguage(), recaptcha_token: recaptchaToken.value },
       timeoutMs: 20000,
     })
     forgotMessage.value = payload?.message || t('forgotPasswordSent')
@@ -274,6 +186,7 @@ async function submitForgotPassword() {
       event?.name === 'AbortError' || event?.message === 'Request timed out'
         ? t('forgotPasswordError')
         : event?.message || t('forgotPasswordError')
+    recaptchaField.value?.reset()
   } finally {
     forgotLoading.value = false
   }
@@ -305,25 +218,31 @@ async function submitAuth() {
     const payload = authMode.value === 'login'
       ? await api('/auth/login', {
           method: 'POST',
-          body: { login: authForm.value.login, password: authForm.value.password },
+          body: {
+            login: authForm.value.login,
+            password: authForm.value.password,
+            recaptcha_token: recaptchaToken.value,
+          },
         })
       : await register()
 
     setToken(payload.token)
     currentUser.value = payload.user
     authOpen.value = false
-    const next = authRedirect.value || '/profile'
+    const next = authRedirect.value
     authRedirect.value = null
-    router.push(next)
+    recaptchaToken.value = ''
+    if (next && router.currentRoute.value.fullPath !== next) {
+      await router.push(next)
+    }
   } catch (event) {
     authError.value = event.message
-    // reCAPTCHA tokens are single-use — refresh after a failed attempt.
-    if (authMode.value === 'register') resetRecaptcha()
+    recaptchaField.value?.reset()
   }
 }
 
 async function register() {
-  if (recaptchaReady.value && !authForm.value.recaptcha_token) {
+  if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken.value) {
     throw new Error(t('captchaRequired'))
   }
 
@@ -334,6 +253,7 @@ async function register() {
     }
   })
   body.append('lang', getUiLanguage())
+  body.set('recaptcha_token', recaptchaToken.value)
 
   return api('/auth/register', { method: 'POST', body })
 }
@@ -343,6 +263,7 @@ function selectAvatar(event) {
 }
 
 function socialLogin(providerId) {
+  rememberAuthReturn(authRedirect.value)
   socialRedirecting.value = providerId
   window.location.href = apiUrl(`/auth/social/${providerId}/redirect`)
 }
@@ -361,20 +282,13 @@ function handleOpenAuth(event) {
   openAuth(mode)
 }
 
+watch(authMode, () => {
+  recaptchaToken.value = ''
+})
+
 watch(menuOpen, (open) => {
   document.body.style.overflow = open ? 'hidden' : ''
 })
-
-// Render (or reset) the reCAPTCHA widget whenever the register tab is shown.
-watch(
-  [authOpen, authMode],
-  ([open, mode]) => {
-    if (open && mode === 'register') {
-      void renderRecaptcha()
-    }
-  },
-  { flush: 'post' },
-)
 
 function openFacebookModal() {
   facebookOpen.value = true
@@ -523,6 +437,7 @@ onBeforeUnmount(() => {
               :disabled="forgotLoading"
               required
             />
+            <RecaptchaField ref="recaptchaField" v-model:token="recaptchaToken" :active="needsCaptcha" />
             <p v-if="forgotMessage" class="success">{{ forgotMessage }}</p>
             <p v-if="authError" class="error">{{ authError }}</p>
             <button class="button" type="submit" :disabled="forgotLoading">
@@ -606,12 +521,8 @@ onBeforeUnmount(() => {
                 required
               />
               <small class="form-help">{{ t('passwordHelp') }}</small>
-              <div v-if="recaptchaReady" ref="recaptchaEl" class="g-recaptcha-host"></div>
-              <p v-if="recaptchaReady && recaptchaLoadFailed" class="error captcha-retry">
-                {{ t('captchaLoadFailed') }}
-                <button type="button" class="link-button" @click="renderRecaptcha">{{ t('captchaRetry') }}</button>
-              </p>
             </template>
+            <RecaptchaField ref="recaptchaField" v-model:token="recaptchaToken" :active="needsCaptcha" />
             <button class="button" type="submit">{{ t('continue') }}</button>
             <p v-if="authError" class="error">{{ authError }}</p>
           </form>
@@ -1380,20 +1291,6 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-}
-
-.g-recaptcha-host {
-  display: flex;
-  justify-content: center;
-  min-height: 78px;
-  overflow: visible;
-
-  // The reCAPTCHA iframe is a fixed 304px wide; scale it down on narrow phones
-  // so it never spills out of the modal.
-  @media (max-width: 360px) {
-    transform: scale(0.86);
-    transform-origin: center top;
-  }
 }
 
 .file-picker {

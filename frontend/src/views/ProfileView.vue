@@ -9,6 +9,7 @@ import { socialNetworkLabel, socialProviderIcon } from '../utils/socialProviderI
 import { isAdminUser, parseBirthdate } from '../utils/user'
 import siteLogo from '../assets/logos/Logo2026.png'
 import LikeIcon from '../components/LikeIcon.vue'
+import RecaptchaField from '../components/RecaptchaField.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -50,6 +51,8 @@ const profileMessage = ref('')
 const profileError = ref('')
 
 const passwordForm = ref({ current_password: '', password: '', password_confirmation: '' })
+const passwordRecaptchaToken = ref('')
+const passwordRecaptchaField = ref(null)
 const passwordMessage = ref('')
 const passwordError = ref('')
 
@@ -184,11 +187,17 @@ async function changePassword() {
   passwordMessage.value = ''
   passwordError.value = ''
   try {
-    await api('/auth/password', { method: 'PUT', body: passwordForm.value })
+    await api('/auth/password', {
+      method: 'PUT',
+      body: { ...passwordForm.value, recaptcha_token: passwordRecaptchaToken.value },
+    })
     passwordMessage.value = t('passwordSaved')
     passwordForm.value = { current_password: '', password: '', password_confirmation: '' }
+    passwordRecaptchaToken.value = ''
+    passwordRecaptchaField.value?.reset()
   } catch (event) {
     passwordError.value = event.message
+    passwordRecaptchaField.value?.reset()
   }
 }
 
@@ -617,6 +626,11 @@ onMounted(() => {
             <span>{{ t('confirmNewPassword') }}</span>
             <input v-model="passwordForm.password_confirmation" type="password" minlength="8" required />
           </label>
+          <RecaptchaField
+            ref="passwordRecaptchaField"
+            v-model:token="passwordRecaptchaToken"
+            :active="activeTab === 'security'"
+          />
           <div class="form-actions">
             <button class="button" type="submit">{{ t('changePassword') }}</button>
             <p v-if="passwordMessage" class="success-line">{{ passwordMessage }}</p>

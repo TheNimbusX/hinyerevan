@@ -5,6 +5,7 @@ import { api } from '../api'
 import { useI18n } from '../i18n'
 import { getUiLanguage } from '../utils/browserTranslate'
 import { setPageMeta } from '../utils/seo'
+import RecaptchaField from '../components/RecaptchaField.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,6 +15,8 @@ const email = ref('')
 const token = ref('')
 const password = ref('')
 const passwordConfirmation = ref('')
+const recaptchaToken = ref('')
+const recaptchaField = ref(null)
 const error = ref('')
 const success = ref('')
 const loading = ref(false)
@@ -47,6 +50,7 @@ async function submit() {
         token: token.value,
         password: password.value,
         password_confirmation: passwordConfirmation.value,
+        recaptcha_token: recaptchaToken.value,
         lang: getUiLanguage(),
       },
     })
@@ -57,6 +61,7 @@ async function submit() {
     }, 1800)
   } catch (event) {
     error.value = event?.message || t('resetPasswordInvalidLink')
+    recaptchaField.value?.reset()
   } finally {
     loading.value = false
   }
@@ -84,6 +89,7 @@ async function submit() {
       <span>{{ t('confirmNewPassword') }}</span>
       <input v-model="passwordConfirmation" type="password" minlength="6" required />
     </label>
+    <RecaptchaField ref="recaptchaField" v-model:token="recaptchaToken" />
     <p v-if="error" class="error">{{ error }}</p>
     <button class="button" type="submit" :disabled="loading">
       {{ loading ? t('loading') : t('resetPasswordAction') }}
