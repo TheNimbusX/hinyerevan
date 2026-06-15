@@ -37,8 +37,8 @@ class LegacyRepairSchema extends Command
 
         $this->warn('Legacy dump is missing app columns — re-applying additive migrations…');
 
-        $this->sanitizeLegacyRows();
         $this->relaxSqlMode();
+        $this->sanitizeLegacyRows();
 
         DB::table('migrations')
             ->whereIn('migration', self::PATCH_MIGRATIONS)
@@ -114,8 +114,6 @@ class LegacyRepairSchema extends Command
             return;
         }
 
-        DB::table('photos')
-            ->where('datetime', '0000-00-00 00:00:00')
-            ->update(['datetime' => '1970-01-01 00:00:00']);
+        DB::statement("UPDATE `photos` SET `datetime` = '1970-01-01 00:00:00' WHERE `datetime` = '0000-00-00 00:00:00' OR `datetime` < '1971-01-01'");
     }
 }
