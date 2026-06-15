@@ -18,6 +18,7 @@ dist-ssr/
 
 # --- Reference material / local-only folders (not part of the app) ---
 /hin-yerevan-backup-prod/
+deploy/.hinyerevan-secrets.env
 /hin-yerevan-DEV/
 /Денису/
 /_check_dns.sh
