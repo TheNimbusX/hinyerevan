@@ -121,16 +121,18 @@ useLocalizedReady(applyLocalized)
       <button class="button" type="submit">{{ t('postComment') }}</button>
       <p v-if="error" class="error">{{ error }}</p>
     </form>
-    <PhotoCommentThread
-      :threads="comments"
-      :t="t"
-      :lang="currentLanguage"
-      :is-authenticated="isAuthenticated"
-      :is-admin="isAdmin"
-      :allow-reply="false"
-      :current-user-unique="currentUserUnique"
-      @delete="deleteComment"
-    />
+    <div class="news-comments">
+      <PhotoCommentThread
+        :threads="comments"
+        :t="t"
+        :lang="currentLanguage"
+        :is-authenticated="isAuthenticated"
+        :is-admin="isAdmin"
+        :allow-reply="false"
+        :current-user-unique="currentUserUnique"
+        @delete="deleteComment"
+      />
+    </div>
     <p v-if="commentError" class="error">{{ commentError }}</p>
   </section>
 </template>
@@ -142,5 +144,9 @@ useLocalizedReady(applyLocalized)
   max-width: min(920px, 100%);
   padding: 28px;
   line-height: 1.65;
+}
+
+.news-comments .comment-thread {
+  margin-top: 1em;
 }
 </style>
