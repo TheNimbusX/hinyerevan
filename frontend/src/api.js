@@ -234,13 +234,21 @@ export async function cachedApi(path, options = {}) {
   return localizedApi(path, options)
 }
 
+/** Bump when serve-time watermark/blur logic changes (cache-busts browser/CDN). */
+const WATERMARK_CACHE_VERSION = 7
+
 export function imageUrl(path) {
   if (!path) return ''
   if (path.startsWith('http') || path.startsWith('/demo') || path.startsWith('data:')) {
     return path
   }
 
-  return `${API_URL.replace(/\/api$/, '')}${path}`
+  let url = `${API_URL.replace(/\/api$/, '')}${path}`
+  if (/\/api\/photos\/file\/(large|original)\//.test(path)) {
+    url += `${url.includes('?') ? '&' : '?'}wm=${WATERMARK_CACHE_VERSION}`
+  }
+
+  return url
 }
 
 /** Watermarked large/original image URL with Content-Disposition download. */

@@ -190,11 +190,11 @@ async function applyLocalized({ path }) {
   }
 }
 
-function fallbackToThumb() {
-  const thumb = imageUrl(photo.value?.images?.thumb)
-  if (thumb && detailImageSrc.value !== thumb) {
-    detailImageSrc.value = thumb
-  }
+function retryDetailImage() {
+  const variant = photo.value?.images?.large || photo.value?.images?.original
+  if (!variant || detailImageSrc.value.includes('retry=')) return
+  const base = imageUrl(variant)
+  detailImageSrc.value = `${base}${base.includes('?') ? '&' : '?'}retry=1`
 }
 
 function formatCoords(lat, lng) {
@@ -461,7 +461,7 @@ watch(isAuthenticated, () => {
           :aria-label="t('openFullscreen')"
           @click="openLightbox"
         >
-          <img :src="detailImageSrc" :alt="photo.title" @error="fallbackToThumb" />
+          <img :src="detailImageSrc" :alt="photo.title" @error="retryDetailImage" />
           <span class="photo-detail-expand" aria-hidden="true">
             <svg viewBox="0 0 24 24" width="20" height="20">
               <path

@@ -60,7 +60,7 @@ class LegacyPhotoStorage
         $cacheDir = storage_path('app/watermarked');
         File::ensureDirectoryExists($cacheDir);
 
-        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|blur-v6');
+        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|blur-v7');
         $cachePath = $cacheDir . DIRECTORY_SEPARATOR . $key;
 
         if (is_file($cachePath) && filesize($cachePath) > 0) {
