@@ -2,10 +2,14 @@
 
 // Shared masonry grid used in PhotosView and UserProfileView.
 .photo-grid {
-  column-count: 3;
+  column-count: 4;
   column-gap: 16px;
   margin-top: 10px;
   margin-bottom: 20px;
+
+  @include mq-down(1100px) {
+    column-count: 3;
+  }
 
   @include mq-down($bp-md) {
     column-count: 2;

@@ -325,7 +325,6 @@ watch(() => route.params.unique, () => load())
   color: inherit;
   text-decoration: none;
   box-shadow: $shadow-sm;
-  @include hover-lift(-3px, 0 16px 30px rgba(20, 45, 110, 0.22));
 
   &:focus-visible {
     outline: 2px solid rgba($primary, 0.45);
@@ -335,13 +334,9 @@ watch(() => route.params.unique, () => load())
   img {
     display: block;
     width: 100%;
-    height: 180px;
-    object-fit: cover;
-    @include interactive((transform));
-  }
-
-  &:hover img {
-    transform: scale(1.06);
+    height: auto;
+    object-fit: contain;
+    background: $surface-soft;
   }
 }
 

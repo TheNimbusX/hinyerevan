@@ -1506,8 +1506,8 @@ onBeforeUnmount(() => {
       .rating-skeleton-block--thumb {
         width: 100%;
         height: auto;
-        aspect-ratio: 4 / 3;
         border-radius: 2px;
+        object-fit: contain;
       }
 
       strong,
@@ -1558,9 +1558,9 @@ onBeforeUnmount(() => {
   img {
     display: block;
     width: 100%;
-    aspect-ratio: 16 / 9;
+    height: auto;
     border-radius: 2px;
-    object-fit: cover;
+    object-fit: contain;
     background: $surface-soft;
   }
 
@@ -1600,7 +1600,7 @@ onBeforeUnmount(() => {
     width: 40px;
     height: 34px;
     border-radius: $radius-xs + 2;
-    object-fit: cover;
+    object-fit: contain;
     background: $primary-light;
   }
 

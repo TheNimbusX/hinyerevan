@@ -1041,7 +1041,6 @@ onMounted(() => {
   text-decoration: none;
   color: inherit;
   box-shadow: $shadow-sm;
-  @include hover-lift(-3px, 0 14px 30px rgba(20, 45, 110, 0.2));
 
   &:focus-visible {
     outline: 2px solid rgba($primary, 0.45);
@@ -1051,13 +1050,9 @@ onMounted(() => {
   img {
     display: block;
     width: 100%;
-    height: 130px;
-    object-fit: cover;
-    @include interactive((transform));
-  }
-
-  &:hover img {
-    transform: scale(1.04);
+    height: auto;
+    object-fit: contain;
+    background: $surface-soft;
   }
 
   strong {

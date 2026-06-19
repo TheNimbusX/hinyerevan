@@ -721,23 +721,18 @@ watch(isAuthenticated, () => {
   border-radius: 2px;
   overflow: hidden;
   background: $surface-soft;
-  cursor: zoom-in;
-  @include interactive((transform, box-shadow));
+  cursor: pointer;
+  @include interactive((box-shadow));
 
   img {
     width: 100%;
     max-height: 640px;
     object-fit: contain;
     background: $surface-soft;
-    @include interactive((transform));
 
     @include mq-down($bp-sm) {
       max-height: min(56vh, 420px);
     }
-  }
-
-  &:hover img {
-    transform: scale(1.02);
   }
 
   &:hover .photo-detail-expand {
@@ -1127,7 +1122,6 @@ watch(isAuthenticated, () => {
   color: inherit;
   text-decoration: none;
   box-shadow: $shadow-sm;
-  @include hover-lift(-3px, 0 16px 30px rgba(20, 45, 110, 0.2));
 
   &:focus-visible {
     outline: 2px solid rgba($primary, 0.45);
@@ -1137,13 +1131,9 @@ watch(isAuthenticated, () => {
   img {
     display: block;
     width: 100%;
-    height: 140px;
-    object-fit: cover;
-    @include interactive((transform));
-  }
-
-  &:hover img {
-    transform: scale(1.05);
+    height: auto;
+    object-fit: contain;
+    background: $surface-soft;
   }
 
   strong {
@@ -1259,7 +1249,7 @@ watch(isAuthenticated, () => {
   padding: 32px;
   background: rgba(8, 11, 18, 0.92);
   backdrop-filter: blur(8px);
-  cursor: zoom-out;
+  cursor: default;
 
   @include mq-down($bp-sm) {
     padding: 14px;

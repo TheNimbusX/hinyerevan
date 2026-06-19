@@ -347,14 +347,14 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <section v-if="loading" class="photo-grid masonry-grid">
+  <section v-if="loading" class="photo-grid">
     <article v-for="item in skeletonItems" :key="item" class="photo-card photo-skeleton">
       <span></span>
       <strong></strong>
       <small></small>
     </article>
   </section>
-  <section v-else class="photo-grid masonry-grid">
+  <section v-else class="photo-grid">
     <RouterLink v-for="photo in photos" :key="photo.id" class="photo-card" :to="`/photos/${photo.id}`">
       <img :src="imageUrl(photo.images.large || photo.images.thumb)" :alt="photo.title" loading="lazy" />
       <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
@@ -761,7 +761,6 @@ onBeforeUnmount(() => {
   color: inherit;
   text-decoration: none;
   box-shadow: $shadow-lg;
-  @include hover-lift(-3px, 0 18px 36px rgba($primary, 0.18));
 
   &:focus-visible {
     outline: 2px solid rgba($primary, 0.45);
@@ -769,9 +768,10 @@ onBeforeUnmount(() => {
   }
 
   img {
+    display: block;
     width: 100%;
-    aspect-ratio: 1;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
     border-radius: $radius-md - 1;
     background: $surface-soft;
   }
@@ -824,21 +824,6 @@ onBeforeUnmount(() => {
   gap: 4px;
   color: #2374e1;
   font-weight: 600;
-}
-
-.masonry-grid {
-  .photo-card:nth-child(8n + 2) img,
-  .photo-card:nth-child(8n + 7) img {
-    aspect-ratio: 4 / 5;
-  }
-
-  .photo-card:nth-child(9n + 4) img {
-    aspect-ratio: 16 / 10;
-  }
-
-  .photo-card:nth-child(10n + 6) img {
-    aspect-ratio: 3 / 4;
-  }
 }
 
 .photo-skeleton {

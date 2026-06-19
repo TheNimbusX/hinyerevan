@@ -165,26 +165,19 @@ onMounted(loadRandom)
     box-shadow 0.25s ease;
 
   &:not(.is-skeleton):hover {
-    transform: translateY(-3px);
     box-shadow: $shadow-xl;
-
-    .random-stage img {
-      transform: scale(1.03);
-    }
   }
 }
 
 .random-stage {
   position: relative;
-  aspect-ratio: 16 / 10;
   background: $primary-light;
-  overflow: hidden;
 
   img {
+    display: block;
     width: 100%;
-    height: 100%;
-    object-fit: cover;
-    transition: transform 0.4s ease;
+    height: auto;
+    object-fit: contain;
   }
 }
 
