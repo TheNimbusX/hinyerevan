@@ -11,12 +11,17 @@ let directionIcons = {}
 /** @type {Map<number, L.DivIcon>} */
 const clusterIcons = new Map()
 
-function svgDataUri(direction) {
+/** @type {Record<number, L.Icon>} */
+let activeDirectionIcons = {}
+
+const ACTIVE_PIN_FILL = '#e53935'
+
+function svgDataUri(direction, options = {}) {
   // Image-based icons (vs inline-SVG divIcons) let the browser decode each of
   // the 9 direction pins once and reuse them — dramatically cheaper than
   // parsing thousands of inline SVG nodes when the cluster expands on zoom.
   // A standalone SVG used as an <img> source must carry the xmlns attribute.
-  const svg = directionMarkerSvg(direction, PIN_SIZE).replace(
+  const svg = directionMarkerSvg(direction, PIN_SIZE, options).replace(
     '<svg ',
     '<svg xmlns="http://www.w3.org/2000/svg" ',
   )
@@ -41,6 +46,22 @@ export function getDirectionIcon(direction) {
   const key = Number(direction)
   if (Number.isFinite(key) && directionIcons[key]) return directionIcons[key]
   return directionIcons[1]
+}
+
+export function getActiveDirectionIcon(direction) {
+  if (!activeDirectionIcons[1]) {
+    for (const dir of DIRECTIONS) {
+      activeDirectionIcons[dir] = L.icon({
+        className: 'camera-direction-icon camera-direction-icon--active',
+        iconUrl: svgDataUri(dir, { fill: ACTIVE_PIN_FILL, centerFill: ACTIVE_PIN_FILL }),
+        iconSize: [PIN_SIZE, PIN_SIZE],
+        iconAnchor: [PIN_ANCHOR, PIN_ANCHOR],
+      })
+    }
+  }
+  const key = Number(direction)
+  if (Number.isFinite(key) && activeDirectionIcons[key]) return activeDirectionIcons[key]
+  return activeDirectionIcons[1]
 }
 
 export function getClusterIcon(count) {

@@ -12,10 +12,9 @@ import {
   applyMapTileLayer,
   getMapTileLayer,
   MAP_CLUSTER_MAX_ZOOM,
-  MAP_MAX_ZOOM,
   MAP_MIN_ZOOM,
 } from '../utils/mapTiles'
-import { createClusterIconFactory, getDirectionIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
+import { createClusterIconFactory, getActiveDirectionIcon, getDirectionIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import { setupLeaflet } from '../utils/leafletSetup'
 import { directionLabel, formatDateTime } from '../utils/locale'
 
@@ -36,7 +35,11 @@ const mapLoading = ref(true)
 let map
 let tileLayer
 let markerLayer
+let activeMarker
 let loadingFallbackTimer
+
+const MINI_MAP_DEFAULT_ZOOM = 15
+const MINI_MAP_MAX_ZOOM = 19
 
 function clusterRadiusForZoom(zoom) {
   if (zoom >= 19) return 26
@@ -97,10 +100,10 @@ function onMapPreviewClick(event) {
 }
 
 function createLeafletMarker(data) {
-  const isActive = Number(data.id) === Number(props.photoId)
+  if (Number(data.id) === Number(props.photoId)) return null
+
   const layer = L.marker([data.lat, data.lng], {
     icon: getDirectionIcon(data.direction),
-    zIndexOffset: isActive ? 500 : 0,
   })
 
   layer.on('click', () => {
@@ -132,8 +135,35 @@ function rebuildMarkers() {
   markerLayer.clearLayers()
 
   for (const data of markers.value) {
-    markerLayer.addLayer(createLeafletMarker(data))
+    const layer = createLeafletMarker(data)
+    if (layer) markerLayer.addLayer(layer)
   }
+
+  syncActiveMarker()
+}
+
+function syncActiveMarker() {
+  const position = photoPosition()
+  if (!position || !map) return
+
+  if (activeMarker) {
+    activeMarker.setLatLng(position)
+    activeMarker.setIcon(getActiveDirectionIcon(props.direction))
+    return
+  }
+
+  activeMarker = L.marker(position, {
+    icon: getActiveDirectionIcon(props.direction),
+    zIndexOffset: 1000,
+    interactive: false,
+  }).addTo(map)
+}
+
+function centerOnPhoto() {
+  const position = photoPosition()
+  if (!position || !map) return
+
+  map.setView(position, map.getZoom(), { animate: false })
 }
 
 function photoPosition() {
@@ -162,16 +192,18 @@ function initMap() {
 
   map = L.map(mapElement.value, {
     center: position,
-    zoom: 15,
+    zoom: MINI_MAP_DEFAULT_ZOOM,
     minZoom: MAP_MIN_ZOOM,
-    maxZoom: MAP_MAX_ZOOM,
+    maxZoom: MINI_MAP_MAX_ZOOM,
     zoomControl: true,
     scrollWheelZoom: true,
-    dragging: true,
+    dragging: false,
     doubleClickZoom: true,
     attributionControl: false,
     crs: layer.crs,
   })
+
+  map.on('zoomend', centerOnPhoto)
 
   markerLayer = L.markerClusterGroup({
     showCoverageOnHover: false,
@@ -192,6 +224,7 @@ function initMap() {
   mapElement.value.addEventListener('click', onMapPreviewClick)
 
   if (markers.value.length) rebuildMarkers()
+  else syncActiveMarker()
 
   tileLayer.once('load', finishMapLoading)
   loadingFallbackTimer = window.setTimeout(finishMapLoading, 1400)
@@ -206,13 +239,17 @@ function focusPhoto() {
   const position = photoPosition()
   if (!position || !map) return
 
-  map.setView(position, Math.max(map.getZoom(), 15), { animate: false })
+  map.setView(position, Math.max(map.getZoom(), MINI_MAP_DEFAULT_ZOOM), { animate: false })
   rebuildMarkers()
 }
 
 function destroyMap() {
   window.clearTimeout(loadingFallbackTimer)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
+  if (map) {
+    map.off('zoomend', centerOnPhoto)
+  }
+  activeMarker = null
   map?.remove()
   map = null
   tileLayer = null
