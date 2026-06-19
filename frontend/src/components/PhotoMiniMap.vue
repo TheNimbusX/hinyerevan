@@ -174,8 +174,19 @@ function photoPosition() {
 }
 
 function finishMapLoading() {
+  if (!mapLoading.value) return
+
   window.clearTimeout(loadingFallbackTimer)
   mapLoading.value = false
+
+  requestAnimationFrame(() => {
+    map?.invalidateSize()
+    tileLayer?.redraw()
+  })
+  window.setTimeout(() => {
+    map?.invalidateSize()
+    tileLayer?.redraw()
+  }, 120)
 }
 
 function initMap() {
@@ -205,6 +216,8 @@ function initMap() {
 
   map.on('zoomend', centerOnPhoto)
 
+  tileLayer = L.tileLayer(layer.url, layer.options).addTo(map)
+
   markerLayer = L.markerClusterGroup({
     showCoverageOnHover: false,
     spiderfyOnMaxZoom: true,
@@ -220,7 +233,6 @@ function initMap() {
     iconCreateFunction: createClusterIconFactory(),
   }).addTo(map)
 
-  tileLayer = L.tileLayer(layer.url, layer.options).addTo(map)
   mapElement.value.addEventListener('click', onMapPreviewClick)
 
   if (markers.value.length) rebuildMarkers()
@@ -231,7 +243,10 @@ function initMap() {
 
   map.whenReady(() => {
     map.invalidateSize()
-    setTimeout(() => map?.invalidateSize(), 150)
+    window.setTimeout(() => {
+      map?.invalidateSize()
+      tileLayer?.redraw()
+    }, 150)
   })
 }
 
@@ -290,7 +305,10 @@ watch(() => [props.photoId, props.lat, props.lng, props.direction], () => {
 watch([theme, currentLanguage], () => {
   if (!map) return
   tileLayer = applyMapTileLayer(map, tileLayer, 'google', theme.value, currentLanguage.value)
-  requestAnimationFrame(() => map?.invalidateSize())
+  requestAnimationFrame(() => {
+    map?.invalidateSize()
+    tileLayer?.redraw()
+  })
 })
 </script>
 
@@ -304,7 +322,6 @@ watch([theme, currentLanguage], () => {
     <div
       ref="mapElement"
       class="photo-mini-map"
-      :class="{ 'is-loading': mapLoading }"
     />
   </div>
 </template>
@@ -336,13 +353,8 @@ watch([theme, currentLanguage], () => {
   border-radius: $radius-xl - 4;
   overflow: hidden;
   background: #e8eef5;
-  opacity: 1;
-  transition: opacity 0.2s ease;
 
-  &.is-loading {
-    opacity: 0;
-  }
-
+  &.leaflet-container,
   .leaflet-container {
     width: 100%;
     height: 100%;
