@@ -1460,7 +1460,7 @@ onBeforeUnmount(() => {
     cursor: pointer;
 
     &:hover {
-      color: $text;
+      color: $ink;
     }
   }
 
