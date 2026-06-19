@@ -14,8 +14,10 @@ const YANDEX_LANG = {
   en: 'en_US',
 }
 
-/** Leaflet zoom ceiling for marker clustering (homepage map has no min/max zoom cap). */
-export const MAP_CLUSTER_MAX_ZOOM = 22
+/** Leaflet zoom bounds for the homepage map (wide range; tiles upscale past native resolution). */
+export const MAP_MIN_ZOOM = 0
+export const MAP_MAX_ZOOM = 22
+export const MAP_CLUSTER_MAX_ZOOM = MAP_MAX_ZOOM
 
 /** Night-style palette for Google raster tiles (undocumented `apistyle` param). */
 const GOOGLE_DARK_APISTYLE = [
@@ -70,6 +72,8 @@ function yandexTileUrl(layerCode, lang, extra = '') {
 
 function baseTileOptions(extra = {}) {
   return {
+    minZoom: MAP_MIN_ZOOM,
+    maxZoom: MAP_MAX_ZOOM,
     updateWhenZooming: false,
     updateWhenIdle: true,
     keepBuffer: 2,
@@ -126,10 +130,6 @@ export function getMapTileLayer(provider, theme, siteLang, type = 'scheme') {
 }
 
 /**
- * Attach or replace a tile layer on an existing Leaflet map.
- * @returns {import('leaflet').TileLayer}
- */
-/**
  * Lightweight tiles for photo detail / upload previews (no Google dependency).
  * @param {'light'|'dark'} theme
  */
@@ -141,13 +141,10 @@ export function getMiniMapTileLayer(theme) {
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
       : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
     crs: L.CRS.EPSG3857,
-    options: {
+    options: baseTileOptions({
       attribution: '© OpenStreetMap © CARTO',
       subdomains: 'abcd',
-      updateWhenZooming: false,
-      updateWhenIdle: true,
-      keepBuffer: 2,
-    },
+    }),
   }
 }
 

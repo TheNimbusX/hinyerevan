@@ -35,11 +35,15 @@ const mediaOptions = [
 const loading = ref(false)
 const loadingMore = ref(false)
 const sentinel = ref(null)
+const imageReady = ref({})
 let observer
 let authorTimer
 const { t, currentLanguage } = useI18n()
 const photosPublishedCount = ref(null)
 const skeletonItems = Array.from({ length: 12 }, (_, index) => index)
+const moreSkeletonItems = Array.from({ length: 8 }, (_, index) => index)
+
+const initialLoading = computed(() => loading.value && photos.value.length === 0)
 
 const pageTitle = computed(() => {
   if (photosPublishedCount.value == null) return t('photos')
@@ -73,6 +77,15 @@ const activeFilterCount = computed(() => {
   return count
 })
 
+function resetImageReady() {
+  imageReady.value = {}
+}
+
+function markImageReady(id) {
+  if (imageReady.value[id]) return
+  imageReady.value = { ...imageReady.value, [id]: true }
+}
+
 async function load(page = 1, append = false, { soft = false } = {}) {
   if (loading.value || loadingMore.value) return
 
@@ -104,6 +117,7 @@ async function load(page = 1, append = false, { soft = false } = {}) {
 function applyFilters() {
   photos.value = []
   meta.value = null
+  resetImageReady()
   load()
 }
 
@@ -194,7 +208,7 @@ onMounted(() => {
     if (entries.some((entry) => entry.isIntersecting)) {
       loadMore()
     }
-  })
+  }, { rootMargin: '280px 0px' })
   if (sentinel.value) {
     observer.observe(sentinel.value)
   }
@@ -347,39 +361,64 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <section v-if="loading" class="photo-grid">
-    <article v-for="item in skeletonItems" :key="item" class="photo-card photo-skeleton">
-      <span></span>
-      <strong></strong>
-      <small></small>
-    </article>
-  </section>
-  <section v-else class="photo-grid">
-    <RouterLink v-for="photo in photos" :key="photo.id" class="photo-card" :to="`/photos/${photo.id}`">
-      <img :src="imageUrl(photo.images.large || photo.images.thumb)" :alt="photo.title" loading="lazy" />
-      <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
-      </span>
-      <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
-        <WinterBadgeIcon size="sm" />
-      </span>
-      <span class="photo-year">{{ photo.year }}</span>
-      <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
-      <h3>{{ photo.title }}</h3>
-      <small>{{ directionLabel(photo.direction, t) }}</small>
-      <div class="photo-card-meta">
-        <span class="like-pill">
-          <LikeIcon />{{ photoDisplayLikes(photo) }}
+  <section class="photo-grid">
+    <template v-if="initialLoading">
+      <article v-for="item in skeletonItems" :key="`skeleton-${item}`" class="photo-card photo-skeleton" aria-hidden="true">
+        <span></span>
+        <strong></strong>
+        <small></small>
+      </article>
+    </template>
+
+    <template v-else>
+      <RouterLink v-for="photo in photos" :key="photo.id" class="photo-card" :to="`/photos/${photo.id}`">
+        <div class="photo-card__media" :class="{ 'is-loading': !imageReady[photo.id] }">
+          <span class="photo-card__media-shimmer" aria-hidden="true"></span>
+          <img
+            :src="imageUrl(photo.images.large || photo.images.thumb)"
+            :alt="photo.title"
+            loading="lazy"
+            decoding="async"
+            @load="markImageReady(photo.id)"
+            @error="markImageReady(photo.id)"
+          />
+        </div>
+        <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
         </span>
-        <span>{{ photo.views }} {{ t('views') }}</span>
-        <span>{{ photo.comments_count }} {{ t('comments') }}</span>
-      </div>
-    </RouterLink>
+        <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
+          <WinterBadgeIcon size="sm" />
+        </span>
+        <span class="photo-year">{{ photo.year }}</span>
+        <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
+        <h3>{{ photo.title }}</h3>
+        <small>{{ directionLabel(photo.direction, t) }}</small>
+        <div class="photo-card-meta">
+          <span class="like-pill">
+            <LikeIcon />{{ photoDisplayLikes(photo) }}
+          </span>
+          <span>{{ photo.views }} {{ t('views') }}</span>
+          <span>{{ photo.comments_count }} {{ t('comments') }}</span>
+        </div>
+      </RouterLink>
+
+      <article
+        v-if="loadingMore"
+        v-for="item in moreSkeletonItems"
+        :key="`more-${item}`"
+        class="photo-card photo-skeleton"
+        aria-hidden="true"
+      >
+        <span></span>
+        <strong></strong>
+        <small></small>
+      </article>
+    </template>
   </section>
 
   <div ref="sentinel" class="load-sentinel">
-    <span v-if="loadingMore">{{ t('loading') }}</span>
-    <span v-else-if="meta && meta.current_page >= meta.last_page">{{ t('allPhotosLoaded') }}</span>
+    <span v-if="loadingMore" class="load-sentinel__label">{{ t('loading') }}</span>
+    <span v-else-if="meta && meta.current_page >= meta.last_page && photos.length">{{ t('allPhotosLoaded') }}</span>
   </div>
 </template>
 
@@ -751,10 +790,9 @@ onBeforeUnmount(() => {
 
 .photo-card {
   position: relative;
-  display: inline-block;
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  break-inside: avoid;
-  margin: 0 0 16px;
   padding: 10px;
   border-radius: $radius-lg;
   background: $surface;
@@ -767,13 +805,38 @@ onBeforeUnmount(() => {
     outline-offset: 3px;
   }
 
-  img {
-    display: block;
-    width: 100%;
-    height: auto;
-    object-fit: contain;
+  &__media {
+    position: relative;
+    overflow: hidden;
     border-radius: $radius-md - 1;
     background: $surface-soft;
+    min-height: 180px;
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      border-radius: $radius-md - 1;
+      background: $surface-soft;
+      transition: opacity 0.2s ease;
+    }
+
+    &.is-loading img {
+      opacity: 0;
+    }
+  }
+
+  &__media-shimmer {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background:
+      linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent),
+      #e9effb;
+    background-size: 220px 100%, 100% 100%;
+    animation: skeleton-shimmer 1.1s infinite linear;
+    pointer-events: none;
   }
 
   h3 {
@@ -827,7 +890,8 @@ onBeforeUnmount(() => {
 }
 
 .photo-skeleton {
-  min-height: 260px;
+  min-height: 300px;
+  pointer-events: none;
   background:
     linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent),
     #e9effb;
@@ -843,7 +907,7 @@ onBeforeUnmount(() => {
   }
 
   span {
-    height: 180px;
+    height: 200px;
     border-radius: $radius-md - 1;
   }
 
@@ -857,6 +921,11 @@ onBeforeUnmount(() => {
     height: 14px;
     margin-top: 10px;
   }
+}
+
+.load-sentinel__label {
+  display: inline-block;
+  min-width: 6rem;
 }
 
 [data-theme='dark'] {
@@ -945,7 +1014,8 @@ onBeforeUnmount(() => {
     box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
   }
 
-  .photo-skeleton {
+  .photo-skeleton,
+  .photo-card__media-shimmer {
     background:
       linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent),
       #1c212c;

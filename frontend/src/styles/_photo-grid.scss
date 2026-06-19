@@ -1,24 +1,25 @@
 @use './tokens' as *;
 
-// Shared masonry grid used in PhotosView and UserProfileView.
+// Shared photo grid used in PhotosView (row flow — stable when paginating).
 .photo-grid {
-  column-count: 4;
-  column-gap: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
   margin-top: 10px;
   margin-bottom: 20px;
 
   @include mq-down(1100px) {
-    column-count: 3;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   @include mq-down($bp-md) {
-    column-count: 2;
-    column-gap: 12px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
     padding-inline: 0;
   }
 
   @include mq-down(420px) {
-    column-count: 1;
+    grid-template-columns: minmax(0, 1fr);
     padding-inline: 0;
   }
 }

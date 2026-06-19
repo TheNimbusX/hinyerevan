@@ -12,7 +12,7 @@ import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
-import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
+import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
 import { createClusterIconFactory, getDirectionIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import googleLogo from '../assets/logos/google-logo.svg'
@@ -391,6 +391,8 @@ function initMap() {
   map = L.map(mapElement.value, {
     center: DEFAULT_CENTER,
     zoom: DEFAULT_ZOOM,
+    minZoom: MAP_MIN_ZOOM,
+    maxZoom: MAP_MAX_ZOOM,
     zoomControl: true,
     scrollWheelZoom: true,
     crs: layer.crs,
