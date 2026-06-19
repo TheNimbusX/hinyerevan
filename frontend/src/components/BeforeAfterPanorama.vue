@@ -17,6 +17,7 @@ const GOOGLE_KEY = import.meta.env.VITE_GOOGLE_MAPS_KEY || ''
 const STORAGE_KEY = 'ba-panorama-provider'
 
 const status = ref('idle') // idle | loading | ready | none | error
+const sectionOpen = ref(true)
 const pos = ref(50)
 const dragging = ref(false)
 const paneEl = ref(null)
@@ -288,11 +289,16 @@ function startDrag(event) {
   event.preventDefault()
 }
 
-function collapse() {
+function closeSection() {
   endDrag()
   destroyPanorama()
   status.value = 'idle'
   pos.value = 50
+  sectionOpen.value = false
+}
+
+function openSection() {
+  sectionOpen.value = true
 }
 
 function nudge(step) {
@@ -306,7 +312,22 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section v-if="hasCoords" class="panel before-after">
+  <div v-if="hasCoords" class="before-after-wrap">
+    <button v-if="!sectionOpen" type="button" class="ba-open" @click="openSection">
+      <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+        <path
+          d="M3 12h7M14 12h7M10 5l-7 7 7 7M14 5l7 7-7 7"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        />
+      </svg>
+      <span>{{ t('beforeAfterCta') }}</span>
+    </button>
+
+    <section v-else class="panel before-after">
     <header class="before-after__head">
       <div class="before-after__title-row">
         <div>
@@ -337,11 +358,10 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <button
-            v-if="status === 'ready'"
             type="button"
             class="ba-close"
             :aria-label="t('beforeAfterClose')"
-            @click="collapse"
+            @click="closeSection"
           >
             {{ t('beforeAfterClose') }}
           </button>
@@ -430,10 +450,38 @@ onBeforeUnmount(() => {
     </div>
 
     <p v-show="status === 'ready'" class="before-after__hint">{{ t('beforeAfterHint') }}</p>
-  </section>
+    </section>
+  </div>
 </template>
 
 <style lang="scss">
+.before-after-wrap {
+  display: grid;
+  gap: 0;
+}
+
+.ba-open {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  padding: 10px 18px;
+  border: 1px solid rgba($primary, 0.12);
+  border-radius: $radius-pill;
+  background: $surface;
+  color: $primary-dark;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: $shadow-md;
+  @include interactive((background, border-color, transform));
+  @include focus-ring(rgba($primary, 0.45), 2px);
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+}
+
 .before-after {
   display: grid;
   gap: 14px;

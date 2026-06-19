@@ -82,8 +82,18 @@ function resetImageReady() {
 }
 
 function markImageReady(id) {
-  if (imageReady.value[id]) return
+  if (!id || imageReady.value[id]) return
   imageReady.value = { ...imageReady.value, [id]: true }
+}
+
+function bindPhotoImage(el, id) {
+  if (!el || !id) return
+  const mark = () => markImageReady(id)
+  el.addEventListener('load', mark, { once: true })
+  el.addEventListener('error', mark, { once: true })
+  if (el.complete) {
+    mark()
+  }
 }
 
 async function load(page = 1, append = false, { soft = false } = {}) {
@@ -375,22 +385,21 @@ onBeforeUnmount(() => {
         <div class="photo-card__media" :class="{ 'is-loading': !imageReady[photo.id] }">
           <span class="photo-card__media-shimmer" aria-hidden="true"></span>
           <img
+            :ref="(el) => bindPhotoImage(el, photo.id)"
             :src="imageUrl(photo.images.large || photo.images.thumb)"
             :alt="photo.title"
             loading="lazy"
             decoding="async"
-            @load="markImageReady(photo.id)"
-            @error="markImageReady(photo.id)"
           />
+          <span class="photo-year">{{ photo.year }}</span>
+          <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+          </span>
+          <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
+            <WinterBadgeIcon size="sm" />
+          </span>
+          <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
         </div>
-        <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
-        </span>
-        <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
-          <WinterBadgeIcon size="sm" />
-        </span>
-        <span class="photo-year">{{ photo.year }}</span>
-        <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
         <h3>{{ photo.title }}</h3>
         <small>{{ directionLabel(photo.direction, t) }}</small>
         <div class="photo-card-meta">
@@ -754,29 +763,11 @@ onBeforeUnmount(() => {
   font-size: 11px;
 }
 
-.photo-video-badge {
-  position: absolute;
-  top: 16px;
-  left: 16px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  color: #fff;
-  background: rgba(0, 0, 0, 0.58);
-  backdrop-filter: blur(2px);
-
-  svg {
-    margin-left: 1px;
-  }
-}
-
 .photo-winter-badge {
   position: absolute;
-  top: 16px;
-  left: 50px;
+  top: 12px;
+  left: 52px;
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -819,17 +810,24 @@ onBeforeUnmount(() => {
       object-fit: contain;
       border-radius: $radius-md - 1;
       background: $surface-soft;
-      transition: opacity 0.2s ease;
     }
 
-    &.is-loading img {
-      opacity: 0;
+    &.is-loading .photo-card__media-shimmer {
+      opacity: 1;
+    }
+
+    .direction-marker {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 2;
     }
   }
 
   &__media-shimmer {
     position: absolute;
     inset: 0;
+    z-index: 1;
     border-radius: inherit;
     background:
       linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent),
@@ -837,6 +835,8 @@ onBeforeUnmount(() => {
     background-size: 220px 100%, 100% 100%;
     animation: skeleton-shimmer 1.1s infinite linear;
     pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
   }
 
   h3 {
@@ -851,23 +851,42 @@ onBeforeUnmount(() => {
     font-size: 11px;
     font-weight: 400;
   }
-
-  .direction-marker {
-    position: absolute;
-    top: 16px;
-    right: 16px;
-  }
 }
 
 .photo-year {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
   display: inline-flex;
-  margin-top: 10px;
-  padding: 4px 10px;
+  padding: 3px 9px;
   border-radius: $radius-pill;
   color: #fff;
-  background: $accent;
-  font-size: 12px;
+  background: rgba($accent, 0.92);
+  font-size: 11px;
   font-weight: 600;
+  line-height: 1.2;
+  backdrop-filter: blur(4px);
+}
+
+.photo-video-badge {
+  position: absolute;
+  top: 12px;
+  left: 52px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(2px);
+
+  svg {
+    margin-left: 1px;
+  }
 }
 
 .photo-card-meta {
