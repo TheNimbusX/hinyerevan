@@ -10,7 +10,7 @@ import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
 import WinterBadgeIcon from '../components/WinterBadgeIcon.vue'
 
-const photos = ref([])
+const photoPages = ref([])
 const meta = ref(null)
 const filters = ref({
   search: '',
@@ -43,7 +43,9 @@ const photosPublishedCount = ref(null)
 const skeletonItems = Array.from({ length: 12 }, (_, index) => index)
 const moreSkeletonItems = Array.from({ length: 8 }, (_, index) => index)
 
-const initialLoading = computed(() => loading.value && photos.value.length === 0)
+const photos = computed(() => photoPages.value.flatMap((page) => page.items))
+
+const initialLoading = computed(() => loading.value && photoPages.value.length === 0)
 
 const pageTitle = computed(() => {
   if (photosPublishedCount.value == null) return t('photos')
@@ -116,7 +118,11 @@ async function load(page = 1, append = false, { soft = false } = {}) {
       }
     })
     const payload = await localizedApi(`/photos?${params}`)
-    photos.value = append ? [...photos.value, ...payload.data] : payload.data
+    if (append) {
+      photoPages.value = [...photoPages.value, { id: page, items: payload.data }]
+    } else {
+      photoPages.value = [{ id: page, items: payload.data }]
+    }
     meta.value = payload
   } finally {
     loading.value = false
@@ -125,7 +131,7 @@ async function load(page = 1, append = false, { soft = false } = {}) {
 }
 
 function applyFilters() {
-  photos.value = []
+  photoPages.value = []
   meta.value = null
   resetImageReady()
   load()
@@ -371,59 +377,61 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
-  <section class="photo-grid">
-    <template v-if="initialLoading">
+  <div class="photo-gallery">
+    <section v-if="initialLoading" class="photo-grid">
       <article v-for="item in skeletonItems" :key="`skeleton-${item}`" class="photo-card photo-skeleton" aria-hidden="true">
         <span></span>
         <strong></strong>
         <small></small>
       </article>
-    </template>
+    </section>
 
     <template v-else>
-      <RouterLink v-for="photo in photos" :key="photo.id" class="photo-card" :to="`/photos/${photo.id}`">
-        <div class="photo-card__media" :class="{ 'is-loading': !imageReady[photo.id] }">
-          <span class="photo-card__media-shimmer" aria-hidden="true"></span>
-          <img
-            :ref="(el) => bindPhotoImage(el, photo.id)"
-            :src="imageUrl(photo.images.large || photo.images.thumb)"
-            :alt="photo.title"
-            loading="lazy"
-            decoding="async"
-          />
-          <span class="photo-year">{{ photo.year }}</span>
-          <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
-          </span>
-          <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
-            <WinterBadgeIcon size="sm" />
-          </span>
-          <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
-        </div>
-        <h3>{{ photo.title }}</h3>
-        <small>{{ directionLabel(photo.direction, t) }}</small>
-        <div class="photo-card-meta">
-          <span class="like-pill">
-            <LikeIcon />{{ photoDisplayLikes(photo) }}
-          </span>
-          <span>{{ photo.views }} {{ t('views') }}</span>
-          <span>{{ photo.comments_count }} {{ t('comments') }}</span>
-        </div>
-      </RouterLink>
+      <section v-for="page in photoPages" :key="page.id" class="photo-grid">
+        <RouterLink v-for="photo in page.items" :key="photo.id" class="photo-card" :to="`/photos/${photo.id}`">
+          <div class="photo-card__media" :class="{ 'is-loading': !imageReady[photo.id] }">
+            <span class="photo-card__media-shimmer" aria-hidden="true"></span>
+            <img
+              :ref="(el) => bindPhotoImage(el, photo.id)"
+              :src="imageUrl(photo.images.large || photo.images.thumb)"
+              :alt="photo.title"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="photo-year">{{ photo.year }}</span>
+            <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+            </span>
+            <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
+              <WinterBadgeIcon size="sm" />
+            </span>
+            <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
+          </div>
+          <h3>{{ photo.title }}</h3>
+          <small>{{ directionLabel(photo.direction, t) }}</small>
+          <div class="photo-card-meta">
+            <span class="like-pill">
+              <LikeIcon />{{ photoDisplayLikes(photo) }}
+            </span>
+            <span>{{ photo.views }} {{ t('views') }}</span>
+            <span>{{ photo.comments_count }} {{ t('comments') }}</span>
+          </div>
+        </RouterLink>
+      </section>
 
-      <article
-        v-if="loadingMore"
-        v-for="item in moreSkeletonItems"
-        :key="`more-${item}`"
-        class="photo-card photo-skeleton"
-        aria-hidden="true"
-      >
-        <span></span>
-        <strong></strong>
-        <small></small>
-      </article>
+      <section v-if="loadingMore" class="photo-grid" aria-hidden="true">
+        <article
+          v-for="item in moreSkeletonItems"
+          :key="`more-${item}`"
+          class="photo-card photo-skeleton"
+        >
+          <span></span>
+          <strong></strong>
+          <small></small>
+        </article>
+      </section>
     </template>
-  </section>
+  </div>
 
   <div ref="sentinel" class="load-sentinel">
     <span v-if="loadingMore" class="load-sentinel__label">{{ t('loading') }}</span>
@@ -432,6 +440,11 @@ onBeforeUnmount(() => {
 </template>
 
 <style lang="scss">
+.photo-gallery {
+  display: flex;
+  flex-direction: column;
+}
+
 .gallery-toolbar {
   display: grid;
   gap: 0;

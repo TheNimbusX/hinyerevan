@@ -1,11 +1,19 @@
 @use './tokens' as *;
 
-// Masonry-style gallery: natural photo proportions, no crop.
+// Masonry per API page — older pages never reflow when paginating.
 .photo-grid {
   column-count: 4;
   column-gap: 14px;
-  margin-top: 10px;
-  margin-bottom: 20px;
+  margin-top: 0;
+  margin-bottom: 14px;
+
+  &:first-child {
+    margin-top: 10px;
+  }
+
+  &:last-child {
+    margin-bottom: 20px;
+  }
 
   @include mq-down(1100px) {
     column-count: 3;
