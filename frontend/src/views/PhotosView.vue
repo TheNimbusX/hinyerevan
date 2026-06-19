@@ -386,7 +386,7 @@ onBeforeUnmount(() => {
           <span class="photo-card__media-shimmer" aria-hidden="true"></span>
           <img
             :ref="(el) => bindPhotoImage(el, photo.id)"
-            :src="imageUrl(photo.images.thumb || photo.images.large)"
+            :src="imageUrl(photo.images.large || photo.images.thumb)"
             :alt="photo.title"
             loading="lazy"
             decoding="async"
@@ -765,10 +765,11 @@ onBeforeUnmount(() => {
 
 .photo-card {
   position: relative;
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
-  height: 100%;
-  min-width: 0;
+  width: 100%;
+  margin: 0 0 14px;
+  break-inside: avoid;
   padding: 8px;
   border-radius: $radius-lg;
   background: $surface;
@@ -785,18 +786,27 @@ onBeforeUnmount(() => {
     position: relative;
     flex: 0 0 auto;
     overflow: hidden;
-    aspect-ratio: 3 / 2;
     border-radius: $radius-md - 1;
     background: $surface-soft;
+    line-height: 0;
 
     img {
-      position: absolute;
-      inset: 0;
       display: block;
       width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: center;
+      height: auto;
+    }
+
+    &.is-loading {
+      aspect-ratio: 4 / 3;
+      min-height: 140px;
+
+      img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        opacity: 0;
+      }
     }
 
     &.is-loading .photo-card__media-shimmer {
@@ -835,7 +845,6 @@ onBeforeUnmount(() => {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
-    min-height: calc(1.3em * 2);
   }
 
   small {
@@ -906,8 +915,7 @@ onBeforeUnmount(() => {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: auto;
-  padding-top: 8px;
+  margin-top: 8px;
   color: $muted;
   font-size: 11px;
   font-weight: 500;

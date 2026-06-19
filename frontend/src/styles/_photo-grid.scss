@@ -1,26 +1,24 @@
 @use './tokens' as *;
 
-// Shared photo grid used in PhotosView (stable row flow when paginating).
+// Masonry-style gallery: natural photo proportions, no crop.
 .photo-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  align-items: stretch;
-  gap: 14px;
+  column-count: 4;
+  column-gap: 14px;
   margin-top: 10px;
   margin-bottom: 20px;
 
   @include mq-down(1100px) {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-count: 3;
   }
 
   @include mq-down($bp-md) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    column-count: 2;
+    column-gap: 10px;
     padding-inline: 0;
   }
 
   @include mq-down(420px) {
-    grid-template-columns: minmax(0, 1fr);
+    column-count: 1;
     padding-inline: 0;
   }
 }
