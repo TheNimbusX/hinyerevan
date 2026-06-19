@@ -159,13 +159,6 @@ function syncActiveMarker() {
   }).addTo(map)
 }
 
-function centerOnPhoto() {
-  const position = photoPosition()
-  if (!position || !map) return
-
-  map.setView(position, map.getZoom(), { animate: false })
-}
-
 function photoPosition() {
   const la = Number(props.lat)
   const ln = Number(props.lng)
@@ -208,13 +201,11 @@ function initMap() {
     maxZoom: MINI_MAP_MAX_ZOOM,
     zoomControl: true,
     scrollWheelZoom: true,
-    dragging: false,
+    dragging: true,
     doubleClickZoom: true,
     attributionControl: false,
     crs: layer.crs,
   })
-
-  map.on('zoomend', centerOnPhoto)
 
   tileLayer = L.tileLayer(layer.url, layer.options).addTo(map)
 
@@ -254,16 +245,13 @@ function focusPhoto() {
   const position = photoPosition()
   if (!position || !map) return
 
-  map.setView(position, Math.max(map.getZoom(), MINI_MAP_DEFAULT_ZOOM), { animate: false })
+  map.setView(position, MINI_MAP_DEFAULT_ZOOM, { animate: false })
   rebuildMarkers()
 }
 
 function destroyMap() {
   window.clearTimeout(loadingFallbackTimer)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
-  if (map) {
-    map.off('zoomend', centerOnPhoto)
-  }
   activeMarker = null
   map?.remove()
   map = null
@@ -298,7 +286,7 @@ onBeforeUnmount(() => {
   destroyMap()
 })
 
-watch(() => [props.photoId, props.lat, props.lng, props.direction], () => {
+watch(() => props.photoId, () => {
   focusPhoto()
 })
 
