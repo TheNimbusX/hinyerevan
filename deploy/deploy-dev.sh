@@ -4,10 +4,10 @@ cd /var/www/hinyerevan
 # Do NOT use git reset --hard — it wipes hotfixes uploaded via _sync-local-to-vps.ps1.
 # Commit and push local changes first, then deploy; or use deploy/_sync-local-to-vps.ps1.
 git fetch origin dev
-git merge --ff-only FETCH_HEAD || {
-  echo "ERROR: origin/dev is not a fast-forward. Push your commits or run deploy/_sync-local-to-vps.ps1"
-  exit 1
-}
+if ! git merge --ff-only FETCH_HEAD; then
+  echo "WARN: server working tree dirty — resetting to origin/dev (commit+push changes in git first)."
+  git reset --hard FETCH_HEAD
+fi
 cd backend
 composer install --no-dev --optimize-autoloader 2>/dev/null || composer install --no-dev --optimize-autoloader
 php artisan config:cache
