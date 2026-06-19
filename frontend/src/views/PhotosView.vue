@@ -386,7 +386,7 @@ onBeforeUnmount(() => {
           <span class="photo-card__media-shimmer" aria-hidden="true"></span>
           <img
             :ref="(el) => bindPhotoImage(el, photo.id)"
-            :src="imageUrl(photo.images.large || photo.images.thumb)"
+            :src="imageUrl(photo.images.thumb || photo.images.large)"
             :alt="photo.title"
             loading="lazy"
             decoding="async"
@@ -763,28 +763,13 @@ onBeforeUnmount(() => {
   font-size: 11px;
 }
 
-.photo-winter-badge {
-  position: absolute;
-  top: 12px;
-  left: 52px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  color: #2f74b8;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 3px 10px rgba(20, 24, 34, 0.14);
-}
-
 .photo-card {
   position: relative;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  padding: 10px;
+  height: 100%;
+  min-width: 0;
+  padding: 8px;
   border-radius: $radius-lg;
   background: $surface;
   color: inherit;
@@ -798,18 +783,20 @@ onBeforeUnmount(() => {
 
   &__media {
     position: relative;
+    flex: 0 0 auto;
     overflow: hidden;
+    aspect-ratio: 3 / 2;
     border-radius: $radius-md - 1;
     background: $surface-soft;
-    min-height: 180px;
 
     img {
+      position: absolute;
+      inset: 0;
       display: block;
       width: 100%;
-      height: auto;
-      object-fit: contain;
-      border-radius: $radius-md - 1;
-      background: $surface-soft;
+      height: 100%;
+      object-fit: cover;
+      object-position: center;
     }
 
     &.is-loading .photo-card__media-shimmer {
@@ -818,8 +805,8 @@ onBeforeUnmount(() => {
 
     .direction-marker {
       position: absolute;
-      top: 12px;
-      right: 12px;
+      top: 10px;
+      right: 10px;
       z-index: 2;
     }
   }
@@ -840,26 +827,32 @@ onBeforeUnmount(() => {
   }
 
   h3 {
-    margin: 10px 0 4px;
-    font-size: 14px;
+    margin: 8px 0 2px;
+    font-size: 13px;
     font-weight: 600;
-    line-height: 1.25;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    min-height: calc(1.3em * 2);
   }
 
   small {
     color: $muted;
     font-size: 11px;
     font-weight: 400;
+    @include truncate;
   }
 }
 
 .photo-year {
   position: absolute;
-  top: 12px;
-  left: 12px;
+  top: 10px;
+  left: 10px;
   z-index: 2;
   display: inline-flex;
-  padding: 3px 9px;
+  padding: 3px 8px;
   border-radius: $radius-pill;
   color: #fff;
   background: rgba($accent, 0.92);
@@ -871,8 +864,9 @@ onBeforeUnmount(() => {
 
 .photo-video-badge {
   position: absolute;
-  top: 12px;
-  left: 52px;
+  top: auto;
+  bottom: 10px;
+  left: 10px;
   z-index: 2;
   display: inline-flex;
   align-items: center;
@@ -889,14 +883,33 @@ onBeforeUnmount(() => {
   }
 }
 
+.photo-winter-badge {
+  position: absolute;
+  top: auto;
+  bottom: 10px;
+  right: 10px;
+  left: auto;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #2f74b8;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 3px 10px rgba(20, 24, 34, 0.14);
+}
+
 .photo-card-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-top: 10px;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
   color: $muted;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -909,7 +922,7 @@ onBeforeUnmount(() => {
 }
 
 .photo-skeleton {
-  min-height: 300px;
+  min-height: 0;
   pointer-events: none;
   background:
     linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent),
@@ -926,19 +939,21 @@ onBeforeUnmount(() => {
   }
 
   span {
-    height: 200px;
+    aspect-ratio: 3 / 2;
+    width: 100%;
+    height: auto;
     border-radius: $radius-md - 1;
   }
 
   strong {
-    height: 18px;
-    margin-top: 14px;
+    height: 16px;
+    margin-top: 10px;
   }
 
   small {
-    width: 60%;
-    height: 14px;
-    margin-top: 10px;
+    width: 55%;
+    height: 12px;
+    margin-top: 8px;
   }
 }
 
