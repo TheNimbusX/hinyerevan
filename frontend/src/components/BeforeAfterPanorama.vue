@@ -458,6 +458,7 @@ onBeforeUnmount(() => {
 .before-after-wrap {
   display: grid;
   gap: 0;
+  margin-bottom: 1em;
 }
 
 .ba-open {

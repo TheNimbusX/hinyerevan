@@ -372,7 +372,7 @@ const messages = {
     beforeAfterGoogle: 'Google',
     beforeAfterGoogleNoKey: 'Google Քարտեզները դեռ կարգավորված չեն',
     beforeAfterHint: 'Քաշեք բաժանարարը · համայնապատկերը կարելի է պտտել',
-    beforeAfterClose: 'Թաքցնել',
+    beforeAfterClose: 'Փակել',
     viewProfile: 'Բացել պրոֆիլը',
     byAuthor: 'Հեղինակ՝',
     photographer: 'Լուսանկարիչ',

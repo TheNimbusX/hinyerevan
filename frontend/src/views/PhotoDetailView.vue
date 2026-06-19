@@ -1,17 +1,10 @@
 <script setup>
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
+import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, clearApiCacheForPath, fullPhotoPath, getToken, imageUrl, localizedApi, photoDownloadUrl, previewPhotoPath, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
-import { useTheme } from '../composables/useTheme'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
-import { applyMapTileLayer, getMapTileLayer } from '../utils/mapTiles'
-import { getDirectionIcon } from '../utils/mapMarkerIcons'
-import { setupLeaflet } from '../utils/leafletSetup'
 import { directionLabel, formatDateTime } from '../utils/locale'
-import { buildCommentPostBody } from '../utils/commentPost'
 import { appendCommentToThreads, countComments, removeCommentById } from '../utils/commentTree'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import PhotoCommentThread from '../components/PhotoCommentThread.vue'
@@ -21,6 +14,7 @@ import LikeIcon from '../components/LikeIcon.vue'
 import YoutubeEmbed from '../components/YoutubeEmbed.vue'
 import FacebookPublishedBadge from '../components/FacebookPublishedBadge.vue'
 import BeforeAfterPanorama from '../components/BeforeAfterPanorama.vue'
+import PhotoMiniMap from '../components/PhotoMiniMap.vue'
 
 const route = useRoute()
 const photo = ref(null)
@@ -38,14 +32,16 @@ const shareNotice = ref('')
 const downloadPending = ref(false)
 const lightboxOpen = ref(false)
 const { t, currentLanguage } = useI18n()
-const { theme } = useTheme()
-const miniMapElement = ref(null)
-let miniMap
-let miniMapTileLayer
 
 const isAuthenticated = computed(() => Boolean(getToken()))
 const currentUser = inject('currentUser', ref(null))
 const currentUserUnique = computed(() => currentUser.value?.unique || '')
+
+const hasMapCoords = computed(() => {
+  const la = Number(photo.value?.lat)
+  const ln = Number(photo.value?.lng)
+  return Number.isFinite(la) && Number.isFinite(ln)
+})
 
 const photoDirectionLabel = computed(() =>
   photo.value ? directionLabel(photo.value.direction, t) : '',
@@ -127,7 +123,6 @@ async function load({ soft = false } = {}) {
     loading.value = true
     error.value = ''
     photo.value = null
-    destroyMiniMap()
   }
 
   try {
@@ -151,13 +146,6 @@ async function load({ soft = false } = {}) {
     }
   } finally {
     loading.value = false
-  }
-
-  if (photo.value) {
-    await nextTick()
-    if (!miniMap) {
-      initMiniMap()
-    }
   }
 }
 
@@ -202,43 +190,6 @@ function formatCoords(lat, lng) {
   const ln = Number(lng)
   if (!Number.isFinite(la) || !Number.isFinite(ln)) return ''
   return `${la.toFixed(6)}, ${ln.toFixed(6)}`
-}
-
-function initMiniMap() {
-  if (!photo.value || miniMap || !miniMapElement.value) return
-
-  const lat = Number(photo.value.lat)
-  const lng = Number(photo.value.lng)
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return
-
-  const position = [lat, lng]
-  const layer = getMapTileLayer('google', theme.value, currentLanguage.value)
-
-  miniMap = L.map(miniMapElement.value, {
-    center: position,
-    zoom: 15,
-    zoomControl: false,
-    dragging: false,
-    scrollWheelZoom: false,
-    doubleClickZoom: false,
-    attributionControl: false,
-    crs: layer.crs,
-  })
-
-  setupLeaflet()
-  miniMapTileLayer = L.tileLayer(layer.url, layer.options).addTo(miniMap)
-  L.marker(position, { icon: getDirectionIcon(photo.value.direction) }).addTo(miniMap)
-
-  miniMap.whenReady(() => {
-    miniMap.invalidateSize()
-    setTimeout(() => miniMap?.invalidateSize(), 150)
-  })
-}
-
-function destroyMiniMap() {
-  miniMap?.remove()
-  miniMap = null
-  miniMapTileLayer = null
 }
 
 async function toggleFavorite() {
@@ -343,7 +294,6 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  destroyMiniMap()
   document.body.style.overflow = ''
   window.removeEventListener('keydown', handleLightboxKey)
 })
@@ -355,12 +305,6 @@ watch(() => route.params.id, () => {
 
 useLanguageReload(() => load({ soft: true }))
 useLocalizedReady(applyLocalized)
-
-watch([theme, currentLanguage], () => {
-  if (!miniMap) return
-  miniMapTileLayer = applyMapTileLayer(miniMap, miniMapTileLayer, 'google', theme.value, currentLanguage.value)
-  requestAnimationFrame(() => miniMap?.invalidateSize())
-})
 
 function promptLogin() {
   window.dispatchEvent(new CustomEvent('hinyerevan:open-auth', { detail: { mode: 'login' } }))
@@ -586,7 +530,15 @@ watch(isAuthenticated, () => {
       <article class="panel">
         <h2>{{ t('location') }}</h2>
         <p class="location-coords">{{ formatCoords(photo.lat, photo.lng) }}</p>
-        <div ref="miniMapElement" class="mini-map" />
+        <PhotoMiniMap
+          v-if="hasMapCoords"
+          :key="photo.id"
+          :photo-id="photo.id"
+          :lat="photo.lat"
+          :lng="photo.lng"
+          :direction="photo.direction"
+          class="mini-map"
+        />
       </article>
     </aside>
   </section>
@@ -1066,17 +1018,6 @@ watch(isAuthenticated, () => {
 
 .mini-map {
   width: 100%;
-  min-height: 220px;
-  border-radius: $radius-xl - 4;
-  overflow: hidden;
-  background: #e8eef5;
-
-  :deep(.leaflet-container) {
-    width: 100%;
-    height: 100%;
-    min-height: 220px;
-    font-family: inherit;
-  }
 }
 
 // ---------- Related grids --------------------------------------
