@@ -31,10 +31,12 @@ const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
 const mapElement = ref(null)
 const markers = ref([])
+const mapLoading = ref(true)
 
 let map
 let tileLayer
 let markerLayer
+let loadingFallbackTimer
 
 function clusterRadiusForZoom(zoom) {
   if (zoom >= 19) return 26
@@ -141,9 +143,17 @@ function photoPosition() {
   return [la, ln]
 }
 
+function finishMapLoading() {
+  window.clearTimeout(loadingFallbackTimer)
+  mapLoading.value = false
+}
+
 function initMap() {
   const position = photoPosition()
-  if (!position || map || !mapElement.value) return
+  if (!position || map || !mapElement.value) {
+    if (!position) finishMapLoading()
+    return
+  }
 
   setupLeaflet()
   initMapMarkerIcons()
@@ -183,6 +193,9 @@ function initMap() {
 
   if (markers.value.length) rebuildMarkers()
 
+  tileLayer.once('load', finishMapLoading)
+  loadingFallbackTimer = window.setTimeout(finishMapLoading, 1400)
+
   map.whenReady(() => {
     map.invalidateSize()
     setTimeout(() => map?.invalidateSize(), 150)
@@ -198,6 +211,7 @@ function focusPhoto() {
 }
 
 function destroyMap() {
+  window.clearTimeout(loadingFallbackTimer)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
   map?.remove()
   map = null
@@ -216,9 +230,16 @@ async function loadMarkers() {
 }
 
 onMounted(async () => {
+  mapLoading.value = true
+  if (!photoPosition()) {
+    finishMapLoading()
+    return
+  }
+
   await loadMarkers()
   await nextTick()
   initMap()
+  if (!map) finishMapLoading()
 })
 
 onBeforeUnmount(() => {
@@ -237,16 +258,53 @@ watch([theme, currentLanguage], () => {
 </script>
 
 <template>
-  <div ref="mapElement" class="photo-mini-map" />
+  <div class="photo-mini-map-shell">
+    <div
+      v-show="mapLoading"
+      class="photo-mini-map-skeleton"
+      aria-hidden="true"
+    />
+    <div
+      ref="mapElement"
+      class="photo-mini-map"
+      :class="{ 'is-loading': mapLoading }"
+    />
+  </div>
 </template>
 
 <style lang="scss">
+.photo-mini-map-shell {
+  position: relative;
+  width: 100%;
+  min-height: 260px;
+}
+
+.photo-mini-map-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: $radius-xl - 4;
+  pointer-events: none;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.42), transparent),
+    #e8eef5;
+  background-size: 220px 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  animation: skeleton-shimmer 1.1s infinite linear;
+}
+
 .photo-mini-map {
   width: 100%;
   min-height: 260px;
   border-radius: $radius-xl - 4;
   overflow: hidden;
   background: #e8eef5;
+  opacity: 1;
+  transition: opacity 0.2s ease;
+
+  &.is-loading {
+    opacity: 0;
+  }
 
   .leaflet-container {
     width: 100%;
@@ -258,6 +316,20 @@ watch([theme, currentLanguage], () => {
   .leaflet-control-zoom {
     border: 0;
     box-shadow: $shadow-sm;
+  }
+}
+
+[data-theme='dark'] {
+  .photo-mini-map-skeleton {
+    background:
+      linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent),
+      #20262f;
+    background-size: 220px 100%, 100% 100%;
+    background-repeat: no-repeat, no-repeat;
+  }
+
+  .photo-mini-map {
+    background: #20262f;
   }
 }
 </style>
