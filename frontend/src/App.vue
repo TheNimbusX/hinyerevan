@@ -67,7 +67,6 @@ const registerCode = ref('')
 const registerMessage = ref('')
 const showRegisterPassword = ref(false)
 const showRegisterPasswordConfirm = ref(false)
-const photosPublishedCount = ref(null)
 const socialProviders = ref([])
 const socialRedirecting = ref(null)
 function providerIcon(id) {
@@ -75,7 +74,7 @@ function providerIcon(id) {
 }
 
 const router = useRouter()
-const { t, currentLanguage } = useI18n()
+const { t } = useI18n()
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
 const months = Array.from({ length: 12 }, (_, index) => index + 1)
 const years = Array.from({ length: 127 }, (_, index) => new Date().getFullYear() - index)
@@ -84,25 +83,6 @@ const needsCaptcha = computed(() => {
   if (authMode.value === 'login' || authMode.value === 'forgot') return true
   return authMode.value === 'register' && registerStep.value === 'form'
 })
-
-const photosNavLabel = computed(() => {
-  if (photosPublishedCount.value == null) return t('photos')
-  const locale = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' }[currentLanguage.value] || 'en-US'
-  const count = Number(photosPublishedCount.value).toLocaleString(locale)
-  return t('photosMenu', { count })
-})
-
-async function loadSiteStats() {
-  try {
-    const payload = await api('/photos/site-stats', { ttl: 10 * 60 * 1000 })
-    const count = Number(payload?.photos_published)
-    if (Number.isFinite(count) && count >= 0) {
-      photosPublishedCount.value = count
-    }
-  } catch {
-    photosPublishedCount.value = null
-  }
-}
 
 function avatarUrl(user) {
   return safeAvatarUrl(user?.photo, siteLogo)
@@ -447,7 +427,6 @@ onMounted(async () => {
     if (document.visibilityState === 'visible') resetUiOverlays()
   })
   resetUiOverlays()
-  loadSiteStats()
 })
 
 router.afterEach(() => {
@@ -478,7 +457,7 @@ onBeforeUnmount(() => {
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
             <RouterLink to="/" @click="closeMenu">{{ t('map') }}</RouterLink>
-            <RouterLink to="/photos" @click="closeMenu">{{ photosNavLabel }}</RouterLink>
+            <RouterLink to="/photos" @click="closeMenu">{{ t('photos') }}</RouterLink>
             <RouterLink to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
             <RouterLink to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
             <RouterLink to="/pages/aboutus" @click="closeMenu">{{ t('about') }}</RouterLink>

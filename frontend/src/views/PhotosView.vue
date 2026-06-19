@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { imageUrl, localizedApi } from '../api'
+import { imageUrl, localizedApi, api } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload } from '../composables/useLanguageReload'
 import { directionLabel } from '../utils/locale'
@@ -37,8 +37,16 @@ const loadingMore = ref(false)
 const sentinel = ref(null)
 let observer
 let authorTimer
-const { t } = useI18n()
+const { t, currentLanguage } = useI18n()
+const photosPublishedCount = ref(null)
 const skeletonItems = Array.from({ length: 12 }, (_, index) => index)
+
+const pageTitle = computed(() => {
+  if (photosPublishedCount.value == null) return t('photos')
+  const locale = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' }[currentLanguage.value] || 'en-US'
+  const count = Number(photosPublishedCount.value).toLocaleString(locale)
+  return t('photosMenu', { count })
+})
 
 const compassDirection = computed(() =>
   filters.value.direction === '' ? 1 : Number(filters.value.direction),
@@ -173,6 +181,14 @@ watch(authorQuery, (value) => {
 })
 
 onMounted(() => {
+  api('/photos/site-stats', { ttl: 10 * 60 * 1000 })
+    .then((payload) => {
+      const count = Number(payload?.photos_published)
+      if (Number.isFinite(count) && count >= 0) {
+        photosPublishedCount.value = count
+      }
+    })
+    .catch(() => {})
   load()
   observer = new IntersectionObserver((entries) => {
     if (entries.some((entry) => entry.isIntersecting)) {
@@ -195,7 +211,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="page-head">
     <p class="eyebrow">{{ t('gallery') }}</p>
-    <h1>{{ t('photos') }}</h1>
+    <h1>{{ pageTitle }}</h1>
   </section>
 
   <section class="gallery-toolbar panel">
