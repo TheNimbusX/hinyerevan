@@ -1,5 +1,5 @@
 #!/bin/bash
-# Enable dev stand gate (modal + captcha) for hinyerevan.ru.
+# Enable dev stand gate (modal + captcha) for dev.hinyerevan.com.
 # Run on VPS: bash /var/www/hinyerevan/deploy/setup-dev-auth.sh
 set -euo pipefail
 
@@ -43,4 +43,4 @@ FACEBOOK_APP_ID=$(grep -m1 '^FACEBOOK_APP_ID=' ../backend/.env | cut -d= -f2- | 
 } > .env
 npm run build --silent
 
-echo "Dev auth enabled (user: $DEV_USER) — captcha modal on hinyerevan.ru"
+echo "Dev auth enabled (user: $DEV_USER) — captcha modal on dev.hinyerevan.com"

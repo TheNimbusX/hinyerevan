@@ -37,15 +37,15 @@ https://dev.hinyerevan.com/api/auth/social/vkontakte/callback
 
 5. То же **https://** добавить в Google / Facebook / Yandex / OK, если используете их на этом стенде.
 
-**Privacy Policy URL для Meta / Google:** `https://hinyerevan.ru/pages/privacy` (страница на фронтенде, hy/ru/en).
+**Privacy Policy URL для Meta / Google:** `https://hinyerevan.com/pages/privacy` (страница на фронтенде, hy/ru/en).
 
 **Facebook Page (публикация, подписчики, виджет):** [`deploy/FACEBOOK-PAGE-INTEGRATION.md`](FACEBOOK-PAGE-INTEGRATION.md).
 
 Сайт открывать по **https://dev.hinyerevan.com**, не по IP.
 
-### Dev (`hinyerevan.ru`) из РФ без VPN
+### Dev (`dev.hinyerevan.com`) из РФ без VPN
 
-Dev = **`https://hinyerevan.ru`**. Если без VPN не открывается, а с VPN — да: см. **`deploy/RU-ACCESS.md`** (прокси Cloudflare или nginx на reg.ru).  
+Dev = **`https://dev.hinyerevan.com`**. Если без VPN не открывается, а с VPN — да: см. **`deploy/RU-ACCESS.md`** (прокси Cloudflare или nginx на reg.ru).  
 Удалять AAAA нужно только у **`@`** и **`www`**, если они есть (не у mail/ftp).
 
 ---
@@ -97,7 +97,7 @@ curl -x "$OAUTH_PROXY" -s -o /dev/null -w "%{http_code} %{time_total}s\n" --max-
 
 1. **Авторизация** → включить **«Авторизация через Одноклассники»** и **«Авторизация через Mail»** (если нужны отдельные кнопки OK / Mail на сайте).
 2. **Данные для регистрации** → при необходимости включить **«Почта»**, если нужен email при входе (если выключено — scope `email` может не вернуться).
-3. Те же **базовый домен** `hinyerevan.ru` и **Redirect URL**, что для VK.
+3. Те же **базовый домен** `hinyerevan.com` и **Redirect URL**, что для VK.
 
 Ключи: `VK_CLIENT_ID` = ID приложения, `VK_CLIENT_SECRET` = защищённый ключ (не сервисный).
 

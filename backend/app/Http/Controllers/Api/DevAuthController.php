@@ -70,8 +70,6 @@ class DevAuthController extends Controller
     private function isDevHost(string $host): bool
     {
         return in_array($host, [
-            'hinyerevan.ru',
-            'www.hinyerevan.ru',
             'dev.hinyerevan.com',
             'www.dev.hinyerevan.com',
             '45.138.25.76',

@@ -1,17 +1,17 @@
-# hinyerevan.ru — доступ из России без VPN
+# dev.hinyerevan.com — доступ из России без VPN
 
-**Dev = `https://hinyerevan.ru`** (VPS `45.138.25.76`, Нидерланды).
+**Dev = `https://dev.hinyerevan.com`** (VPS `45.138.25.76`, Нидерланды).
 
 ## Диагностика (с ПК в РФ, без VPN)
 
 ```text
-nslookup hinyerevan.ru
+nslookup dev.hinyerevan.com
 ```
 
 Должно быть **только** `45.138.25.76`. Если есть IPv6 `2a00:f940:...` — удалите **AAAA** у `@` и `www` в reg.ru (см. ниже).
 
 ```text
-curl -v --connect-timeout 15 https://hinyerevan.ru/
+curl -v --connect-timeout 15 https://dev.hinyerevan.com/
 ```
 
 | Симптом | Причина |
@@ -28,14 +28,14 @@ curl -v --connect-timeout 15 https://hinyerevan.ru/
 
 Оставить как есть:
 
-- `hinyerevan.ru`, `www` → **A** `45.138.25.76` (пока не включите прокси ниже)
+- `dev.hinyerevan.com`, `www` → **A** `45.138.25.76` (пока не включите прокси ниже)
 - MX, NS, SOA, TXT (SPF)
 - `ftp`, `mail`, `smtp`, `pop` → A/AAAA на `31.31.196.205` (почта reg.ru)
 
 **Удалить только если появятся:**
 
-- **AAAA** у **`hinyerevan.ru`** (корень `@`)
-- **AAAA** у **`www.hinyerevan.ru`**
+- **AAAA** у **`dev.hinyerevan.com`** (корень `@`)
+- **AAAA** у **`www.dev.hinyerevan.com`**
 
 Сейчас у вас AAAA только у ftp/mail — **их не трогайте**.
 
@@ -45,7 +45,7 @@ curl -v --connect-timeout 15 https://hinyerevan.ru/
 
 Пользователи в РФ ходят на IP Cloudflare, Cloudflare — на ваш VPS.
 
-1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Add site** → `hinyerevan.ru` → Free.
+1. [dash.cloudflare.com](https://dash.cloudflare.com) → **Add site** → `dev.hinyerevan.com` → Free.
 2. Импорт DNS: A `@` и `www` → `45.138.25.76`, MX как в reg.ru.
 3. У записей `@` и `www` включить **Proxied** (оранжевое облако).
 4. SSL/TLS → **Full (strict)** (на VPS уже Let's Encrypt).
@@ -104,13 +104,13 @@ DNS A → `45.138.25.76` (напрямую на NL).
 
 Если на reg.ru есть SSH/ISPmanager и можно поставить nginx:
 
-1. В reg.ru: **A** для `hinyerevan.ru` и `www` → **`31.31.196.205`** (вместо NL).
+1. В reg.ru: **A** для `dev.hinyerevan.com` и `www` → **`31.31.196.205`** (вместо NL).
 2. На хостинге nginx:
 
 ```nginx
 server {
     listen 443 ssl http2;
-    server_name hinyerevan.ru www.hinyerevan.ru;
+    server_name dev.hinyerevan.com www.dev.hinyerevan.com;
     ssl_certificate     /path/to/fullchain.pem;
     ssl_certificate_key /path/to/privkey.pem;
 
@@ -125,9 +125,9 @@ server {
 }
 ```
 
-3. Сертификат Let's Encrypt на reg.ru для `hinyerevan.ru`.
+3. Сертификат Let's Encrypt на reg.ru для `dev.hinyerevan.com`.
 
-Почта (`mail.hinyerevan.ru` и т.д.) остаётся на `31.31.196.205` — не мешает.
+Почта (`mail.dev.hinyerevan.com` и т.д.) остаётся на `31.31.196.205` — не мешает.
 
 ---
 
@@ -136,7 +136,7 @@ server {
 В `C:\Windows\System32\drivers\etc\hosts` (нужны права админа):
 
 ```text
-45.138.25.76 hinyerevan.ru www.hinyerevan.ru
+45.138.25.76 dev.hinyerevan.com www.dev.hinyerevan.com
 ```
 
 Помогает только если **блокируется домен**, а не IP. Если блок IP — не поможет, нужен Cloudflare или прокси в РФ.
@@ -147,9 +147,9 @@ server {
 
 После Cloudflare или прокси callback остаётся:
 
-`https://hinyerevan.ru/api/auth/social/.../callback`
+`https://dev.hinyerevan.com/api/auth/social/.../callback`
 
-В VK ID / Google / Yandex URL не меняется, если в браузере открывается тот же `https://hinyerevan.ru`.
+В VK ID / Google / Yandex URL не меняется, если в браузере открывается тот же `https://dev.hinyerevan.com`.
 
 ---
 
@@ -196,4 +196,4 @@ curl -x "http://LOGIN:PASSWORD@185.42.27.226:18888" -s -o /dev/null -w "%{http_c
 2. **Nginx на reg.ru** (`31.31.196.205`) — «Решение 2», если есть SSH/хостинг.
 3. **Отдельный VPS в РФ** с nginx `proxy_pass` на `45.138.25.76` и A-запись домена на этот VPS — только если есть **свой сервер** с входящими 80/443, не «прокси 18888».
 
-Прокси с одним портом `18888` **не принимает** HTTPS-запросы пользователей к `hinyerevan.ru` — он для исходящих подключений **с** вашего сервера **через** прокси.
+Прокси с одним портом `18888` **не принимает** HTTPS-запросы пользователей к `dev.hinyerevan.com` — он для исходящих подключений **с** вашего сервера **через** прокси.

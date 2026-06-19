@@ -1,5 +1,5 @@
 // Privacy Policy for HinYerevan.com (hy / ru / en).
-// Public URL: https://hinyerevan.ru/pages/privacy
+// Public URL: https://hinyerevan.com/pages/privacy
 
 export const privacyUpdated = '2026-06-02'
 
@@ -8,7 +8,7 @@ export const privacy = {
     title: 'Գաղտնիության քաղաքականություն',
     updatedLabel: 'Վերջին թարմացումը',
     intro: [
-      'Սույն Գաղտնիության քաղաքականությունը նկարագրում է, թե ինչպես են մշակվում անձնական տվյալները www.HinYerevan.com կայքում (այսուհետ՝ «Կայք»)՝ hinyerevan.ru դոմենով:',
+      'Սույն Գաղտնիության քաղաքականությունը նկարագրում է, թե ինչպես են մշակվում անձնական տվյալները www.HinYerevan.com կայքում (այսուհետ՝ «Կայք»):',
       'Կայքը նվիրված է Երևանի և Հայաստանի պատմական ժառանգության թվային արխիվին։',
     ],
     sections: [
@@ -84,7 +84,7 @@ export const privacy = {
       {
         heading: '11. Կապ',
         paragraphs: [
-          'Գաղտնիության հարցերով դիմեք հետադարձ կապի ձևի միջոցով՝ https://hinyerevan.ru/pages/feedback',
+          'Գաղտնիության հարցերով դիմեք հետադարձ կապի ձևի միջոցով՝ /pages/feedback',
         ],
       },
     ],
@@ -94,7 +94,7 @@ export const privacy = {
     title: 'Политика конфиденциальности',
     updatedLabel: 'Последнее обновление',
     intro: [
-      'Настоящая Политика конфиденциальности описывает, как обрабатываются персональные данные на сайте www.HinYerevan.com (далее — «Сайт»), доступном по адресу hinyerevan.ru.',
+      'Настоящая Политика конфиденциальности описывает, как обрабатываются персональные данные на сайте www.HinYerevan.com (далее — «Сайт»).',
       'Сайт — онлайн-архив исторического наследия Еревана и Армении (фотографии, видео, карта).',
     ],
     sections: [
@@ -176,7 +176,7 @@ export const privacy = {
       {
         heading: '12. Контакты',
         paragraphs: [
-          'Вопросы по конфиденциальности: https://hinyerevan.ru/pages/feedback',
+          'Вопросы по конфиденциальности: /pages/feedback',
         ],
       },
     ],
@@ -186,7 +186,7 @@ export const privacy = {
     title: 'Privacy Policy',
     updatedLabel: 'Last updated',
     intro: [
-      'This Privacy Policy explains how personal data is processed on www.HinYerevan.com (the “Site”), served at hinyerevan.ru.',
+      'This Privacy Policy explains how personal data is processed on www.HinYerevan.com (the “Site”).',
       'The Site is a digital archive of historical heritage of Yerevan and Armenia.',
     ],
     sections: [
@@ -267,7 +267,7 @@ export const privacy = {
       {
         heading: '12. Contact',
         paragraphs: [
-          'Privacy questions: https://hinyerevan.ru/pages/feedback',
+          'Privacy questions: /pages/feedback',
         ],
       },
     ],

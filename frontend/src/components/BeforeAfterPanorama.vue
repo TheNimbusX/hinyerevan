@@ -288,6 +288,13 @@ function startDrag(event) {
   event.preventDefault()
 }
 
+function collapse() {
+  endDrag()
+  destroyPanorama()
+  status.value = 'idle'
+  pos.value = 50
+}
+
 function nudge(step) {
   pos.value = Math.min(100, Math.max(0, pos.value + step))
 }
@@ -306,26 +313,37 @@ onBeforeUnmount(() => {
           <h2>{{ t('beforeAfterTitle') }}</h2>
           <p class="before-after__sub">{{ t('beforeAfterSubtitle') }}</p>
         </div>
-        <div class="ba-provider" role="radiogroup" :aria-label="t('beforeAfterProvider')">
+        <div class="before-after__actions">
+          <div class="ba-provider" role="radiogroup" :aria-label="t('beforeAfterProvider')">
+            <button
+              type="button"
+              role="radio"
+              class="ba-provider__btn"
+              :class="{ active: provider === 'yandex' }"
+              :aria-checked="provider === 'yandex'"
+              @click="setProvider('yandex')"
+            >
+              {{ t('beforeAfterYandex') }}
+            </button>
+            <button
+              type="button"
+              role="radio"
+              class="ba-provider__btn"
+              :class="{ active: provider === 'google' }"
+              :aria-checked="provider === 'google'"
+              @click="setProvider('google')"
+            >
+              {{ t('beforeAfterGoogle') }}
+            </button>
+          </div>
           <button
+            v-if="status === 'ready'"
             type="button"
-            role="radio"
-            class="ba-provider__btn"
-            :class="{ active: provider === 'yandex' }"
-            :aria-checked="provider === 'yandex'"
-            @click="setProvider('yandex')"
+            class="ba-close"
+            :aria-label="t('beforeAfterClose')"
+            @click="collapse"
           >
-            {{ t('beforeAfterYandex') }}
-          </button>
-          <button
-            type="button"
-            role="radio"
-            class="ba-provider__btn"
-            :class="{ active: provider === 'google' }"
-            :aria-checked="provider === 'google'"
-            @click="setProvider('google')"
-          >
-            {{ t('beforeAfterGoogle') }}
+            {{ t('beforeAfterClose') }}
           </button>
         </div>
       </div>
@@ -449,6 +467,27 @@ onBeforeUnmount(() => {
   font-size: 13px;
 }
 
+.before-after__actions {
+  display: flex;
+  flex-shrink: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.ba-close {
+  border: 1px solid rgba($primary, 0.12);
+  padding: 6px 12px;
+  border-radius: $radius-pill;
+  background: $surface;
+  color: $primary-dark;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  @include interactive((background, border-color));
+  @include focus-ring(rgba($primary, 0.45), 2px);
+}
+
 .before-after__hint {
   margin: 0;
   color: $muted;
@@ -512,7 +551,9 @@ onBeforeUnmount(() => {
   inset: 0;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+  background: $surface-soft;
 }
 
 .ba-base-veil {
@@ -644,11 +685,13 @@ onBeforeUnmount(() => {
   z-index: 3;
   clip-path: inset(0 calc(100% - var(--pos)) 0 0);
   pointer-events: none;
+  background: $surface-soft;
 
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
+    object-position: center;
   }
 }
 

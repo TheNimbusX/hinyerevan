@@ -14,6 +14,7 @@ php artisan config:cache
 php artisan route:cache
 php artisan migrate --force
 php artisan legacy:repair-schema
+php artisan legacy:repair-text
 # Storage + bootstrap cache must stay writable by the web user. chown (not delete)
 # so root-owned cache files become writable WITHOUT wiping the translation cache.
 chown -R www-data:www-data storage bootstrap/cache || true

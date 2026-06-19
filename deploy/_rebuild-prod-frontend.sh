@@ -17,5 +17,5 @@ FACEBOOK_APP_ID=$(grep -m1 '^FACEBOOK_PLUGIN_APP_ID=' ../backend/.env | cut -d= 
 npm run build --silent
 curl -s https://hinyerevan.com/api/dev-auth/status
 echo
-curl -s https://hinyerevan.ru/api/dev-auth/status
+curl -s https://dev.hinyerevan.com/api/dev-auth/status
 echo

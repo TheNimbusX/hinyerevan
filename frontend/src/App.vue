@@ -23,9 +23,7 @@ const devAuthRequired = computed(() => {
   if (typeof window === 'undefined') return false
   const host = window.location.hostname
   return (
-    host === 'hinyerevan.ru'
-    || host === 'www.hinyerevan.ru'
-    || host === 'dev.hinyerevan.com'
+    host === 'dev.hinyerevan.com'
     || host === 'www.dev.hinyerevan.com'
     || host === '45.138.25.76'
   )

@@ -55,7 +55,7 @@ return [
         'page_url' => env('FACEBOOK_PAGE_URL', 'https://www.facebook.com/HinYerevanCom/'),
         'page_access_token' => env('FACEBOOK_PAGE_ACCESS_TOKEN'),
         'app_id' => env('FACEBOOK_APP_ID', env('FACEBOOK_CLIENT_ID')),
-        // Page Plugin / JS SDK — Consumer app with hinyerevan.ru in Meta settings (not HinYerevanPage)
+        // Page Plugin / JS SDK — Consumer app registered in Meta (not HinYerevanPage)
         'plugin_app_id' => env('FACEBOOK_PLUGIN_APP_ID', env('FACEBOOK_CLIENT_ID')),
         // Secret of the Meta app that issued the page token (HinYerevanPage), for token exchange
         'app_secret' => env('FACEBOOK_APP_SECRET'),
@@ -108,7 +108,7 @@ return [
         'proxy' => env('OAUTH_PROXY', ''),
     ],
 
-    // HTTP gate for the dev stand (hinyerevan.ru) — replaces nginx basic auth prompt.
+    // HTTP gate for the dev stand (dev.hinyerevan.com) — replaces nginx basic auth prompt.
     'dev_auth' => [
         'enabled' => env('DEV_AUTH_ENABLED', false),
         'user' => env('DEV_AUTH_USER', ''),

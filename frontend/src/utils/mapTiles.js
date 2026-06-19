@@ -14,9 +14,8 @@ const YANDEX_LANG = {
   en: 'en_US',
 }
 
-/** Leaflet zoom ceiling for homepage map (tiles upscale via maxNativeZoom). */
-export const MAP_MAX_ZOOM = 20
-export const MAP_TILE_NATIVE_ZOOM = 19
+/** Leaflet zoom ceiling for marker clustering (homepage map has no min/max zoom cap). */
+export const MAP_CLUSTER_MAX_ZOOM = 22
 
 /** Night-style palette for Google raster tiles (undocumented `apistyle` param). */
 const GOOGLE_DARK_APISTYLE = [
@@ -71,8 +70,6 @@ function yandexTileUrl(layerCode, lang, extra = '') {
 
 function baseTileOptions(extra = {}) {
   return {
-    maxZoom: MAP_MAX_ZOOM,
-    maxNativeZoom: MAP_TILE_NATIVE_ZOOM,
     updateWhenZooming: false,
     updateWhenIdle: true,
     keepBuffer: 2,
@@ -147,8 +144,6 @@ export function getMiniMapTileLayer(theme) {
     options: {
       attribution: '© OpenStreetMap © CARTO',
       subdomains: 'abcd',
-      maxZoom: MAP_MAX_ZOOM,
-      maxNativeZoom: MAP_TILE_NATIVE_ZOOM,
       updateWhenZooming: false,
       updateWhenIdle: true,
       keepBuffer: 2,

@@ -9,7 +9,7 @@
 
 1. [Brevo](https://app.brevo.com) → **Transactional** → **Settings** → **SMTP & API**.
 2. **Authorized IPs** → добавить IP origin-сервера: **`45.138.25.76`** (или отключить ограничение, если допустимо).
-3. Домен `hinyerevan.ru` — SPF/DKIM/DMARC (уже настраивали для аутентификации).
+3. Домен `hinyerevan.com` — SPF/DKIM/DMARC (уже настраивали для аутентификации).
 
 ## `.env` на сервере (пример)
 
@@ -20,9 +20,9 @@ MAIL_PORT=2525
 MAIL_ENCRYPTION=tls
 MAIL_USERNAME=ad884d001@smtp-brevo.com
 MAIL_PASSWORD=<SMTP key из Brevo>
-MAIL_FROM_ADDRESS=noreply@hinyerevan.ru
+MAIL_FROM_ADDRESS=noreply@hinyerevan.com
 MAIL_FROM_NAME=HinYerevan.com
-FRONTEND_URL=https://hinyerevan.ru
+FRONTEND_URL=https://hinyerevan.com
 ```
 
 После правок:

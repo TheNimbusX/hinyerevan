@@ -32,10 +32,10 @@
 **Facebook Login → Settings** — redirect для входа пользователей (отдельно от Page API):
 
 ```text
-https://hinyerevan.ru/api/auth/social/facebook/callback
+https://hinyerevan.com/api/auth/social/facebook/callback
 ```
 
-**Privacy Policy URL:** `https://hinyerevan.ru/pages/privacy`
+**Privacy Policy URL:** `https://hinyerevan.com/pages/privacy`
 
 ---
 
@@ -84,11 +84,11 @@ Cron (если ещё нет):
 ## 4. Проверка
 
 ```bash
-curl -s https://hinyerevan.ru/api/facebook/page
-curl -s https://hinyerevan.ru/api/facebook/plugin-config
+curl -s https://hinyerevan.com/api/facebook/page
+curl -s https://hinyerevan.com/api/facebook/plugin-config
 ```
 
-- Открыть https://hinyerevan.ru/facebook — виджет Page Plugin.
+- Открыть https://hinyerevan.com/facebook — виджет Page Plugin.
 - Загрузить фото с галочкой «Добавить в Facebook» → одобрить в админке → пост на странице.
 
 ---

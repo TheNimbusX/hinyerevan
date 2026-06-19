@@ -77,7 +77,7 @@ for kv in \
   'APP_URL=https://hinyerevan.com' \
   'FRONTEND_URL=https://hinyerevan.com' \
   'OAUTH_REDIRECT_BASE=https://hinyerevan.com' \
-  'SANCTUM_STATEFUL_DOMAINS=hinyerevan.com,www.hinyerevan.com,hinyerevan.ru,www.hinyerevan.ru' \
+  'SANCTUM_STATEFUL_DOMAINS=hinyerevan.com,www.hinyerevan.com,dev.hinyerevan.com,www.dev.hinyerevan.com' \
   'SESSION_DOMAIN=.hinyerevan.com'; do
   key="${kv%%=*}"
   if grep -q "^${key}=" "$ENV_FILE"; then

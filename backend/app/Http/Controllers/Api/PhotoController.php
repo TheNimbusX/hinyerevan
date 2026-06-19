@@ -14,6 +14,7 @@ use App\Services\Facebook\FacebookCommentSyncService;
 use App\Services\Facebook\FacebookPublishService;
 use App\Services\LegacyPhotoStorage;
 use App\Services\LegacySchema;
+use App\Support\LegacyText;
 use App\Services\TranslationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -109,7 +110,7 @@ class PhotoController extends Controller
                 ->get()
                 ->map(fn (Photo $photo) => [
                     'id' => $photo->id,
-                    'title' => $photo->title,
+                    'title' => LegacyText::decode($photo->title),
                     'lat' => $photo->lat,
                     'lng' => $photo->lng,
                     'year' => $photo->year,
@@ -201,7 +202,7 @@ class PhotoController extends Controller
             ->get()
             ->map(fn (Photo $other) => [
                 'id' => $other->id,
-                'title' => $other->title,
+                'title' => LegacyText::decode($other->title),
                 'year' => $other->year,
                 'views' => $other->viewCounter?->count ?? 0,
                 'images' => $other->image_urls,
@@ -231,7 +232,7 @@ class PhotoController extends Controller
             ->get()
             ->map(fn (Photo $near) => [
                 'id' => $near->id,
-                'title' => $near->title,
+                'title' => LegacyText::decode($near->title),
                 'year' => $near->year,
                 'lat' => $near->lat,
                 'lng' => $near->lng,
@@ -472,18 +473,21 @@ class PhotoController extends Controller
 
     private function serializeDemoPhoto(array $photo, ?string $lang): array
     {
-        if ($lang) {
-            $photo['title'] = $this->translator->translate($photo['title'] ?? '', $lang);
-        }
+        $photo['title'] = $this->displayTitle($photo['title'] ?? '', $lang);
 
         return $photo;
     }
 
+    private function displayTitle(?string $title, ?string $lang): string
+    {
+        $text = LegacyText::decode($title ?? '');
+
+        return $lang ? $this->translator->translate($text, $lang) : $text;
+    }
+
     private function serialize(Photo $photo, bool $includeComments = false, ?string $lang = null, ?string $commentLang = null): array
     {
-        $title = $lang
-            ? $this->translator->translate($photo->title, $lang)
-            : $photo->title;
+        $title = $this->displayTitle($photo->title, $lang);
 
         $data = [
             'id' => $photo->id,
