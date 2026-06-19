@@ -13,6 +13,9 @@ use App\Services\Facebook\FacebookPublishService;
 use App\Services\LegacyPhotoStorage;
 use App\Services\LegacySchema;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Validation\ValidationException;
 
 class AdminController extends Controller
 {
@@ -220,6 +223,10 @@ class AdminController extends Controller
                     ->orWhere('first_name', 'like', $search)
                     ->orWhere('last_name', 'like', $search));
             })
+            ->when(
+                in_array((int) $request->input('type'), [User::TYPE_USER, User::TYPE_BLOCKED, User::TYPE_ADMIN], true),
+                fn ($query) => $query->where('type', (int) $request->input('type')),
+            )
             ->latest('id')
             ->paginate(min((int) $request->integer('per_page', 30), 100));
     }
@@ -234,7 +241,7 @@ class AdminController extends Controller
             'last_name' => ['nullable', 'string', 'max:100'],
             'email' => ['sometimes', 'required', 'email', 'max:190', 'unique:users,email,' . $user->id],
             'identity' => ['nullable', 'string', 'max:80'],
-            'sex' => ['sometimes', 'integer', 'in:0,1'],
+            'sex' => ['sometimes', 'integer', 'in:0,1,2'],
             'birth_day' => ['sometimes', 'integer', 'between:1,31'],
             'birth_month' => ['sometimes', 'integer', 'between:1,12'],
             'birth_year' => ['sometimes', 'integer', 'between:1900,2026'],
@@ -258,6 +265,42 @@ class AdminController extends Controller
         $user->fill($data)->save();
 
         return $user->fresh();
+    }
+
+    public function deleteUser(Request $request, User $user)
+    {
+        abort_unless($user->id > 0, 404);
+
+        $actor = $request->user();
+        if ($actor && (int) $actor->id === (int) $user->id) {
+            throw ValidationException::withMessages([
+                'user' => __('Cannot delete your own account.'),
+            ]);
+        }
+
+        if ($user->isAdmin()) {
+            $adminCount = User::query()
+                ->where('type', User::TYPE_ADMIN)
+                ->where('id', '>', 0)
+                ->count();
+
+            if ($adminCount <= 1) {
+                throw ValidationException::withMessages([
+                    'user' => __('Cannot delete the last administrator.'),
+                ]);
+            }
+        }
+
+        $user->tokens()->delete();
+
+        if (Schema::hasTable('favorites')) {
+            DB::table('favorites')->where('user_unique', $user->unique)->delete();
+        }
+
+        // Photos and comments stay on the site; ownership is stored by users.unique string.
+        $user->delete();
+
+        return response()->noContent();
     }
 
     public function news(Request $request)

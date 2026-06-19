@@ -3,7 +3,7 @@ import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } fr
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRoute } from 'vue-router'
-import { api, clearApiCacheForPath, getToken, imageUrl, localizedApi, photoDownloadUrl, safeAvatarUrl } from '../api'
+import { api, clearApiCacheForPath, fullPhotoPath, getToken, imageUrl, localizedApi, photoDownloadUrl, previewPhotoPath, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
@@ -135,11 +135,11 @@ async function load({ soft = false } = {}) {
     photo.value = data
     crosspostFb.value = Boolean(photo.value?.facebook?.post_id)
     isFavorite.value = Boolean(photo.value?.is_favorite)
-    detailImageSrc.value = imageUrl(photo.value.images.large || photo.value.images.original || photo.value.images.thumb)
+    detailImageSrc.value = imageUrl(fullPhotoPath(photo.value.images))
     setPageMeta({
       title: photo.value.title,
       description: `${photo.value.year} — ${photo.value.title}`,
-      image: imageUrl(photo.value.images.large || photo.value.images.thumb),
+      image: imageUrl(previewPhotoPath(photo.value.images)),
       path: route.fullPath,
       type: 'article',
     })
@@ -179,7 +179,7 @@ async function applyLocalized({ path }) {
     setPageMeta({
       title: photo.value.title,
       description: `${photo.value.year} — ${photo.value.title}`,
-      image: imageUrl(photo.value.images.large || photo.value.images.thumb),
+      image: imageUrl(previewPhotoPath(photo.value.images)),
       path: route.fullPath,
       type: 'article',
     })
@@ -191,7 +191,7 @@ async function applyLocalized({ path }) {
 }
 
 function retryDetailImage() {
-  const variant = photo.value?.images?.large || photo.value?.images?.original
+  const variant = fullPhotoPath(photo.value?.images)
   if (!variant || detailImageSrc.value.includes('retry=')) return
   const base = imageUrl(variant)
   detailImageSrc.value = `${base}${base.includes('?') ? '&' : '?'}retry=1`
@@ -598,7 +598,7 @@ watch(isAuthenticated, () => {
     :lat="photo.lat"
     :lng="photo.lng"
     :direction="photo.direction"
-    :old-image="photo.images.large || photo.images.original || photo.images.thumb"
+    :old-image="fullPhotoPath(photo.images)"
     :title="photo.title"
     :t="t"
   />
@@ -719,15 +719,11 @@ watch(isAuthenticated, () => {
   width: 100%;
   padding: 0;
   border: 0;
-  border-radius: $radius-lg;
+  border-radius: 2px;
   overflow: hidden;
   background: $surface-soft;
   cursor: zoom-in;
   @include interactive((transform, box-shadow));
-
-  @include mq-down($bp-sm) {
-    border-radius: $radius-md;
-  }
 
   img {
     width: 100%;
@@ -1312,12 +1308,11 @@ watch(isAuthenticated, () => {
     max-width: 100%;
     max-height: calc(100vh - 140px);
     object-fit: contain;
-    border-radius: $radius-md;
+    border-radius: 2px;
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
 
     @include mq-down($bp-sm) {
       max-height: calc(100vh - 110px);
-      border-radius: $radius-sm;
     }
   }
 

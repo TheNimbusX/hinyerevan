@@ -446,7 +446,6 @@
 
   // ---------- Latest / rating rows ------------------------------
   .latest-photo,
-  .news-row,
   .rating-photo-row,
   .author-row {
     border-top-color: #2a313d;
@@ -462,6 +461,17 @@
     small {
       color: #98a0ae;
     }
+  }
+
+  .rating-skeleton-block {
+    background:
+      linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent),
+      #252c38;
+    background-size: 220px 100%, 100% 100%;
+  }
+
+  .rating-panel-loading {
+    color: #98a0ae;
   }
 
   // ---------- Profile dashboard ---------------------------------

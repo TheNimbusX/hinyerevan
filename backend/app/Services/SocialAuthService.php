@@ -115,7 +115,7 @@ class SocialAuthService
             'email' => $email ?: '',
             'identity' => $identity ?: trim($firstName . ' ' . $lastName),
             'bdate' => '1970-01-01',
-            'sex' => 0,
+            'sex' => User::SEX_UNSET,
             'photo' => $this->normalizePhoto($photo),
             'type' => User::TYPE_USER,
             'password' => md5(Str::random(40)),
@@ -358,6 +358,13 @@ class SocialAuthService
 
     private function uloginSex($value): int
     {
-        return (string) $value === '2' ? 1 : 0;
+        if ((string) $value === '2') {
+            return User::SEX_MALE;
+        }
+        if ((string) $value === '1') {
+            return User::SEX_FEMALE;
+        }
+
+        return User::SEX_UNSET;
     }
 }

@@ -118,7 +118,7 @@ function syncForm() {
     last_name: user.value.last_name || '',
     email: user.value.email || '',
     identity: user.value.identity || '',
-    sex: user.value.sex === 0 || user.value.sex === 1 ? String(user.value.sex) : '',
+    sex: [0, 1, 2].includes(Number(user.value.sex)) ? String(user.value.sex) : '2',
     ...birth,
   }
 }
@@ -170,7 +170,7 @@ async function saveProfile() {
       method: 'PUT',
       body: {
         ...profileForm.value,
-        sex: Number(profileForm.value.sex),
+        sex: profileForm.value.sex === '' ? 2 : Number(profileForm.value.sex),
         birth_day: Number(profileForm.value.birth_day),
         birth_month: Number(profileForm.value.birth_month),
         birth_year: Number(profileForm.value.birth_year),
@@ -536,8 +536,8 @@ onMounted(() => {
           </label>
           <label>
             <span>{{ t('sex') }}</span>
-            <select v-model="profileForm.sex" required>
-              <option value="" disabled>{{ t('chooseSex') }}</option>
+            <select v-model="profileForm.sex">
+              <option value="2">{{ t('sexUnset') }}</option>
               <option value="1">{{ t('male') }}</option>
               <option value="0">{{ t('female') }}</option>
             </select>

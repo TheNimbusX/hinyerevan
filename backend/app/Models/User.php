@@ -16,6 +16,10 @@ class User extends Authenticatable
     public const TYPE_BLOCKED = 1;
     public const TYPE_ADMIN = 5;
 
+    public const SEX_FEMALE = 0;
+    public const SEX_MALE = 1;
+    public const SEX_UNSET = 2;
+
     public $timestamps = false;
 
     protected $fillable = [

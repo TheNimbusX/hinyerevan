@@ -3,24 +3,33 @@ import './styles/main.scss'
 import App from './App.vue'
 import router from './router'
 import { applyRouteMeta } from './utils/seo'
-import { currentLanguage } from './i18n'
+import { isInAppBrowser, markInAppBrowser, removeSplashOverlay, removeStuckUiOverlays } from './utils/overlayCleanup'
 import { setupLeaflet } from './utils/leafletSetup'
 
 setupLeaflet()
+markInAppBrowser()
 
 document.documentElement.lang = 'hy'
 
 const app = createApp(App)
 app.use(router)
 
+let splashDismissed = false
+
 function dismissSplash() {
+  if (splashDismissed) return
+  splashDismissed = true
+
   const splash = document.getElementById('app-splash')
   if (!splash) return
+
+  const inApp = isInAppBrowser()
   const elapsed = Date.now() - (window.__splashStart || 0)
-  const wait = Math.max(0, 1000 - elapsed)
+  const minVisible = inApp ? 850 : 1000
+  const wait = Math.max(0, minVisible - elapsed)
+
   setTimeout(() => {
-    splash.classList.add('app-splash--hide')
-    setTimeout(() => splash.remove(), 600)
+    removeSplashOverlay()
   }, wait)
 }
 
@@ -28,6 +37,16 @@ router.isReady().then(() => {
   app.mount('#app')
   applyRouteMeta(router.currentRoute.value)
   dismissSplash()
+}).catch(() => {
+  dismissSplash()
+})
+
+// Telegram / in-app WebViews may never fire router.isReady() reliably.
+setTimeout(dismissSplash, isInAppBrowser() ? 2200 : 3500)
+
+window.addEventListener('pageshow', () => {
+  removeStuckUiOverlays()
+  splashDismissed = true
 })
 
 window.addEventListener('hinyerevan:language-changed', () => {

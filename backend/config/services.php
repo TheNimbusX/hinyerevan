@@ -108,6 +108,13 @@ return [
         'proxy' => env('OAUTH_PROXY', ''),
     ],
 
+    // HTTP gate for the dev stand (hinyerevan.ru) — replaces nginx basic auth prompt.
+    'dev_auth' => [
+        'enabled' => env('DEV_AUTH_ENABLED', false),
+        'user' => env('DEV_AUTH_USER', ''),
+        'password' => env('DEV_AUTH_PASSWORD', ''),
+    ],
+
     /*
     | translate.driver: mymemory (free, no key) | libretranslate (self-host or libretranslate.com)
     */

@@ -1,8 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 cd /var/www/hinyerevan
+# Do NOT use git reset --hard — it wipes hotfixes uploaded via _sync-local-to-vps.ps1.
+# Commit and push local changes first, then deploy; or use deploy/_sync-local-to-vps.ps1.
 git fetch origin dev
-git reset --hard FETCH_HEAD
+git merge --ff-only FETCH_HEAD || {
+  echo "ERROR: origin/dev is not a fast-forward. Push your commits or run deploy/_sync-local-to-vps.ps1"
+  exit 1
+}
 cd backend
 composer install --no-dev --optimize-autoloader 2>/dev/null || composer install --no-dev --optimize-autoloader
 php artisan config:cache
@@ -21,10 +26,18 @@ cd ../frontend
 RECAPTCHA_SITE_KEY=$(grep -m1 '^RECAPTCHA_SITE_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
 YANDEX_MAPS_KEY=$(grep -m1 '^YANDEX_MAPS_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
 GOOGLE_MAPS_KEY=$(grep -m1 '^GOOGLE_MAPS_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
+SITE_URL=$(grep -m1 '^FRONTEND_URL=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
+[ -z "$SITE_URL" ] && SITE_URL=$(grep -m1 '^APP_URL=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
+FACEBOOK_APP_ID=$(grep -m1 '^FACEBOOK_APP_ID=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
+DEV_AUTH_ENABLED=$(grep -m1 '^DEV_AUTH_ENABLED=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
+php ../deploy/generate-og-share.php || true
 {
   [ -n "$RECAPTCHA_SITE_KEY" ] && printf 'VITE_RECAPTCHA_SITE_KEY=%s\n' "$RECAPTCHA_SITE_KEY"
   [ -n "$YANDEX_MAPS_KEY" ] && printf 'VITE_YANDEX_MAPS_KEY=%s\n' "$YANDEX_MAPS_KEY"
   [ -n "$GOOGLE_MAPS_KEY" ] && printf 'VITE_GOOGLE_MAPS_KEY=%s\n' "$GOOGLE_MAPS_KEY"
+  [ -n "$SITE_URL" ] && printf 'VITE_SITE_URL=%s\n' "$SITE_URL"
+  [ -n "$FACEBOOK_APP_ID" ] && printf 'VITE_FACEBOOK_APP_ID=%s\n' "$FACEBOOK_APP_ID"
+  [ "$DEV_AUTH_ENABLED" = "true" ] && printf 'VITE_DEV_AUTH_REQUIRED=true\n'
 } > .env
 npm ci --silent 2>/dev/null || npm install --silent
 npm run build --silent

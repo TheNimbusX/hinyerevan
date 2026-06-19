@@ -12,26 +12,76 @@
     <meta name="google" content="notranslate" />
     <meta name="theme-color" content="#0d1018" />
     <meta property="og:site_name" content="HinYerevan.com" />
+    <meta property="fb:app_id" content="__FACEBOOK_APP_ID__" />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content="hy_AM" />
-    <meta property="og:image" content="/Logo2026.png" />
+    <meta property="og:url" content="__SITE_URL__/" />
+    <meta property="og:title" content="HinYerevan.com — Old Yerevan Photos / Фотографии старого Еревана" />
+    <meta property="og:description" content="HinYerevan.com — archive and map of old Yerevan photos by year, author and place." />
+    <meta property="og:image" content="__SITE_URL__/og-share.jpg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="HinYerevan.com logo" />
     <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="HinYerevan.com — Old Yerevan Photos" />
+    <meta name="twitter:description" content="Archive and map of old Yerevan photos." />
+    <meta name="twitter:image" content="__SITE_URL__/og-share.jpg" />
     <title>HinYerevan.com</title>
     <script>
       ;(function () {
+        function detectInApp() {
+          var ua = navigator.userAgent || ''
+          if (/Telegram|FBAN|FBAV|Instagram|Line\//i.test(ua)) return true
+          if (window.TelegramWebviewProxy || window.TelegramWebview) return true
+          try {
+            if (/t\.me|telegram\.(org|me)/i.test(document.referrer || '')) return true
+          } catch (e) {}
+          return false
+        }
+
         try {
-          var t = localStorage.getItem('hinyerevan_theme')
-          document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark')
+          var stored = localStorage.getItem('hinyerevan_theme')
+          if (stored === 'dark' || stored === 'light') {
+            document.documentElement.setAttribute('data-theme', stored)
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.setAttribute('data-theme', 'dark')
+          } else {
+            document.documentElement.setAttribute('data-theme', 'light')
+          }
         } catch (e) {
           document.documentElement.setAttribute('data-theme', 'dark')
         }
+
+        if (detectInApp()) {
+          document.documentElement.classList.add('in-app-browser')
+        }
+
         try {
           document.documentElement.lang = 'hy'
         } catch (e) {
           document.documentElement.lang = 'hy'
         }
-        // Mark when the splash started so the app can keep it visible for a brief minimum.
         window.__splashStart = Date.now()
+      })()
+    </script>
+    <script>
+      ;(function () {
+        function killSplash() {
+          var splash = document.getElementById('app-splash')
+          if (!splash || splash.classList.contains('is-dismissed')) return
+          splash.classList.add('app-splash--hide', 'is-dismissed')
+          splash.style.cssText =
+            'display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important'
+          window.setTimeout(function () {
+            splash.remove()
+          }, 60)
+        }
+        var inApp = document.documentElement.classList.contains('in-app-browser')
+        setTimeout(killSplash, inApp ? 2200 : 3200)
+        window.addEventListener('pageshow', killSplash)
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') killSplash()
+        })
       })()
     </script>
     <style>
@@ -177,6 +227,44 @@
           animation: none;
         }
       }
+      /* Cluster pins: orange even if the Vue CSS bundle loads late (Telegram WebView). */
+      .map-cluster-pin {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+        color: #fff;
+        font-weight: 700;
+        line-height: 1;
+        border: 2px solid #fff;
+        background:
+          radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.38) 0 16%, transparent 17%),
+          linear-gradient(145deg, #ffb347, #d56f00);
+        box-shadow: 0 3px 8px rgba(213, 111, 0, 0.28);
+      }
+      @media (max-width: 767px) {
+        .map-cluster-pin {
+          font-size: 10px !important;
+        }
+      }
+      /* In-app WebViews (Telegram): backdrop-filter tints the whole page and shifts colors. */
+      html.in-app-browser *,
+      html.in-app-browser *::before,
+      html.in-app-browser *::after {
+        -webkit-backdrop-filter: none !important;
+        backdrop-filter: none !important;
+      }
+      html.in-app-browser #app-splash.is-dismissed,
+      html.in-app-browser #app-splash.app-splash--hide {
+        display: none !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+      }
+      html:not(.menu-open) .mobile-menu-backdrop {
+        display: none !important;
+        pointer-events: none !important;
+      }
     </style>
   </head>
   <body>
@@ -189,6 +277,7 @@
         <span class="app-splash__bar" aria-hidden="true"></span>
       </div>
     </div>
+    <div id="fb-root"></div>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>

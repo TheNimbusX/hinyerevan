@@ -36,7 +36,7 @@ echo "==> Dump live database from $OLD_SSH_HOST"
 export SSHPASS="$OLD_SSH_PASS"
 sshpass -e ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=30 \
   "${OLD_SSH_USER}@${OLD_SSH_HOST}" \
-  "mysqldump --column-statistics=0 --single-transaction --quick --routines --triggers \
+  "mysqldump --column-statistics=0 --no-tablespaces --single-transaction --quick --routines --triggers \
     -h '${OLD_DB_HOST}' -P '${OLD_DB_PORT}' -u '${OLD_DB_USER}' -p'${OLD_DB_PASS}' '${OLD_DB_NAME}'" \
   | gzip -c > "$DUMP_PATH"
 
@@ -49,8 +49,17 @@ mysql -e "SET SESSION sql_mode = REPLACE(REPLACE(REPLACE(@@SESSION.sql_mode, 'NO
 mysql -e "DROP DATABASE IF EXISTS \`${VPS_DB_NAME}\`; CREATE DATABASE \`${VPS_DB_NAME}\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
 gunzip -c "$DUMP_PATH" | mysql "$VPS_DB_NAME"
 
-echo "==> Re-apply additive schema + Laravel caches"
+echo "==> Bootstrap Laravel migrations on top of legacy dump"
 cd "$APP_DIR"
+sed -i "s/'strict' => true/'strict' => false/" config/database.php
+php artisan migrate:install 2>/dev/null || true
+mysql "$VPS_DB_NAME" <<'SQL'
+INSERT IGNORE INTO migrations (migration, batch) VALUES
+('2014_10_12_000000_create_users_table', 1);
+SQL
+php artisan migrate --force 2>/dev/null || true
+
+echo "==> Re-apply additive schema (handles legacy zero-dates)"
 php artisan legacy:repair-schema
 php artisan config:cache
 php artisan route:cache

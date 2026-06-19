@@ -12,6 +12,12 @@ class LegacyPhotoStorage
     /** Legacy site used a fixed ~90px logo in the bottom-right corner. */
     private const WATERMARK_LOGO_WIDTH = 90;
 
+    /** Tight white margin around logo content inside the badge (ratio of content size). */
+    private const WATERMARK_BADGE_PADDING_RATIO = 0.045;
+
+    /** Minimal corner radius on the white badge (ratio of badge size). */
+    private const WATERMARK_BADGE_RADIUS_RATIO = 0.035;
+
     /** Blur zone that fully covers the old burn-in (~90px wide, ~110px tall with www line). */
     private const WATERMARK_BLUR_WIDTH = 108;
 
@@ -60,7 +66,7 @@ class LegacyPhotoStorage
         $cacheDir = storage_path('app/watermarked');
         File::ensureDirectoryExists($cacheDir);
 
-        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|blur-v7');
+        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|badge-v8');
         $cachePath = $cacheDir . DIRECTORY_SEPARATOR . $key;
 
         if (is_file($cachePath) && filesize($cachePath) > 0) {
@@ -166,20 +172,21 @@ class LegacyPhotoStorage
         $markW = imagesx($mark);
         $markH = imagesy($mark);
 
+        $badge = $this->buildWatermarkBadge($mark, $markW, $markH);
+        imagedestroy($mark);
+
+        $badgeW = imagesx($badge);
+        $badgeH = imagesy($badge);
         $targetW = self::WATERMARK_LOGO_WIDTH;
-        $targetH = max(1, (int) round($markH * ($targetW / $markW)));
+        $targetH = max(1, (int) round($badgeH * ($targetW / max(1, $badgeW))));
 
         $resized = imagecreatetruecolor($targetW, $targetH);
         imagealphablending($resized, false);
         imagesavealpha($resized, true);
         imagefill($resized, 0, 0, imagecolorallocatealpha($resized, 0, 0, 0, 127));
-        imagecopyresampled($resized, $mark, 0, 0, 0, 0, $targetW, $targetH, $markW, $markH);
-        imagedestroy($mark);
-
-        // The brand logo ships on a solid white background. Drop near-white
-        // pixels to transparent so only the mark itself is stamped on the photo.
-        $this->makeWhiteTransparent($resized, $targetW, $targetH);
-        $this->decorateLogoMark($resized, $targetW, $targetH);
+        imagealphablending($resized, true);
+        imagecopyresampled($resized, $badge, 0, 0, 0, 0, $targetW, $targetH, $badgeW, $badgeH);
+        imagedestroy($badge);
 
         $maskW = min(self::WATERMARK_BLUR_WIDTH, $width);
         $maskH = min(self::WATERMARK_BLUR_HEIGHT, $height);
@@ -194,7 +201,7 @@ class LegacyPhotoStorage
         }
 
         $this->blurLegacyCornerMark($base, $maskX, $maskY, $maskW, $maskH);
-        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 88);
+        $this->copyMergeWithAlpha($base, $resized, $dstX, $dstY, $targetW, $targetH, 96);
         imagedestroy($resized);
 
         $tmp = $cachePath . '.tmp';
@@ -317,88 +324,103 @@ class LegacyPhotoStorage
     }
 
     /**
-     * White stroke around the logo shape only (no frosted halo / square).
+     * Build a white rounded-square badge from Logo2026: tight padding, minimal radius.
      */
-    private function decorateLogoMark(\GdImage $img, int $w, int $h): void
+    private function buildWatermarkBadge(\GdImage $source, int $srcW, int $srcH): \GdImage
     {
-        imagealphablending($img, false);
-        imagesavealpha($img, true);
+        [$minX, $minY, $maxX, $maxY] = $this->logoContentBounds($source, $srcW, $srcH);
+        $contentW = max(1, $maxX - $minX + 1);
+        $contentH = max(1, $maxY - $minY + 1);
 
-        $isLogo = [];
-        for ($y = 0; $y < $h; $y++) {
-            for ($x = 0; $x < $w; $x++) {
-                $alpha = (imagecolorat($img, $x, $y) >> 24) & 0x7F;
-                $isLogo[$y][$x] = $alpha < 90;
-            }
-        }
+        $padding = max(2, (int) round(min($contentW, $contentH) * self::WATERMARK_BADGE_PADDING_RATIO));
+        $badgeW = $contentW + ($padding * 2);
+        $badgeH = $contentH + ($padding * 2);
+        $radius = max(2, (int) round(min($badgeW, $badgeH) * self::WATERMARK_BADGE_RADIUS_RATIO));
 
-        $outlinePx = max(2, (int) round(min($w, $h) * 0.028));
-        $outlineAlpha = 18;
-        $whiteOutline = imagecolorallocatealpha($img, 255, 255, 255, $outlineAlpha);
+        $badge = imagecreatetruecolor($badgeW, $badgeH);
+        imagealphablending($badge, false);
+        imagesavealpha($badge, true);
+        $transparent = imagecolorallocatealpha($badge, 0, 0, 0, 127);
+        imagefill($badge, 0, 0, $transparent);
 
-        for ($y = 0; $y < $h; $y++) {
-            for ($x = 0; $x < $w; $x++) {
-                if ($isLogo[$y][$x]) {
-                    continue;
-                }
-
-                $touchOutline = false;
-
-                for ($dy = -$outlinePx; $dy <= $outlinePx; $dy++) {
-                    for ($dx = -$outlinePx; $dx <= $outlinePx; $dx++) {
-                        if (($dx * $dx) + ($dy * $dy) > (($outlinePx + 0.5) ** 2)) {
-                            continue;
-                        }
-
-                        $nx = $x + $dx;
-                        $ny = $y + $dy;
-                        if ($nx < 0 || $nx >= $w || $ny < 0 || $ny >= $h || ! ($isLogo[$ny][$nx] ?? false)) {
-                            continue;
-                        }
-
-                        $touchOutline = true;
-                        break 2;
-                    }
-                }
-
-                if ($touchOutline) {
-                    imagesetpixel($img, $x, $y, $whiteOutline);
+        $white = imagecolorallocate($badge, 255, 255, 255);
+        for ($y = 0; $y < $badgeH; $y++) {
+            for ($x = 0; $x < $badgeW; $x++) {
+                if ($this->pointInsideRoundedRect($x + 0.5, $y + 0.5, $badgeW, $badgeH, $radius)) {
+                    imagesetpixel($badge, $x, $y, $white);
                 }
             }
         }
+
+        imagealphablending($badge, true);
+        imagecopy(
+            $badge,
+            $source,
+            $padding,
+            $padding,
+            $minX,
+            $minY,
+            $contentW,
+            $contentH,
+        );
+
+        return $badge;
     }
 
-    /**
-     * Turn the solid white background of the brand logo into transparency so the
-     * watermark reads as the mark only. Near-white pixels become fully
-     * transparent; light edge pixels fade out for a clean anti-aliased outline.
-     */
-    private function makeWhiteTransparent($img, int $w, int $h): void
+    /** @return array{0:int,1:int,2:int,3:int} minX, minY, maxX, maxY */
+    private function logoContentBounds(\GdImage $source, int $w, int $h): array
     {
-        imagealphablending($img, false);
-        imagesavealpha($img, true);
+        $minX = $w;
+        $minY = $h;
+        $maxX = 0;
+        $maxY = 0;
 
         for ($y = 0; $y < $h; $y++) {
             for ($x = 0; $x < $w; $x++) {
-                $rgba = imagecolorat($img, $x, $y);
-                $alpha = ($rgba >> 24) & 0x7F;
-                if ($alpha === 0x7F) {
-                    continue;
-                }
-
+                $rgba = imagecolorat($source, $x, $y);
                 $r = ($rgba >> 16) & 0xFF;
                 $g = ($rgba >> 8) & 0xFF;
                 $b = $rgba & 0xFF;
-                $min = min($r, $g, $b);
 
-                if ($min >= 236) {
-                    imagesetpixel($img, $x, $y, imagecolorallocatealpha($img, $r, $g, $b, 127));
-                } elseif ($min >= 200) {
-                    $fade = (int) round((($min - 200) / 36) * 127);
-                    imagesetpixel($img, $x, $y, imagecolorallocatealpha($img, $r, $g, $b, max(0, min(127, $fade))));
+                if ($r >= 248 && $g >= 248 && $b >= 248) {
+                    continue;
                 }
+
+                $minX = min($minX, $x);
+                $minY = min($minY, $y);
+                $maxX = max($maxX, $x);
+                $maxY = max($maxY, $y);
             }
         }
+
+        if ($maxX < $minX || $maxY < $minY) {
+            return [0, 0, $w - 1, $h - 1];
+        }
+
+        return [$minX, $minY, $maxX, $maxY];
+    }
+
+    private function pointInsideRoundedRect(float $x, float $y, int $w, int $h, int $radius): bool
+    {
+        $r = min($radius, (int) floor(min($w, $h) / 2));
+        if ($r <= 0) {
+            return $x >= 0 && $x < $w && $y >= 0 && $y < $h;
+        }
+
+        if ($x >= $r && $x < ($w - $r)) {
+            return $y >= 0 && $y < $h;
+        }
+
+        if ($y >= $r && $y < ($h - $r)) {
+            return $x >= 0 && $x < $w;
+        }
+
+        $cx = $x < $r ? $r : ($w - $r);
+        $cy = $y < $r ? $r : ($h - $r);
+        $dx = $x - $cx;
+        $dy = $y - $cy;
+
+        return ($dx * $dx) + ($dy * $dy) <= ($r * $r);
     }
 
     /**

@@ -1,10 +1,20 @@
 let sdkPromise = null
 let sdkAppId = null
 
+function ensureFbRoot() {
+  if (!document.getElementById('fb-root')) {
+    const root = document.createElement('div')
+    root.id = 'fb-root'
+    document.body.prepend(root)
+  }
+}
+
 export function loadFacebookSdk(appId, locale = 'ru_RU') {
   if (typeof window === 'undefined' || !appId) {
     return Promise.resolve(false)
   }
+
+  ensureFbRoot()
 
   if (window.FB && sdkAppId === appId) {
     return Promise.resolve(true)

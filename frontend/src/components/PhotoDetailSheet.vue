@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
-import { api, clearApiCacheForPath, getToken, imageUrl, localizedApi, photoDownloadUrl, safeAvatarUrl } from '../api'
+import { api, clearApiCacheForPath, fullPhotoPath, getToken, imageUrl, localizedApi, photoDownloadUrl, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel, formatDateTime } from '../utils/locale'
@@ -103,7 +103,7 @@ async function load(id, { soft = false } = {}) {
     photo.value = data
     crosspostFb.value = Boolean(data?.facebook?.post_id)
     isFavorite.value = Boolean(data?.is_favorite)
-    detailImageSrc.value = imageUrl(data.images.large || data.images.original || data.images.thumb)
+    detailImageSrc.value = imageUrl(fullPhotoPath(data.images))
     void loadFreshComments(id)
   } catch (e) {
     if (!soft) {
@@ -166,7 +166,7 @@ function authorAvatar(author) {
 }
 
 function retryDetailImage() {
-  const variant = photo.value?.images?.large || photo.value?.images?.original
+  const variant = fullPhotoPath(photo.value?.images)
   if (!variant || detailImageSrc.value.includes('retry=')) return
   const base = imageUrl(variant)
   detailImageSrc.value = `${base}${base.includes('?') ? '&' : '?'}retry=1`

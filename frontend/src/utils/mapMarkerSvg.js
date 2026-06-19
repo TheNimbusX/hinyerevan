@@ -39,15 +39,30 @@ export function directionMarkerSvg(direction, size = 28) {
   return `<svg class="map-pin-svg" viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true">${body}</svg>`
 }
 
+/** Size the cluster circle from digit count (full number, no 99+ cap). */
+export function clusterMarkerMetrics(count) {
+  const label = String(Math.max(0, Number(count) || 0))
+  const len = label.length
+
+  if (len <= 1) return { label, size: 26, fontSize: 11 }
+  if (len === 2) return { label, size: 28, fontSize: 10 }
+  if (len === 3) return { label, size: 34, fontSize: 9 }
+  if (len === 4) return { label, size: 40, fontSize: 8 }
+
+  return { label, size: 46, fontSize: 7 }
+}
+
+/** Inline cluster colors — Telegram WebView may paint before the CSS bundle loads. */
+const CLUSTER_STYLE =
+  'display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;line-height:1;border:2px solid #fff;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,0.38) 0 16%,transparent 17%),linear-gradient(145deg,#ffb347,#d56f00);box-shadow:0 3px 8px rgba(213,111,0,0.28)'
+
 /**
  * Cluster badge HTML — plain circle + text (reliable in Leaflet divIcon).
  */
 export function clusterMarkerHtml(count) {
-  const label = count > 99 ? '99+' : String(count)
-  const size = label.length > 2 ? 30 : label.length > 1 ? 28 : 26
-  const fontSize = label.length > 2 ? 9 : label.length > 1 ? 10 : 11
+  const { label, size, fontSize } = clusterMarkerMetrics(count)
 
-  return `<div class="map-cluster-pin" style="width:${size}px;height:${size}px;font-size:${fontSize}px" aria-label="${label}"><span>${label}</span></div>`
+  return `<div class="map-cluster-pin" style="width:${size}px;height:${size}px;font-size:${fontSize}px;${CLUSTER_STYLE}" aria-label="${label}"><span style="text-shadow:0 1px 1px rgba(0,0,0,0.28)">${label}</span></div>`
 }
 
 export { DIRECTION_ANGLES }

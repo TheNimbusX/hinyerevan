@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
-import { api, imageUrl, safeAvatarUrl } from '../api'
+import { api, fullPhotoPath, imageUrl, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { userDisplayName, userProfilePath } from '../utils/user'
@@ -12,7 +12,7 @@ const loading = ref(false)
 const error = ref('')
 
 const photoImage = computed(() =>
-  photo.value ? imageUrl(photo.value.images.large || photo.value.images.thumb) : '',
+  photo.value ? imageUrl(fullPhotoPath(photo.value.images)) : '',
 )
 const photoDirection = computed(() =>
   photo.value ? directionLabel(photo.value.direction, t) : '',

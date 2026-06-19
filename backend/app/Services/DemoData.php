@@ -88,6 +88,8 @@ class DemoData
     public static function ratings(): array
     {
         $photos = self::photos();
+        $photosByLikes = $photos;
+        usort($photosByLikes, fn (array $a, array $b) => $b['views'] <=> $a['views']);
 
         return [
             'photos_by_views' => array_map(fn (array $photo) => [
@@ -97,6 +99,13 @@ class DemoData
                 'year' => $photo['year'],
                 'views' => $photo['views'],
             ], $photos),
+            'photos_by_likes' => array_map(fn (array $photo) => [
+                'id' => $photo['id'],
+                'title' => $photo['title'],
+                'file_id' => 'demo',
+                'year' => $photo['year'],
+                'likes_count' => max(1, (int) round($photo['views'] * 0.65)),
+            ], $photosByLikes),
             'photos_by_comments' => array_map(fn (array $photo) => [
                 'id' => $photo['id'],
                 'title' => $photo['title'],

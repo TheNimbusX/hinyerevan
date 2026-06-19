@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\DevAuthController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CommentController;
@@ -37,6 +38,9 @@ Route::get('/', fn () => [
     ],
 ]);
 Route::get('/health', fn () => ['status' => 'ok']);
+
+Route::get('/dev-auth/status', [DevAuthController::class, 'status']);
+Route::post('/dev-auth/login', [DevAuthController::class, 'login'])->middleware('throttle:12,1');
 
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/register/send-code', [AuthController::class, 'registerSendCode'])->middleware('throttle:6,1');
@@ -104,6 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         Route::get('/users', [AdminController::class, 'users']);
         Route::put('/users/{user}', [AdminController::class, 'updateUser'])->whereNumber('user');
+        Route::delete('/users/{user}', [AdminController::class, 'deleteUser'])->whereNumber('user');
 
         Route::get('/news', [AdminController::class, 'news']);
         Route::post('/news', [AdminController::class, 'storeNews']);

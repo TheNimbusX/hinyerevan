@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { removeStuckUiOverlays, isInAppBrowser } from './utils/overlayCleanup'
 import { api, apiUrl, getToken, safeAvatarUrl, setToken } from './api'
 import { getUiLanguage } from './utils/browserTranslate'
 import { useI18n } from './i18n'
@@ -12,11 +13,28 @@ import SiteFooter from './components/SiteFooter.vue'
 import FacebookPageBadge from './components/FacebookPageBadge.vue'
 import FacebookPageModal from './components/FacebookPageModal.vue'
 import HeaderUserMenu from './components/HeaderUserMenu.vue'
+import DevAuthGate from './components/DevAuthGate.vue'
 import RecaptchaField from './components/RecaptchaField.vue'
 
 const AUTH_RETURN_KEY = 'hinyerevan_auth_return'
 
+const devAuthRequired = computed(() => {
+  if (import.meta.env.VITE_DEV_AUTH_REQUIRED === 'true') return true
+  if (typeof window === 'undefined') return false
+  const host = window.location.hostname
+  return (
+    host === 'hinyerevan.ru'
+    || host === 'www.hinyerevan.ru'
+    || host === 'dev.hinyerevan.com'
+    || host === 'www.dev.hinyerevan.com'
+    || host === '45.138.25.76'
+  )
+})
+
+const devAuthOk = ref(true)
+
 const menuOpen = ref(false)
+const inAppBrowser = isInAppBrowser()
 const facebookOpen = ref(false)
 const authOpen = ref(false)
 const authMode = ref('login')
@@ -30,7 +48,7 @@ const authForm = ref({
   first_name: '',
   last_name: '',
   email: '',
-  sex: '',
+  sex: '2',
   birth_day: '',
   birth_month: '',
   birth_year: '',
@@ -136,6 +154,14 @@ async function handleSocialCallback() {
 
 function closeMenu() {
   menuOpen.value = false
+  document.documentElement.classList.remove('menu-open')
+  document.body.style.overflow = ''
+  document.querySelectorAll('.mobile-menu-backdrop').forEach((node) => node.remove())
+}
+
+function resetUiOverlays() {
+  menuOpen.value = false
+  removeStuckUiOverlays()
 }
 
 function shareSite() {
@@ -328,7 +354,13 @@ watch(authMode, () => {
 })
 
 watch(menuOpen, (open) => {
-  document.body.style.overflow = open ? 'hidden' : ''
+  if (open) {
+    document.documentElement.classList.add('menu-open')
+    document.body.style.overflow = 'hidden'
+    return
+  }
+  document.documentElement.classList.remove('menu-open')
+  document.body.style.overflow = ''
 })
 
 function openFacebookModal() {
@@ -345,7 +377,35 @@ function closeFacebookModal() {
   }
 }
 
+async function onDevAuthOk() {
+  devAuthOk.value = true
+  await handleSocialCallback()
+  if (!currentUser.value) {
+    await loadCurrentUser()
+  }
+  loadSocialProviders()
+  if (router.currentRoute.value.query.facebook === '1') {
+    openFacebookModal()
+  }
+}
+
+async function ensureDevAuth() {
+  if (!devAuthRequired.value) {
+    devAuthOk.value = true
+    return
+  }
+  try {
+    const status = await api('/dev-auth/status')
+    devAuthOk.value = Boolean(status?.ok)
+  } catch {
+    devAuthOk.value = false
+  }
+}
+
 onMounted(async () => {
+  await ensureDevAuth()
+  if (!devAuthOk.value) return
+
   // Must run before loadCurrentUser(): a stale token in localStorage can 401 and
   // call setToken(null), wiping the fresh social_token we just received.
   await handleSocialCallback()
@@ -358,17 +418,28 @@ onMounted(async () => {
   }
   window.addEventListener('hinyerevan:auth-changed', syncAuthState)
   window.addEventListener('hinyerevan:open-auth', handleOpenAuth)
+  window.addEventListener('pageshow', resetUiOverlays)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') resetUiOverlays()
+  })
+  resetUiOverlays()
+})
+
+router.afterEach(() => {
+  closeMenu()
 })
 
 onBeforeUnmount(() => {
   document.body.style.overflow = ''
   window.removeEventListener('hinyerevan:auth-changed', syncAuthState)
   window.removeEventListener('hinyerevan:open-auth', handleOpenAuth)
+  window.removeEventListener('pageshow', resetUiOverlays)
 })
 </script>
 
 <template>
-  <div class="app-shell">
+  <DevAuthGate v-if="devAuthRequired && !devAuthOk" @authenticated="onDevAuthOk" />
+  <div v-else class="app-shell">
     <header class="site-header notranslate">
       <div class="site-header-inner">
         <RouterLink class="brand" to="/" @click="closeMenu">
@@ -417,7 +488,7 @@ onBeforeUnmount(() => {
       </div>
     </header>
 
-    <Transition name="menu-backdrop">
+    <Transition name="menu-backdrop" :css="!inAppBrowser">
       <button
         v-if="menuOpen"
         type="button"
@@ -539,8 +610,8 @@ onBeforeUnmount(() => {
               </label>
               <label class="register-field">
                 <span>{{ t('sex') }}</span>
-                <select v-model="authForm.sex" required>
-                  <option value="" disabled>{{ t('chooseSex') }}</option>
+                <select v-model="authForm.sex">
+                  <option value="2">{{ t('sexUnset') }}</option>
                   <option value="1">{{ t('male') }}</option>
                   <option value="0">{{ t('female') }}</option>
                 </select>
@@ -626,6 +697,10 @@ onBeforeUnmount(() => {
     top: 10px;
     width: calc(100% - 20px);
     border-radius: $radius-lg;
+    // backdrop-filter in Telegram/iOS in-app browsers can dim the whole page.
+    background: rgba($bg, 0.96);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
   }
 }
 
@@ -1028,7 +1103,6 @@ onBeforeUnmount(() => {
   border: 0;
   padding: 0;
   background: rgba(12, 16, 24, 0.42);
-  backdrop-filter: blur(2px);
   cursor: pointer;
 }
 

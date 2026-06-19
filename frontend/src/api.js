@@ -2,6 +2,7 @@ import { getUiLanguage } from './utils/browserTranslate'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
 const TOKEN_KEY = 'hinyerevan_token'
+const DEV_AUTH_KEY = 'hinyerevan_dev_auth'
 const CACHE_PREFIX = 'hinyerevan:api-cache:'
 
 /** Absolute URL to a backend endpoint — used for full-page OAuth redirects. */
@@ -39,6 +40,18 @@ function defaultCacheTtl(path) {
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY)
+}
+
+export function getDevAuthToken() {
+  return sessionStorage.getItem(DEV_AUTH_KEY)
+}
+
+export function setDevAuthToken(token) {
+  if (token) {
+    sessionStorage.setItem(DEV_AUTH_KEY, token)
+  } else {
+    sessionStorage.removeItem(DEV_AUTH_KEY)
+  }
 }
 
 export function setToken(token) {
@@ -166,6 +179,11 @@ export async function api(path, options = {}) {
     headers.Authorization = `Bearer ${token}`
   }
 
+  const devToken = getDevAuthToken()
+  if (devToken) {
+    headers['X-Dev-Auth'] = devToken
+  }
+
   const localizedPath =
     options.skipLang || (options.method || 'GET').toUpperCase() !== 'GET'
       ? path
@@ -235,7 +253,7 @@ export async function cachedApi(path, options = {}) {
 }
 
 /** Bump when serve-time watermark/blur logic changes (cache-busts browser/CDN). */
-const WATERMARK_CACHE_VERSION = 7
+const WATERMARK_CACHE_VERSION = 8
 
 export function imageUrl(path) {
   if (!path) return ''
@@ -251,9 +269,19 @@ export function imageUrl(path) {
   return url
 }
 
-/** Watermarked large/original image URL with Content-Disposition download. */
+/** Full-size file path for viewing and download (original, then large fallback). */
+export function fullPhotoPath(images) {
+  return images?.original || images?.large || images?.thumb || ''
+}
+
+/** Smaller variant for grids, cards and link previews. */
+export function previewPhotoPath(images) {
+  return images?.large || images?.thumb || images?.original || ''
+}
+
+/** Watermarked original/large image URL with Content-Disposition download. */
 export function photoDownloadUrl(images, title = 'photo') {
-  const variant = images?.large || images?.original
+  const variant = fullPhotoPath(images)
   if (!variant) return ''
   const base = imageUrl(variant)
   const separator = base.includes('?') ? '&' : '?'

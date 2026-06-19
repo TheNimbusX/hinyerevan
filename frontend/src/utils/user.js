@@ -51,5 +51,8 @@ export function parseBirthdate(bdate) {
 }
 
 export function sexLabel(sex, t) {
-  return Number(sex) === 1 ? t('male') : t('female')
+  const value = Number(sex)
+  if (value === 1) return t('male')
+  if (value === 0) return t('female')
+  return t('sexUnset')
 }

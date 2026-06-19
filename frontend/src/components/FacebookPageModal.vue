@@ -4,9 +4,11 @@ import { api } from '../api'
 import { useTheme } from '../composables/useTheme'
 import { useI18n } from '../i18n'
 import { currentLanguage } from '../i18n'
+import { isInAppBrowser } from '../utils/overlayCleanup'
 import { loadFacebookSdk, parseFacebookXfbml } from '../utils/facebookSdk'
 
 const PLUGIN_HEIGHT = 520
+const MOBILE_BP = 767
 
 const props = defineProps({
   open: { type: Boolean, default: false },
@@ -17,12 +19,26 @@ const { t } = useI18n()
 const { theme } = useTheme()
 const stats = ref(null)
 const plugin = ref(null)
+const embedBox = ref(null)
 const apiLoading = ref(false)
 const embedLoading = ref(false)
 const pluginReady = ref(false)
 const pluginFailed = ref(false)
 const embedHref = ref('')
 const embedGeneration = ref(0)
+const configAppId = ref('')
+const pluginWidth = ref(500)
+const useIframeEmbed = ref(false)
+const useMobileFeed = ref(false)
+
+const isMobileLayout = computed(() => {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia(`(max-width: ${MOBILE_BP}px)`).matches
+})
+
+const mobilePosts = computed(() => stats.value?.recent_posts || [])
+
+const embedHeight = computed(() => (useMobileFeed.value ? 'auto' : `${PLUGIN_HEIGHT}px`))
 
 const fbLocale = computed(() => {
   const lang = currentLanguage.value
@@ -33,16 +49,34 @@ const fbLocale = computed(() => {
 
 const followUrl = computed(() => embedHref.value || stats.value?.page_url || 'https://www.facebook.com/HinYerevanCom/')
 
+const mobilePageUrl = computed(() => followUrl.value.replace('://www.facebook.com', '://m.facebook.com'))
+
 const fbColorScheme = computed(() => (theme.value === 'dark' ? 'dark' : 'light'))
 
-const showSkeleton = computed(
-  () => apiLoading.value || (embedLoading.value && pluginReady.value && !pluginFailed.value),
-)
+// Skeleton only while API loads — hiding the plugin (opacity 0) breaks XFBML on mobile WebKit.
+const showSkeleton = computed(() => apiLoading.value)
 
 const showEmbed = computed(() => !apiLoading.value && (pluginReady.value || pluginFailed.value))
 
+const iframeSrc = computed(() => {
+  if (!followUrl.value) return ''
+  const params = new URLSearchParams({
+    href: followUrl.value,
+    tabs: 'timeline',
+    width: String(pluginWidth.value),
+    height: String(PLUGIN_HEIGHT),
+    small_header: 'false',
+    adapt_container_width: 'true',
+    hide_cover: 'false',
+    show_facepile: 'true',
+  })
+  if (configAppId.value) params.set('appId', configAppId.value)
+  return `https://www.facebook.com/plugins/page.php?${params.toString()}`
+})
+
 let pluginCheckTimer = null
 let embedWatchTimer = null
+let resizeObserver = null
 
 function clearEmbedWatch() {
   clearTimeout(pluginCheckTimer)
@@ -56,7 +90,49 @@ function finishEmbedLoading() {
   clearEmbedWatch()
 }
 
-function waitForPluginIframe(root, timeoutMs = 8000) {
+function prefersMobileFeed() {
+  return isMobileLayout.value
+}
+
+function prefersIframeEmbed() {
+  if (typeof window === 'undefined') return false
+  return isInAppBrowser()
+}
+
+function formatPostDate(iso) {
+  if (!iso) return ''
+  try {
+    const lang = currentLanguage.value === 'hy' ? 'hy-AM' : currentLanguage.value === 'en' ? 'en-US' : 'ru-RU'
+    return new Date(iso).toLocaleDateString(lang, { day: 'numeric', month: 'short', year: 'numeric' })
+  } catch {
+    return ''
+  }
+}
+
+function postExcerpt(text, max = 160) {
+  const clean = (text || '').replace(/\s+/g, ' ').trim()
+  if (clean.length <= max) return clean
+  return `${clean.slice(0, max).trim()}…`
+}
+
+function measurePluginWidth() {
+  const el = embedBox.value || plugin.value?.parentElement
+  if (!el) return 500
+  const w = Math.floor(el.clientWidth) || 500
+  return Math.max(280, Math.min(500, w))
+}
+
+function bindResizeObserver() {
+  resizeObserver?.disconnect()
+  const el = embedBox.value
+  if (!el || typeof ResizeObserver === 'undefined') return
+  resizeObserver = new ResizeObserver(() => {
+    pluginWidth.value = measurePluginWidth()
+  })
+  resizeObserver.observe(el)
+}
+
+function waitForPluginIframe(root, timeoutMs = 12000) {
   clearEmbedWatch()
 
   return new Promise((resolve) => {
@@ -103,6 +179,8 @@ async function mountEmbed() {
   pluginReady.value = false
   pluginFailed.value = false
   embedLoading.value = false
+  useIframeEmbed.value = false
+  useMobileFeed.value = false
 
   if (!embedHref.value) {
     pluginFailed.value = true
@@ -118,9 +196,28 @@ async function mountEmbed() {
 
     stats.value = pageStats
     embedHref.value = config?.page_url || pageStats?.page_url || embedHref.value
+    configAppId.value = config?.app_id || ''
 
     if (!config?.app_id) {
       pluginFailed.value = true
+      return
+    }
+
+    await nextTick()
+    if (generation !== embedGeneration.value) return
+
+    pluginWidth.value = measurePluginWidth()
+    bindResizeObserver()
+
+    if (prefersMobileFeed()) {
+      useMobileFeed.value = true
+      pluginReady.value = true
+      return
+    }
+
+    if (prefersIframeEmbed()) {
+      useIframeEmbed.value = true
+      pluginReady.value = true
       return
     }
 
@@ -128,7 +225,8 @@ async function mountEmbed() {
     if (generation !== embedGeneration.value) return
 
     if (!ok) {
-      pluginFailed.value = true
+      useIframeEmbed.value = true
+      pluginReady.value = true
       return
     }
 
@@ -137,14 +235,21 @@ async function mountEmbed() {
     await nextTick()
     if (generation !== embedGeneration.value) return
 
-    parseFacebookXfbml(plugin.value)
-    const hasIframe = await waitForPluginIframe(plugin.value)
+    pluginWidth.value = measurePluginWidth()
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
     if (generation !== embedGeneration.value) return
 
-    if (!hasIframe) pluginFailed.value = true
+    parseFacebookXfbml(plugin.value)
+    const hasIframe = await waitForPluginIframe(plugin.value, 15000)
+    if (generation !== embedGeneration.value) return
+
+    if (!hasIframe) {
+      useIframeEmbed.value = true
+    }
   } catch {
     if (generation === embedGeneration.value) {
-      pluginFailed.value = true
+      useIframeEmbed.value = true
+      pluginReady.value = true
     }
   } finally {
     if (generation === embedGeneration.value) {
@@ -185,6 +290,8 @@ watch(
     } else {
       window.removeEventListener('keydown', onKeydown)
       clearEmbedWatch()
+      resizeObserver?.disconnect()
+      resizeObserver = null
       apiLoading.value = false
       embedLoading.value = false
       embedGeneration.value += 1
@@ -194,7 +301,7 @@ watch(
 )
 
 watch(fbColorScheme, () => {
-  if (props.open && !apiLoading.value) {
+  if (props.open && !apiLoading.value && !useIframeEmbed.value && !useMobileFeed.value) {
     mountEmbed()
   }
 })
@@ -202,6 +309,7 @@ watch(fbColorScheme, () => {
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
   clearEmbedWatch()
+  resizeObserver?.disconnect()
 })
 </script>
 
@@ -240,8 +348,9 @@ onBeforeUnmount(() => {
               <strong>{{ (stats.followers_count || stats.fan_count || 0).toLocaleString() }}</strong>
             </template>
           </p>
-          <p class="facebook-modal__intro">{{ t('facebookPageIntro') }}</p>
+          <p v-if="!isMobileLayout" class="facebook-modal__intro">{{ t('facebookPageIntro') }}</p>
           <a
+            v-if="!isMobileLayout"
             class="button facebook-modal__follow"
             :href="followUrl"
             target="_blank"
@@ -252,9 +361,11 @@ onBeforeUnmount(() => {
         </header>
 
         <div
+          ref="embedBox"
           class="facebook-modal__embed"
-          :style="{ '--fb-plugin-height': `${PLUGIN_HEIGHT}px` }"
-          :aria-busy="showSkeleton"
+          :class="{ 'facebook-modal__embed--mobile': useMobileFeed }"
+          :style="{ '--fb-plugin-height': embedHeight }"
+          :aria-busy="showSkeleton || embedLoading"
         >
           <div class="facebook-modal__skeleton" :class="{ 'is-hidden': !showSkeleton }" aria-hidden="true">
             <div class="facebook-modal__skeleton-cover" />
@@ -265,14 +376,61 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div ref="plugin" class="facebook-modal__plugin" :class="{ 'is-visible': showEmbed && !showSkeleton }">
+          <div
+            v-if="embedLoading"
+            class="facebook-modal__embed-busy"
+            aria-hidden="true"
+          />
+
+          <div ref="plugin" class="facebook-modal__plugin" :class="{ 'is-visible': showEmbed, 'facebook-modal__plugin--mobile': useMobileFeed }">
+            <div v-if="pluginReady && !pluginFailed && useMobileFeed" class="facebook-mobile-feed">
+              <a
+                v-for="(post, index) in mobilePosts"
+                :key="post.permalink_url || index"
+                class="facebook-mobile-post"
+                :href="post.permalink_url || mobilePageUrl"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img
+                  v-if="post.picture_url"
+                  class="facebook-mobile-post__image"
+                  :src="post.picture_url"
+                  alt=""
+                  loading="lazy"
+                  decoding="async"
+                />
+                <div class="facebook-mobile-post__body">
+                  <time v-if="post.created_time" class="facebook-mobile-post__date">{{ formatPostDate(post.created_time) }}</time>
+                  <p v-if="post.message" class="facebook-mobile-post__text">{{ postExcerpt(post.message) }}</p>
+                </div>
+              </a>
+              <p v-if="!mobilePosts.length" class="facebook-mobile-feed__empty">{{ t('facebookMobileFeedEmpty') }}</p>
+              <a class="button facebook-mobile-feed__more" :href="mobilePageUrl" target="_blank" rel="noopener noreferrer">
+                {{ t('facebookOpenPage') }}
+              </a>
+            </div>
+            <iframe
+              v-else-if="pluginReady && !pluginFailed && useIframeEmbed"
+              :key="`iframe-${embedGeneration}-${pluginWidth}`"
+              class="facebook-modal__iframe"
+              :src="iframeSrc"
+              :width="pluginWidth"
+              :height="PLUGIN_HEIGHT"
+              style="border: none; overflow: hidden"
+              scrolling="no"
+              frameborder="0"
+              allowfullscreen="true"
+              allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+              :title="t('facebookPage')"
+            />
             <div
-              v-if="pluginReady && !pluginFailed"
-              :key="`${embedGeneration}-${fbColorScheme}`"
+              v-else-if="pluginReady && !pluginFailed"
+              :key="`${embedGeneration}-${fbColorScheme}-${pluginWidth}`"
               class="fb-page"
               :data-href="followUrl"
               data-tabs="timeline"
-              data-width="500"
+              :data-width="String(pluginWidth)"
               :data-height="String(PLUGIN_HEIGHT)"
               data-small-header="false"
               data-adapt-container-width="true"
@@ -483,6 +641,111 @@ onBeforeUnmount(() => {
   :deep(iframe) {
     border-radius: 0 0 $radius-lg $radius-lg;
   }
+}
+
+.facebook-modal__iframe {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: var(--fb-plugin-height, 520px);
+}
+
+.facebook-modal__embed--mobile {
+  min-height: 0;
+  overflow: visible;
+}
+
+.facebook-modal__plugin--mobile {
+  position: relative;
+  inset: auto;
+  overflow: visible;
+}
+
+.facebook-mobile-feed {
+  display: grid;
+  gap: 10px;
+  padding: 4px 2px 2px;
+  max-height: min(58vh, 480px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.facebook-mobile-post {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border-radius: $radius-md;
+  background: rgba(255, 255, 255, 0.92);
+  color: inherit;
+  text-decoration: none;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06);
+  @include interactive((transform, box-shadow));
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+  }
+}
+
+.facebook-mobile-post__image {
+  display: block;
+  width: 100%;
+  max-height: 180px;
+  border-radius: $radius-sm;
+  object-fit: cover;
+}
+
+.facebook-mobile-post__body {
+  display: grid;
+  gap: 4px;
+}
+
+.facebook-mobile-post__date {
+  color: $muted;
+  font-size: 12px;
+}
+
+.facebook-mobile-post__text {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.facebook-mobile-feed__empty {
+  margin: 0;
+  padding: 16px 8px;
+  text-align: center;
+  color: $muted;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.facebook-mobile-feed__more {
+  justify-self: center;
+  margin-top: 4px;
+}
+
+.facebook-modal--dark {
+  .facebook-mobile-post {
+    background: #1c2128;
+    box-shadow: inset 0 0 0 1px #2a313d;
+  }
+
+  .facebook-mobile-post__date,
+  .facebook-mobile-feed__empty {
+    color: #9aa3b5;
+  }
+}
+
+.facebook-modal__embed-busy {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.facebook-modal--dark .facebook-modal__embed-busy {
+  background: rgba(0, 0, 0, 0.2);
 }
 
 .facebook-modal__fallback {

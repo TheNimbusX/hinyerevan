@@ -73,7 +73,7 @@ class AuthController extends Controller
             'first_name' => ['required', 'string', 'min:3', 'max:80'],
             'last_name' => ['required', 'string', 'min:3', 'max:80'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email'],
-            'sex' => ['required', 'integer', 'in:0,1'],
+            'sex' => ['nullable', 'integer', 'in:0,1,2'],
             'birth_day' => ['nullable', 'integer', 'between:1,31'],
             'birth_month' => ['nullable', 'integer', 'between:1,12'],
             'birth_year' => ['nullable', 'integer', 'between:1900,2026'],
@@ -89,6 +89,7 @@ class AuthController extends Controller
 
         $this->verifyRecaptcha((string) ($data['recaptcha_token'] ?? ''));
         unset($data['recaptcha_token'], $data['password_confirmation']);
+        $data['sex'] = isset($data['sex']) ? (int) $data['sex'] : User::SEX_UNSET;
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $emailKey = strtolower($data['email']);
@@ -186,7 +187,7 @@ class AuthController extends Controller
             'last_name' => $reg['last_name'],
             'email' => $data['email'],
             'identity' => '',
-            'sex' => $reg['sex'],
+            'sex' => $reg['sex'] ?? User::SEX_UNSET,
             'photo' => $photo,
             'type' => User::TYPE_USER,
             'password' => md5($reg['password']),
@@ -230,7 +231,7 @@ class AuthController extends Controller
             'last_name' => ['nullable', 'string', 'max:100'],
             'email' => ['required', 'email', 'max:190', 'unique:users,email,' . $user->id],
             'identity' => ['nullable', 'string', 'max:80'],
-            'sex' => ['nullable', 'integer', 'in:0,1'],
+            'sex' => ['nullable', 'integer', 'in:0,1,2'],
             'birth_day' => ['nullable', 'integer', 'between:1,31'],
             'birth_month' => ['nullable', 'integer', 'between:1,12'],
             'birth_year' => ['nullable', 'integer', 'between:1900,2026'],
@@ -238,7 +239,7 @@ class AuthController extends Controller
 
         $data['last_name'] ??= '';
         $data['identity'] ??= '';
-        $data['sex'] = isset($data['sex']) ? (int) $data['sex'] : (int) ($user->sex ?? 0);
+        $data['sex'] = isset($data['sex']) ? (int) $data['sex'] : (int) ($user->sex ?? User::SEX_UNSET);
 
         if (! empty($data['birth_year']) && ! empty($data['birth_month']) && ! empty($data['birth_day'])) {
             $data['bdate'] = sprintf(

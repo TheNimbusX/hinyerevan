@@ -23,6 +23,7 @@ class RatingController extends Controller
         if (! LegacySchema::photosReady()) {
             $ratings = DemoData::ratings();
             $ratings['photos_by_views'] = $this->translator->translateItems($ratings['photos_by_views'], ['title'], $lang);
+            $ratings['photos_by_likes'] = $this->translator->translateItems($ratings['photos_by_likes'], ['title'], $lang);
             $ratings['photos_by_comments'] = $this->translator->translateItems($ratings['photos_by_comments'], ['title'], $lang);
 
             return $ratings;
@@ -57,8 +58,33 @@ class RatingController extends Controller
                 ->get(['photos.id', 'photos.title', 'photos.file_id', 'photos.year', DB::raw("{$totalCommentsExpr} as comments_count")])
             : [];
 
+        $favoriteCounts = Schema::hasTable('favorites')
+            ? DB::table('favorites')
+                ->select('photo_id', DB::raw('COUNT(*) as favorites_count'))
+                ->groupBy('photo_id')
+            : null;
+
+        $legacyLikesExpr = Schema::hasColumn('photos', 'legacy_likes_count')
+            ? 'COALESCE(photos.legacy_likes_count, 0)'
+            : '0';
+        $facebookLikesExpr = Schema::hasColumn('photos', 'facebook_likes')
+            ? 'COALESCE(photos.facebook_likes, 0)'
+            : '0';
+        $totalLikesExpr = "COALESCE(favorite_counts.favorites_count, 0) + {$legacyLikesExpr} + {$facebookLikesExpr}";
+
+        $photosByLikes = $favoriteCounts !== null
+            ? DB::table('photos')
+                ->leftJoinSub($favoriteCounts, 'favorite_counts', fn ($join) => $join->on('favorite_counts.photo_id', '=', 'photos.id'))
+                ->where('photos.id', '>', 0)
+                ->where('photos.published', 1)
+                ->orderByDesc(DB::raw($totalLikesExpr))
+                ->limit(10)
+                ->get(['photos.id', 'photos.title', 'photos.file_id', 'photos.year', DB::raw("{$totalLikesExpr} as likes_count")])
+            : [];
+
         return [
             'photos_by_views' => $this->translator->translateItems($photosByViews, ['title'], $lang),
+            'photos_by_likes' => $this->translator->translateItems($photosByLikes, ['title'], $lang),
             'photos_by_comments' => $this->translator->translateItems($photosByComments, ['title'], $lang),
             'users_by_photos' => LegacySchema::usersReady()
                 ? DB::table('users')

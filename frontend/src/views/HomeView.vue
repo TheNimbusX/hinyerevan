@@ -5,10 +5,9 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
-import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import Slider from '@vueform/slider'
 import '@vueform/slider/themes/default.css'
-import { api, cachedApi, imageUrl, localizedApi, safeAvatarUrl } from '../api'
+import { api, cachedApi, imageUrl, localizedApi, previewPhotoPath, safeAvatarUrl } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
@@ -22,8 +21,20 @@ import PhotoDetailSheet from '../components/PhotoDetailSheet.vue'
 
 const markers = ref([])
 const photos = ref([])
-const news = ref([])
 const ratings = ref(null)
+const secondaryLoading = ref(true)
+const latestSkeletonItems = [0, 1, 2]
+const ratingViewsSkeletonItems = [0, 1, 2, 3, 4, 5, 6]
+const ratingLikesSkeletonItems = [0, 1, 2, 3, 4, 5, 6]
+const ratingCommentsSkeletonItems = [0, 1, 2, 3, 4, 5]
+const ratingUserSkeletonItems = [0, 1, 2, 3, 4]
+const RATING_VIEWS_LIMIT = 7
+const RATING_LIKES_LIMIT = 7
+const RATING_COMMENTS_LIMIT = 6
+
+function ratingPhotos(list, limit) {
+  return (list || []).slice(0, limit)
+}
 const loading = ref(true)
 const markersLoading = ref(false)
 const mapProvider = ref('google')
@@ -380,7 +391,7 @@ function initMap() {
   map = L.map(mapElement.value, {
     center: DEFAULT_CENTER,
     zoom: DEFAULT_ZOOM,
-    minZoom: 11,
+    minZoom: 7,
     maxZoom: MAP_MAX_ZOOM,
     zoomControl: true,
     scrollWheelZoom: true,
@@ -472,16 +483,19 @@ function onYearSliderChange(value) {
 }
 
 async function loadSecondaryContent() {
-  // Loaded separately so a failure here never blocks the map markers.
-  const [ratingData, photoData, newsData] = await Promise.allSettled([
-    cachedApi('/ratings'),
-    cachedApi('/photos?per_page=3'),
-    cachedApi('/news?per_page=3'),
-  ])
-  if (ratingData.status === 'fulfilled') ratings.value = ratingData.value
-  if (photoData.status === 'fulfilled') photos.value = photoData.value.data || []
-  if (newsData.status === 'fulfilled') news.value = newsData.value.data || []
-  loadFilteredUserLabel()
+  secondaryLoading.value = true
+  try {
+    // Loaded separately so a failure here never blocks the map markers.
+    const [ratingData, photoData] = await Promise.allSettled([
+      cachedApi('/ratings'),
+      cachedApi('/photos?per_page=3'),
+    ])
+    if (ratingData.status === 'fulfilled') ratings.value = ratingData.value
+    if (photoData.status === 'fulfilled') photos.value = photoData.value.data || []
+    loadFilteredUserLabel()
+  } finally {
+    secondaryLoading.value = false
+  }
 }
 
 useLanguageReload(() => loadSecondaryContent())
@@ -494,11 +508,6 @@ useLocalizedReady(async ({ path }) => {
   if (path === '/photos?per_page=3') {
     const photoData = await cachedApi('/photos?per_page=3')
     photos.value = photoData?.data || []
-    return
-  }
-  if (path === '/news?per_page=3') {
-    const newsData = await cachedApi('/news?per_page=3')
-    news.value = newsData?.data || []
   }
 })
 
@@ -696,67 +705,144 @@ onBeforeUnmount(() => {
     <button class="button button-ghost" type="button" @click="requireAuth('/photos/add')">{{ t('addPhoto') }}</button>
   </div>
 
-  <section class="section-grid rating-grid">
+  <section class="section-grid rating-grid" :aria-busy="secondaryLoading">
     <article class="panel latest-panel">
       <h2>{{ t('latestPhotos') }}</h2>
-      <RouterLink v-for="photo in photos" :key="photo.id" class="latest-photo" :to="`/photos/${photo.id}`">
-        <img :src="imageUrl(photo.images.thumb)" :alt="photo.title" />
-        <span>{{ photo.year }}</span>
-        <strong>{{ photo.title }}</strong>
-      </RouterLink>
+      <template v-if="secondaryLoading">
+        <div v-for="item in latestSkeletonItems" :key="item" class="latest-photo rating-skeleton-latest" aria-hidden="true">
+          <span class="rating-skeleton-block rating-skeleton-block--hero" />
+          <span class="rating-skeleton-block rating-skeleton-block--title" />
+        </div>
+        <p class="rating-panel-loading">{{ t('loading') }}</p>
+      </template>
+      <template v-else>
+        <RouterLink v-for="photo in photos" :key="photo.id" class="latest-photo" :to="`/photos/${photo.id}`">
+          <img
+            :src="imageUrl(previewPhotoPath(photo.images))"
+            :alt="photo.title"
+          />
+          <div class="latest-photo-meta">
+            <strong>{{ photo.title }}</strong>
+          </div>
+        </RouterLink>
+      </template>
     </article>
-    <article class="panel">
+    <article class="panel rating-list-panel">
       <h2>{{ t('photosByViews') }}</h2>
-      <RouterLink
-        v-for="photo in ratings?.photos_by_views || []"
-        :key="photo.id"
-        class="rating-photo-row"
-        :to="`/photos/${photo.id}`"
-      >
-        <img :src="imageUrl(`/api/photos/file/thumb/${photo.file_id}`)" :alt="photo.title" />
-        <span>
-          <strong>{{ photo.title }}</strong>
-          <small>{{ photo.year }} · {{ photo.views }} {{ t('views') }}</small>
-        </span>
-      </RouterLink>
+      <template v-if="secondaryLoading">
+        <div v-for="item in ratingViewsSkeletonItems" :key="item" class="rating-photo-row rating-skeleton-row" aria-hidden="true">
+          <span class="rating-skeleton-block rating-skeleton-block--thumb" />
+          <span class="rating-skeleton-lines">
+            <span class="rating-skeleton-block rating-skeleton-block--line" />
+            <span class="rating-skeleton-block rating-skeleton-block--line rating-skeleton-block--short" />
+          </span>
+        </div>
+        <p class="rating-panel-loading">{{ t('loading') }}</p>
+      </template>
+      <template v-else>
+        <RouterLink
+          v-for="photo in ratingPhotos(ratings?.photos_by_views, RATING_VIEWS_LIMIT)"
+          :key="photo.id"
+          class="rating-photo-row"
+          :to="`/photos/${photo.id}`"
+        >
+          <img :src="imageUrl(`/api/photos/file/large/${photo.file_id}`)" :alt="photo.title" loading="lazy" />
+          <span>
+            <strong>{{ photo.title }}</strong>
+            <small>{{ photo.year }} · {{ photo.views }} {{ t('views') }}</small>
+          </span>
+        </RouterLink>
+      </template>
     </article>
-    <article class="panel">
+    <article class="panel rating-list-panel">
+      <h2>{{ t('photosByLikes') }}</h2>
+      <template v-if="secondaryLoading">
+        <div v-for="item in ratingLikesSkeletonItems" :key="item" class="rating-photo-row rating-skeleton-row" aria-hidden="true">
+          <span class="rating-skeleton-block rating-skeleton-block--thumb" />
+          <span class="rating-skeleton-lines">
+            <span class="rating-skeleton-block rating-skeleton-block--line" />
+            <span class="rating-skeleton-block rating-skeleton-block--line rating-skeleton-block--short" />
+          </span>
+        </div>
+        <p class="rating-panel-loading">{{ t('loading') }}</p>
+      </template>
+      <template v-else>
+        <RouterLink
+          v-for="photo in ratingPhotos(ratings?.photos_by_likes, RATING_LIKES_LIMIT)"
+          :key="photo.id"
+          class="rating-photo-row"
+          :to="`/photos/${photo.id}`"
+        >
+          <img :src="imageUrl(`/api/photos/file/large/${photo.file_id}`)" :alt="photo.title" loading="lazy" />
+          <span>
+            <strong>{{ photo.title }}</strong>
+            <small>{{ photo.year }} · {{ photo.likes_count }} {{ t('likes') }}</small>
+          </span>
+        </RouterLink>
+      </template>
+    </article>
+    <article class="panel rating-list-panel">
       <h2>{{ t('photosByComments') }}</h2>
-      <RouterLink
-        v-for="photo in ratings?.photos_by_comments || []"
-        :key="photo.id"
-        class="rating-photo-row"
-        :to="`/photos/${photo.id}`"
-      >
-        <img :src="imageUrl(`/api/photos/file/thumb/${photo.file_id}`)" :alt="photo.title" />
-        <span>
-          <strong>{{ photo.title }}</strong>
-          <small>{{ photo.year }} · {{ photo.comments_count }} {{ t('comments') }}</small>
-        </span>
-      </RouterLink>
+      <template v-if="secondaryLoading">
+        <div v-for="item in ratingCommentsSkeletonItems" :key="item" class="rating-photo-row rating-skeleton-row" aria-hidden="true">
+          <span class="rating-skeleton-block rating-skeleton-block--thumb" />
+          <span class="rating-skeleton-lines">
+            <span class="rating-skeleton-block rating-skeleton-block--line" />
+            <span class="rating-skeleton-block rating-skeleton-block--line rating-skeleton-block--short" />
+          </span>
+        </div>
+        <p class="rating-panel-loading">{{ t('loading') }}</p>
+      </template>
+      <template v-else>
+        <RouterLink
+          v-for="photo in ratingPhotos(ratings?.photos_by_comments, RATING_COMMENTS_LIMIT)"
+          :key="photo.id"
+          class="rating-photo-row"
+          :to="`/photos/${photo.id}`"
+        >
+          <img :src="imageUrl(`/api/photos/file/large/${photo.file_id}`)" :alt="photo.title" loading="lazy" />
+          <span>
+            <strong>{{ photo.title }}</strong>
+            <small>{{ photo.year }} · {{ photo.comments_count }} {{ t('comments') }}</small>
+          </span>
+        </RouterLink>
+      </template>
     </article>
     <article class="panel">
       <h2>{{ t('usersByPhotos') }}</h2>
-      <RouterLink v-for="user in ratings?.users_by_photos || []" :key="user.id" class="author-row" :to="`/users/${user.unique}`">
-        <img class="author-avatar" :src="userAvatarUrl(user)" :alt="`${user.first_name} ${user.last_name}`" />
-        <span>{{ user.first_name }} {{ user.last_name }}</span>
-        <strong>{{ user.photos_count }} {{ t('photosCount') }}</strong>
-      </RouterLink>
+      <template v-if="secondaryLoading">
+        <div v-for="item in ratingUserSkeletonItems" :key="item" class="author-row rating-skeleton-row" aria-hidden="true">
+          <span class="rating-skeleton-block rating-skeleton-block--avatar" />
+          <span class="rating-skeleton-block rating-skeleton-block--line" />
+          <span class="rating-skeleton-block rating-skeleton-block--badge" />
+        </div>
+        <p class="rating-panel-loading">{{ t('loading') }}</p>
+      </template>
+      <template v-else>
+        <RouterLink v-for="user in ratings?.users_by_photos || []" :key="user.id" class="author-row" :to="`/users/${user.unique}`">
+          <img class="author-avatar" :src="userAvatarUrl(user)" :alt="`${user.first_name} ${user.last_name}`" />
+          <span>{{ user.first_name }} {{ user.last_name }}</span>
+          <strong>{{ user.photos_count }} {{ t('photosCount') }}</strong>
+        </RouterLink>
+      </template>
     </article>
     <article class="panel">
       <h2>{{ t('usersByComments') }}</h2>
-      <RouterLink v-for="user in ratings?.users_by_comments || []" :key="user.id" class="author-row" :to="`/users/${user.unique}`">
-        <img class="author-avatar" :src="userAvatarUrl(user)" :alt="`${user.first_name} ${user.last_name}`" />
-        <span>{{ user.first_name }} {{ user.last_name }}</span>
-        <strong>{{ user.comments_count }} {{ t('comments') }}</strong>
-      </RouterLink>
-    </article>
-    <article class="panel news-panel">
-      <h2>{{ t('latestNews') }}</h2>
-      <RouterLink v-for="item in news" :key="item.id" class="news-row" :to="`/news/${item.id}`">
-        <strong>{{ item.title }}</strong>
-        <span>{{ new Date(item.date).toLocaleDateString() }}</span>
-      </RouterLink>
+      <template v-if="secondaryLoading">
+        <div v-for="item in ratingUserSkeletonItems" :key="item" class="author-row rating-skeleton-row" aria-hidden="true">
+          <span class="rating-skeleton-block rating-skeleton-block--avatar" />
+          <span class="rating-skeleton-block rating-skeleton-block--line" />
+          <span class="rating-skeleton-block rating-skeleton-block--badge" />
+        </div>
+        <p class="rating-panel-loading">{{ t('loading') }}</p>
+      </template>
+      <template v-else>
+        <RouterLink v-for="user in ratings?.users_by_comments || []" :key="user.id" class="author-row" :to="`/users/${user.unique}`">
+          <img class="author-avatar" :src="userAvatarUrl(user)" :alt="`${user.first_name} ${user.last_name}`" />
+          <span>{{ user.first_name }} {{ user.last_name }}</span>
+          <strong>{{ user.comments_count }} {{ t('comments') }}</strong>
+        </RouterLink>
+      </template>
     </article>
   </section>
 
@@ -1375,6 +1461,10 @@ onBeforeUnmount(() => {
     text-shadow: 0 1px 1px rgba(0, 0, 0, 0.28);
     pointer-events: none;
   }
+
+  @include mq-down($bp-md) {
+    font-size: 10px !important;
+  }
 }
 
 .photo-cluster-icon:hover .map-cluster-pin {
@@ -1398,26 +1488,60 @@ onBeforeUnmount(() => {
     line-height: 1.25;
   }
 
+  @include mq-up($bp-md) {
+    .panel {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .rating-list-panel .rating-photo-row,
+    .rating-list-panel .rating-skeleton-row {
+      flex: 1 1 0;
+      grid-template-columns: clamp(76px, 30%, 118px) minmax(0, 1fr);
+      gap: 12px;
+      padding: 10px 2px;
+      align-items: center;
+
+      img,
+      .rating-skeleton-block--thumb {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 4 / 3;
+        border-radius: 2px;
+      }
+
+      strong,
+      .rating-skeleton-block--line:first-child {
+        font-size: 13px;
+        line-height: 1.35;
+        white-space: normal;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+
+      small {
+        font-size: 12px;
+      }
+    }
+  }
+
   @include mq-down($bp-md) {
     grid-template-columns: 1fr;
     padding: 0;
   }
 }
 
-.latest-panel,
-.news-panel {
+.latest-panel {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(237, 243, 255, 0.92)),
     #fff;
 }
 
-.latest-photo,
-.news-row {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr);
-  gap: 10px;
-  align-items: center;
-  padding: 8px 4px;
+.latest-photo {
+  display: block;
+  padding: 10px 0;
   border-top: 1px solid $line;
   border-radius: $radius-xs;
   color: inherit;
@@ -1426,52 +1550,29 @@ onBeforeUnmount(() => {
 
   &:hover {
     background: rgba($primary, 0.04);
-    transform: translateX(2px);
+    transform: translateY(-1px);
   }
 
   @include focus-ring(rgba($primary, 0.35), 0px);
-}
 
-.latest-photo {
   img {
-    width: 58px;
-    height: 44px;
-    border-radius: $radius-sm;
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 2px;
     object-fit: cover;
     background: $surface-soft;
   }
 
-  span {
-    grid-column: 2;
-    width: max-content;
-    padding: 2px 8px;
-    border-radius: $radius-pill;
-    color: #fff;
-    background: $accent;
-    font-size: 12px;
-    font-weight: 500;
+  .latest-photo-meta {
+    margin-top: 10px;
   }
 
   strong {
-    grid-column: 2;
-    font-size: 13px;
+    display: block;
+    font-size: 14px;
     font-weight: 500;
-    @include truncate;
-  }
-}
-
-.news-row {
-  grid-template-columns: 1fr auto;
-
-  strong {
-    font-size: 13px;
-    font-weight: 500;
-    @include truncate;
-  }
-
-  span {
-    color: $muted;
-    font-size: 12px;
+    line-height: 1.35;
   }
 }
 
@@ -1536,5 +1637,77 @@ onBeforeUnmount(() => {
   object-fit: cover;
   background: $primary-light;
   box-shadow: 0 8px 18px rgba($primary, 0.18);
+}
+
+.rating-panel-loading {
+  margin: 8px 0 0;
+  color: $muted;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.rating-skeleton-block {
+  display: block;
+  border-radius: 2px;
+  background:
+    linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent),
+    #e4ebf8;
+  background-size: 220px 100%, 100% 100%;
+  animation: skeleton-shimmer 1.1s infinite linear;
+}
+
+.rating-skeleton-latest {
+  pointer-events: none;
+
+  .rating-skeleton-block--hero {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    border-radius: 2px;
+  }
+
+  .rating-skeleton-block--title {
+    width: 78%;
+    height: 16px;
+    margin-top: 10px;
+    border-radius: $radius-pill;
+  }
+}
+
+.rating-skeleton-row {
+  pointer-events: none;
+
+  .rating-skeleton-lines {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .rating-skeleton-block--thumb {
+    width: 40px;
+    height: 34px;
+    border-radius: $radius-xs + 2;
+  }
+
+  .rating-skeleton-block--avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+  }
+
+  .rating-skeleton-block--line {
+    height: 14px;
+    border-radius: $radius-pill;
+  }
+
+  .rating-skeleton-block--short {
+    width: 62%;
+  }
+
+  .rating-skeleton-block--badge {
+    width: 52px;
+    height: 14px;
+    border-radius: $radius-pill;
+  }
 }
 </style>

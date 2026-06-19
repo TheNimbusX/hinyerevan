@@ -57,7 +57,50 @@ curl -v --connect-timeout 15 https://hinyerevan.ru/
 
 ---
 
-## Решение 2: прокси на reg.ru (если есть хостинг `31.31.196.205`)
+## Решение 2: прокси в РФ (отдельный VPS, НЕ старый reg.ru)
+
+**Не использовать `31.31.199.153`** — это старый боевой сервер, его скоро отключат.
+
+**Схема:** пользователь в РФ → **новый маленький VPS в РФ** (Selectel / ServerSpace RU / Timeweb) → nginx `proxy_pass` → `45.138.25.76` (NL, новый сайт).
+
+### Шаг 1 — арендовать RU VPS
+
+- 1 CPU, 1 GB RAM, Ubuntu 22.04 — достаточно только для nginx
+- Открыты порты 80/443
+- Запомнить публичный IP, например `RU_PROXY_IP`
+
+### Шаг 2 — nginx на RU VPS
+
+Скопировать `deploy/nginx-reg-ru-proxy.conf`, заменить `listen 31.31.199.153` на `listen 80` / `listen 443 ssl`, выпустить certbot:
+
+```bash
+certbot --nginx -d hinyerevan.com -d www.hinyerevan.com
+```
+
+`proxy_pass https://45.138.25.76` — как в конфиге.
+
+### Шаг 3 — DNS
+
+| Имя | Значение |
+|-----|----------|
+| `hinyerevan.com` A | `RU_PROXY_IP` |
+| `www.hinyerevan.com` A | `RU_PROXY_IP` |
+
+Сайт и БД остаются на NL VPS `45.138.25.76`. RU VPS — только reverse proxy.
+
+### Откат
+
+DNS A → `45.138.25.76` (напрямую на NL).
+
+---
+
+## Решение 2 (устарело): прокси на старом reg.ru `31.31.199.153`
+
+**Не делать.** Старый сервер снимают. Скрипт `setup-reg-ru-proxy.sh` оставлен только для отката/истории; используйте `restore-reg-ru-vhost.sh` если эксперимент уже ставился.
+
+---
+
+## Решение 2b (legacy doc): прокси на reg.ru `31.31.196.205`
 
 Если на reg.ru есть SSH/ISPmanager и можно поставить nginx:
 

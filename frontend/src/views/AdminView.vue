@@ -24,6 +24,7 @@ const actionError = ref('')
 const busyId = ref(null)
 
 const userSearch = ref('')
+const userRoleFilter = ref('all')
 let userSearchTimer
 const photoSearch = ref('')
 let photoSearchTimer
@@ -108,6 +109,7 @@ function listEndpoint(page = 1) {
   if (tab.value === 'users') {
     const params = new URLSearchParams({ per_page: String(PER_PAGE), page: String(page) })
     if (userSearch.value.trim()) params.set('search', userSearch.value.trim())
+    if (userRoleFilter.value !== 'all') params.set('type', userRoleFilter.value)
     return `/admin/users?${params.toString()}`
   }
   if (tab.value === 'news') {
@@ -167,6 +169,13 @@ function setPhotoFilter(next) {
   photoFilter.value = next
   if (tab.value === 'photos') {
     loadTab('photos')
+  }
+}
+
+function setUserRoleFilter(next) {
+  userRoleFilter.value = next
+  if (tab.value === 'users') {
+    loadTab('users')
   }
 }
 
@@ -355,6 +364,22 @@ async function saveUserPassword(user) {
   }
 }
 
+async function deleteUser(user) {
+  if (!window.confirm(t('adminDeleteUserConfirm', { name: `${user.first_name} ${user.last_name}`.trim() || user.email }))) return
+
+  busyId.value = user.id
+  actionError.value = ''
+  try {
+    await api(`/admin/users/${user.id}`, { method: 'DELETE' })
+    removeRow(user.id)
+    await loadDashboard()
+  } catch (event) {
+    actionError.value = event.message
+  } finally {
+    busyId.value = null
+  }
+}
+
 function openNewsEditor(item = null) {
   if (!item) {
     newsForm.value = emptyNewsForm()
@@ -526,6 +551,13 @@ watch([hasMore, loading], async () => {
       <input v-model="photoSearch" type="search" class="admin__input admin__input--search" :placeholder="t('adminSearchPhotos')" />
     </div>
 
+    <div v-if="tab === 'users'" class="admin__subtabs">
+      <button type="button" class="admin__chip" :class="{ on: userRoleFilter === 'all' }" @click="setUserRoleFilter('all')">{{ t('allPhotos') }}</button>
+      <button type="button" class="admin__chip" :class="{ on: userRoleFilter === '0' }" @click="setUserRoleFilter('0')">{{ t('roleUser') }}</button>
+      <button type="button" class="admin__chip" :class="{ on: userRoleFilter === '5' }" @click="setUserRoleFilter('5')">{{ t('roleAdmin') }}</button>
+      <button type="button" class="admin__chip" :class="{ on: userRoleFilter === '1' }" @click="setUserRoleFilter('1')">{{ t('blocked') }}</button>
+    </div>
+
     <div v-if="tab === 'users'" class="admin__bar">
       <input v-model="userSearch" type="search" class="admin__input" :placeholder="t('adminSearchUsers')" />
     </div>
@@ -664,6 +696,9 @@ watch([hasMore, loading], async () => {
                 <div class="admin__act-group">
                   <button type="button" class="admin__act" @click="toggleUserDetail(row)">{{ t('adminEdit') }}</button>
                   <button type="button" class="admin__act" @click="toggleUserEditor(row)">{{ t('changePassword') }}</button>
+                  <button type="button" class="admin__act admin__act--danger" :disabled="busyId === row.id" @click="deleteUser(row)">
+                    {{ t('adminDelete') }}
+                  </button>
                 </div>
               </td>
             </template>

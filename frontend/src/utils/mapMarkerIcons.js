@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { clusterMarkerHtml, directionMarkerSvg } from './mapMarkerSvg'
+import { clusterMarkerHtml, clusterMarkerMetrics, directionMarkerSvg } from './mapMarkerSvg'
 
 const DIRECTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 const PIN_SIZE = 28
@@ -44,20 +44,20 @@ export function getDirectionIcon(direction) {
 }
 
 export function getClusterIcon(count) {
-  const key = count > 99 ? 99 : count
-  if (!clusterIcons.has(key)) {
-    const size = count > 99 ? 30 : count > 9 ? 28 : 26
+  const safeCount = Math.max(0, Number(count) || 0)
+  if (!clusterIcons.has(safeCount)) {
+    const { size } = clusterMarkerMetrics(safeCount)
     clusterIcons.set(
-      key,
+      safeCount,
       L.divIcon({
         className: 'photo-cluster-icon',
-        html: clusterMarkerHtml(count),
+        html: clusterMarkerHtml(safeCount),
         iconSize: [size, size],
         iconAnchor: [size / 2, size / 2],
       }),
     )
   }
-  return clusterIcons.get(key)
+  return clusterIcons.get(safeCount)
 }
 
 export function createClusterIconFactory() {

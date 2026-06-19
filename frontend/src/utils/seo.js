@@ -1,11 +1,11 @@
 import { currentLanguage, translateKey } from '../i18n'
 
 const SITE_NAME = 'HinYerevan.com'
-const DEFAULT_IMAGE = '/Logo2026.png'
+const DEFAULT_IMAGE = '/og-share.jpg'
 
 function siteOrigin() {
   if (typeof window !== 'undefined') return window.location.origin
-  return import.meta.env.VITE_SITE_URL || ''
+  return (import.meta.env.VITE_SITE_URL || 'https://hinyerevan.com').replace(/\/$/, '')
 }
 
 function absoluteUrl(path) {
