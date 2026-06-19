@@ -552,7 +552,7 @@ watch([hasMore, loading], async () => {
     </div>
 
     <div v-if="tab === 'users'" class="admin__subtabs">
-      <button type="button" class="admin__chip" :class="{ on: userRoleFilter === 'all' }" @click="setUserRoleFilter('all')">{{ t('allPhotos') }}</button>
+      <button type="button" class="admin__chip" :class="{ on: userRoleFilter === 'all' }" @click="setUserRoleFilter('all')">{{ t('allUsers') }}</button>
       <button type="button" class="admin__chip" :class="{ on: userRoleFilter === '0' }" @click="setUserRoleFilter('0')">{{ t('roleUser') }}</button>
       <button type="button" class="admin__chip" :class="{ on: userRoleFilter === '5' }" @click="setUserRoleFilter('5')">{{ t('roleAdmin') }}</button>
       <button type="button" class="admin__chip" :class="{ on: userRoleFilter === '1' }" @click="setUserRoleFilter('1')">{{ t('blocked') }}</button>

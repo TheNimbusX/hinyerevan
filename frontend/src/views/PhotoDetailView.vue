@@ -574,7 +574,6 @@ watch(isAuthenticated, () => {
       >
         <img class="author-card-avatar" :src="authorAvatar(photo.author)" :alt="userDisplayName(photo.author, t)" />
         <div class="author-card-body">
-          <p class="eyebrow">{{ t('photographer') }}</p>
           <strong>{{ userDisplayName(photo.author, t) }}</strong>
           <small v-if="photo.author_stats">
             {{ photo.author_stats.photos_count }} {{ t('photosCount') }} ·

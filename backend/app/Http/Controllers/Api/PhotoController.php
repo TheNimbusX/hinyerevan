@@ -66,6 +66,22 @@ class PhotoController extends Controller
         return $photos->through(fn (Photo $photo) => $this->serialize($photo, false, $lang));
     }
 
+    public function siteStats()
+    {
+        if (! LegacySchema::photosReady()) {
+            return ['photos_published' => 0];
+        }
+
+        return Cache::remember('site:photos_published_count:v1', now()->addMinutes(10), function () {
+            $count = Photo::query()
+                ->alive()
+                ->where('published', 1)
+                ->count();
+
+            return ['photos_published' => $count];
+        });
+    }
+
     public function markers(Request $request)
     {
         if (! LegacySchema::photosReady()) {

@@ -65,6 +65,9 @@ const recaptchaField = ref(null)
 const registerStep = ref('form')
 const registerCode = ref('')
 const registerMessage = ref('')
+const showRegisterPassword = ref(false)
+const showRegisterPasswordConfirm = ref(false)
+const photosPublishedCount = ref(null)
 const socialProviders = ref([])
 const socialRedirecting = ref(null)
 function providerIcon(id) {
@@ -72,7 +75,7 @@ function providerIcon(id) {
 }
 
 const router = useRouter()
-const { t } = useI18n()
+const { t, currentLanguage } = useI18n()
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
 const months = Array.from({ length: 12 }, (_, index) => index + 1)
 const years = Array.from({ length: 127 }, (_, index) => new Date().getFullYear() - index)
@@ -81,6 +84,25 @@ const needsCaptcha = computed(() => {
   if (authMode.value === 'login' || authMode.value === 'forgot') return true
   return authMode.value === 'register' && registerStep.value === 'form'
 })
+
+const photosNavLabel = computed(() => {
+  if (photosPublishedCount.value == null) return t('photos')
+  const locale = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' }[currentLanguage.value] || 'en-US'
+  const count = Number(photosPublishedCount.value).toLocaleString(locale)
+  return t('photosMenu', { count })
+})
+
+async function loadSiteStats() {
+  try {
+    const payload = await api('/photos/site-stats', { ttl: 10 * 60 * 1000 })
+    const count = Number(payload?.photos_published)
+    if (Number.isFinite(count) && count >= 0) {
+      photosPublishedCount.value = count
+    }
+  } catch {
+    photosPublishedCount.value = null
+  }
+}
 
 function avatarUrl(user) {
   return safeAvatarUrl(user?.photo, siteLogo)
@@ -190,6 +212,8 @@ function openAuth(mode = 'login') {
   authError.value = ''
   forgotMessage.value = ''
   recaptchaToken.value = ''
+  showRegisterPassword.value = false
+  showRegisterPasswordConfirm.value = false
   authOpen.value = true
   closeMenu()
 }
@@ -423,6 +447,7 @@ onMounted(async () => {
     if (document.visibilityState === 'visible') resetUiOverlays()
   })
   resetUiOverlays()
+  loadSiteStats()
 })
 
 router.afterEach(() => {
@@ -453,7 +478,7 @@ onBeforeUnmount(() => {
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
             <RouterLink to="/" @click="closeMenu">{{ t('map') }}</RouterLink>
-            <RouterLink to="/photos" @click="closeMenu">{{ t('photos') }}</RouterLink>
+            <RouterLink to="/photos" @click="closeMenu">{{ photosNavLabel }}</RouterLink>
             <RouterLink to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
             <RouterLink to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
             <RouterLink to="/pages/aboutus" @click="closeMenu">{{ t('about') }}</RouterLink>
@@ -646,7 +671,31 @@ onBeforeUnmount(() => {
                 <small>{{ t('usernameHelp') }}</small>
               </label>
             </template>
-            <input v-model="authForm.password" type="password" :placeholder="t('password')" required />
+            <template v-if="authMode === 'register' && registerStep === 'form'">
+              <label class="password-field">
+                <input
+                  v-model="authForm.password"
+                  :type="showRegisterPassword ? 'text' : 'password'"
+                  :placeholder="t('password')"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  :aria-label="showRegisterPassword ? t('hidePassword') : t('showPassword')"
+                  @click="showRegisterPassword = !showRegisterPassword"
+                >
+                  <svg v-if="showRegisterPassword" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path fill="none" stroke="currentColor" stroke-width="2" d="M3 3l18 18M10.5 10.7A3 3 0 0 0 12 15a3 3 0 0 0 2.8-2.1M6.7 6.8C4.6 8.1 3 10 3 10s3 7 9 7c1.5 0 2.9-.4 4.1-1M14 5.2C15.3 4.8 16.6 4.6 18 4.6c6 0 9 7 9 7s-1.2 2.1-3.4 3.6" stroke-linecap="round" />
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                </button>
+              </label>
+            </template>
+            <input v-else v-model="authForm.password" type="password" :placeholder="t('password')" required />
             <button
               v-if="authMode === 'login'"
               type="button"
@@ -656,12 +705,28 @@ onBeforeUnmount(() => {
               {{ t('forgotPassword') }}
             </button>
             <template v-if="authMode === 'register'">
-              <input
-                v-model="authForm.password_confirmation"
-                type="password"
-                :placeholder="t('passwordConfirmation')"
-                required
-              />
+              <label class="password-field">
+                <input
+                  v-model="authForm.password_confirmation"
+                  :type="showRegisterPasswordConfirm ? 'text' : 'password'"
+                  :placeholder="t('passwordConfirmation')"
+                  required
+                />
+                <button
+                  type="button"
+                  class="password-toggle"
+                  :aria-label="showRegisterPasswordConfirm ? t('hidePassword') : t('showPassword')"
+                  @click="showRegisterPasswordConfirm = !showRegisterPasswordConfirm"
+                >
+                  <svg v-if="showRegisterPasswordConfirm" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path fill="none" stroke="currentColor" stroke-width="2" d="M3 3l18 18M10.5 10.7A3 3 0 0 0 12 15a3 3 0 0 0 2.8-2.1M6.7 6.8C4.6 8.1 3 10 3 10s3 7 9 7c1.5 0 2.9-.4 4.1-1M14 5.2C15.3 4.8 16.6 4.6 18 4.6c6 0 9 7 9 7s-1.2 2.1-3.4 3.6" stroke-linecap="round" />
+                  </svg>
+                  <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                    <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                  </svg>
+                </button>
+              </label>
               <small class="form-help">{{ t('passwordHelp') }}</small>
             </template>
             <RecaptchaField ref="recaptchaField" v-model:token="recaptchaToken" :active="needsCaptcha" />
@@ -1366,6 +1431,37 @@ onBeforeUnmount(() => {
     background: $surface;
     font: inherit;
     font-size: 14px;
+  }
+
+  .password-field {
+    position: relative;
+    display: block;
+
+    input {
+      padding-right: 42px;
+    }
+  }
+
+  .password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 8px;
+    transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 0;
+    border-radius: $radius-sm;
+    background: transparent;
+    color: $muted;
+    cursor: pointer;
+
+    &:hover {
+      color: $text;
+    }
   }
 
   .button {

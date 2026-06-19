@@ -83,7 +83,6 @@ onMounted(loadRandom)
         <span class="random-author">
           <img :src="safeAvatarUrl(photo.author?.photo)" :alt="userDisplayName(photo.author, t)" />
           <span>
-            <small>{{ t('photographer') }}</small>
             {{ userDisplayName(photo.author, t) }}
           </span>
         </span>

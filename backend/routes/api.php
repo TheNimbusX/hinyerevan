@@ -59,6 +59,7 @@ Route::middleware([
     Route::get('/auth/social/{provider}/callback', [SocialAuthController::class, 'callback']);
 });
 
+Route::get('/photos/site-stats', [PhotoController::class, 'siteStats']);
 Route::get('/photos/random', [PhotoController::class, 'random']);
 Route::get('/photos/markers', [PhotoController::class, 'markers']);
 Route::get('/photos', [PhotoController::class, 'index']);

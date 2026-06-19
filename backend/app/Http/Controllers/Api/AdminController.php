@@ -224,7 +224,7 @@ class AdminController extends Controller
                     ->orWhere('last_name', 'like', $search));
             })
             ->when(
-                in_array((int) $request->input('type'), [User::TYPE_USER, User::TYPE_BLOCKED, User::TYPE_ADMIN], true),
+                $request->filled('type') && in_array((int) $request->input('type'), [User::TYPE_USER, User::TYPE_BLOCKED, User::TYPE_ADMIN], true),
                 fn ($query) => $query->where('type', (int) $request->input('type')),
             )
             ->latest('id')
