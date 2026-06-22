@@ -102,21 +102,55 @@ function clampYear(year) {
 }
 
 const yearSliderTrack = ref(null)
-const yearSliderBaseWidth = ref(0)
-const HANDLE_SIZE_PX = 14
-const HANDLE_RING_PX = 2
-const ADJACENT_YEAR_GAP_PX = 2
-const HANDLE_VISUAL_DIAMETER_PX = HANDLE_SIZE_PX + HANDLE_RING_PX * 2
-const SAME_YEAR_HANDLE_SPREAD_PX = HANDLE_VISUAL_DIAMETER_PX / 2
 let yearSliderResizeObserver
 
-function measureYearSliderBase() {
+const YEAR_HANDLE_SIZE_PX = 14
+const YEAR_HANDLE_RING_PX = 2
+const YEAR_HANDLE_VISUAL_HALF = YEAR_HANDLE_SIZE_PX / 2 + YEAR_HANDLE_RING_PX
+const YEAR_HANDLE_ADJACENT_GAP_PX = 2
+
+function updateYearSliderHandleSpacing() {
   nextTick(() => {
     requestAnimationFrame(() => {
       const track = yearSliderTrack.value
-      if (!track) return
-      const base = track.querySelector('.slider-base') || track.querySelector('.slider-target')
-      yearSliderBaseWidth.value = base?.getBoundingClientRect().width ?? track.clientWidth
+      const root = track?.querySelector('.year-slider')
+      if (!root) return
+
+      const lower = root.querySelector('.slider-handle-lower')
+      const upper = root.querySelector('.slider-handle-upper')
+      if (!lower || !upper) return
+
+      const lowerRect = lower.getBoundingClientRect()
+      const upperRect = upper.getBoundingClientRect()
+      const lowerCenter = lowerRect.left + lowerRect.width / 2
+      const upperCenter = upperRect.left + upperRect.width / 2
+      const centerDist = upperCenter - lowerCenter
+      const yearDiff = Math.abs(yearRange.value[1] - yearRange.value[0])
+
+      let spread = 0
+
+      if (yearDiff <= 1) {
+        const outerGap = yearDiff === 0 ? 0 : YEAR_HANDLE_ADJACENT_GAP_PX
+        const minCenterDist = YEAR_HANDLE_VISUAL_HALF * 2 + outerGap
+        if (centerDist < minCenterDist) {
+          spread = (minCenterDist - centerDist) / 2
+        }
+      } else {
+        const lowerVisualRight = lowerCenter + YEAR_HANDLE_VISUAL_HALF
+        const upperVisualLeft = upperCenter - YEAR_HANDLE_VISUAL_HALF
+        const visualOverlap = lowerVisualRight - upperVisualLeft
+        if (visualOverlap > 0) {
+          spread = visualOverlap / 2 + 1
+        }
+      }
+
+      if (spread > 0) {
+        lower.style.setProperty('--handle-nudge', `${-spread}px`)
+        upper.style.setProperty('--handle-nudge', `${spread}px`)
+      } else {
+        lower.style.removeProperty('--handle-nudge')
+        upper.style.removeProperty('--handle-nudge')
+      }
     })
   })
 }
@@ -126,28 +160,11 @@ function setupYearSliderSpacingObserver() {
   const track = yearSliderTrack.value
   if (!track || typeof ResizeObserver === 'undefined') return
 
-  yearSliderResizeObserver = new ResizeObserver(measureYearSliderBase)
+  yearSliderResizeObserver = new ResizeObserver(() => {
+    updateYearSliderHandleSpacing()
+  })
   yearSliderResizeObserver.observe(track)
 }
-
-const yearHandleSpreadPx = computed(() => {
-  const span = maxYear.value - minYear.value
-  if (span <= 0) return 0
-
-  const yearDiff = Math.max(0, yearRange.value[1] - yearRange.value[0])
-  if (yearDiff === 0) return SAME_YEAR_HANDLE_SPREAD_PX
-
-  const trackWidth = yearSliderBaseWidth.value || yearSliderTrack.value?.clientWidth || 0
-  const centerSepPx = trackWidth > 0 ? (yearDiff / span) * trackWidth : 0
-  const minCenterSepPx = HANDLE_VISUAL_DIAMETER_PX + ADJACENT_YEAR_GAP_PX
-
-  if (centerSepPx >= minCenterSepPx) return 0
-  return (minCenterSepPx - centerSepPx) / 2
-})
-
-const yearSliderStyle = computed(() => ({
-  '--handle-spread': `${yearHandleSpreadPx.value}px`,
-}))
 
 function normalizedRange(from, to) {
   let nextFrom = clampYear(from)
@@ -184,12 +201,10 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
-const yearSliderOptions = computed(() => ({
-  margin: 0,
-}))
+const yearSliderOptions = { margin: 0 }
 
 const yearSliderClass = computed(() => ({
-  'year-slider--single-year': minYear.value === maxYear.value,
+  'year-slider--single-year': minYear.value >= maxYear.value,
 }))
 
 const compassDirection = computed(() =>
@@ -615,9 +630,15 @@ function applyYearRange() {
   scheduleYearApply()
 }
 
-function onYearSliderChange() {
+function onYearSliderChange(value) {
   rangeTouched.value = true
+  yearRange.value = normalizedRange(value[0], value[1])
   scheduleYearApply()
+  updateYearSliderHandleSpacing()
+}
+
+function onYearSliderSlide() {
+  updateYearSliderHandleSpacing()
 }
 
 async function loadSecondaryContent() {
@@ -697,7 +718,7 @@ onMounted(async () => {
 
   await nextTick()
   setupYearSliderSpacingObserver()
-  measureYearSliderBase()
+  updateYearSliderHandleSpacing()
 })
 
 onBeforeRouteLeave((to) => {
@@ -748,23 +769,23 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
-    measureYearSliderBase()
+    updateYearSliderHandleSpacing()
     return
   }
 
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
-    measureYearSliderBase()
+    updateYearSliderHandleSpacing()
     return
   }
 
   applyYearRange()
-  measureYearSliderBase()
+  updateYearSliderHandleSpacing()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
-  measureYearSliderBase()
+  updateYearSliderHandleSpacing()
 })
 
 onBeforeUnmount(() => {
@@ -899,7 +920,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div ref="yearSliderTrack" class="year-filter-track" :style="yearSliderStyle">
+    <div ref="yearSliderTrack" class="year-filter-track">
       <Slider
         v-model="yearRange"
         :min="minYear"
@@ -909,8 +930,8 @@ onBeforeUnmount(() => {
         :lazy="false"
         :options="yearSliderOptions"
         :class="['year-slider', yearSliderClass]"
-        :style="yearSliderStyle"
         @change="onYearSliderChange"
+        @slide="onYearSliderSlide"
       />
       <div class="year-ticks">
         <span>{{ minYear }}</span>
@@ -1588,7 +1609,6 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 2px;
   min-width: 0;
-  overflow: visible;
 }
 
 .year-filter-label {
@@ -1640,10 +1660,8 @@ onBeforeUnmount(() => {
   --slider-handle-width: 14px;
   --slider-handle-height: 14px;
   --slider-handle-shadow: 0 4px 10px rgba($accent-dark, 0.32);
-  --handle-spread: 0px;
   padding: 0;
   min-width: 0;
-  overflow: visible;
 
   &.slider-target {
     height: 18px;
@@ -1651,7 +1669,6 @@ onBeforeUnmount(() => {
     border: 0;
     background: transparent;
     box-shadow: none;
-    overflow: visible;
   }
 
   .slider-base {
@@ -1661,17 +1678,12 @@ onBeforeUnmount(() => {
     border-radius: $radius-pill;
     background: #e4eaf6;
     box-shadow: inset 0 1px 1px rgba(23, 52, 126, 0.08);
-    overflow: visible;
   }
 
   .slider-connect {
     height: 100%;
     border-radius: $radius-pill;
     background: linear-gradient(90deg, $accent, $accent-dark);
-  }
-
-  .slider-origin {
-    overflow: visible;
   }
 
   .slider-handle {
@@ -1685,21 +1697,20 @@ onBeforeUnmount(() => {
       0 0 0 2px $accent,
       0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
-    @include interactive((box-shadow, transform));
+    translate: var(--handle-nudge, 0) 0;
+    @include interactive((box-shadow, scale));
 
     &-lower {
       z-index: 2;
-      right: calc(var(--slider-handle-width) / -2 - var(--handle-spread, 0px));
     }
 
     &-upper {
       z-index: 3;
-      right: calc(var(--slider-handle-width) / -2 + var(--handle-spread, 0px));
     }
 
     &:hover,
     &:focus {
-      transform: scale(1.18);
+      scale: 1.18;
       box-shadow:
         0 0 0 2px $accent,
         0 0 0 6px rgba($accent, 0.2),
@@ -1708,7 +1719,7 @@ onBeforeUnmount(() => {
 
     &:active {
       cursor: grabbing;
-      transform: scale(1.22);
+      scale: 1.22;
     }
   }
 
