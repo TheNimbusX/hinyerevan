@@ -101,6 +101,9 @@ function clampYear(year) {
   return Math.min(maxYear.value, Math.max(minYear.value, numericYear))
 }
 
+const YEAR_HANDLE_PX = 14
+// Handle box + orange ring/shadow — matches ~10px extra nudge vs naive overlap/2.
+const YEAR_HANDLE_VISUAL_PX = YEAR_HANDLE_PX + 10
 const yearSliderTrack = ref(null)
 let yearSliderResizeObserver
 
@@ -119,12 +122,28 @@ function updateYearSliderHandleSpacing() {
       const upper = root.querySelector('.slider-handle-upper')
       if (!lower || !upper) return
 
+      // Measure from slider positions, not from rects that already include --handle-nudge.
+      lower.style.removeProperty('--handle-nudge')
+      upper.style.removeProperty('--handle-nudge')
+      void root.offsetWidth
+
       const lowerRect = lower.getBoundingClientRect()
       const upperRect = upper.getBoundingClientRect()
+      const lowerCenter = (lowerRect.left + lowerRect.right) / 2
+      const upperCenter = (upperRect.left + upperRect.right) / 2
+      const centerGap = upperCenter - lowerCenter
       const overlap = lowerRect.right - upperRect.left
+      const atMinYearGap =
+        minYearGap() > 0 && yearRange.value[1] - yearRange.value[0] <= minYearGap()
 
-      if (overlap > 0) {
-        const spread = overlap / 2
+      let spread = 0
+      if (atMinYearGap && centerGap < YEAR_HANDLE_VISUAL_PX) {
+        spread = (YEAR_HANDLE_VISUAL_PX - centerGap) / 2
+      } else if (overlap > 0) {
+        spread = overlap / 2
+      }
+
+      if (spread > 0.05) {
         lower.style.setProperty('--handle-nudge', `${-spread}px`)
         upper.style.setProperty('--handle-nudge', `${spread}px`)
       } else {
