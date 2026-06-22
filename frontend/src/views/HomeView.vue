@@ -111,32 +111,13 @@ const YEAR_HANDLE_VISUAL_HALF = YEAR_HANDLE_SIZE_PX / 2 + YEAR_HANDLE_RING_PX
 const YEAR_HANDLE_ADJACENT_GAP_PX = 2
 const YEAR_SLIDER_PADDING_PX = 16
 
-function computeYearHandleSpread(trackWidthPx, spanYears, yearDiff) {
-  if (spanYears <= 0 || yearDiff < 0) return 0
-
-  if (trackWidthPx <= 0) {
-    if (yearDiff === 0) return YEAR_HANDLE_VISUAL_HALF
-    if (yearDiff === 1) return YEAR_HANDLE_VISUAL_HALF + YEAR_HANDLE_ADJACENT_GAP_PX / 2
-    return 0
-  }
-
+function minMarginYearsForTrack(trackWidthPx, spanYears) {
+  if (spanYears <= 0) return 0
   const usableWidth = Math.max(0, trackWidthPx - YEAR_SLIDER_PADDING_PX)
+  if (usableWidth <= 0) return 1
   const pxPerYear = usableWidth / spanYears
-  const centerDistPx = pxPerYear * yearDiff
-
-  if (yearDiff === 0) {
-    return YEAR_HANDLE_VISUAL_HALF
-  }
-
-  if (yearDiff === 1) {
-    const minCenterDist = YEAR_HANDLE_VISUAL_HALF * 2 + YEAR_HANDLE_ADJACENT_GAP_PX
-    if (centerDistPx >= minCenterDist) return 0
-    return (minCenterDist - centerDistPx) / 2
-  }
-
-  const minCenterDist = YEAR_HANDLE_VISUAL_HALF * 2
-  if (centerDistPx >= minCenterDist) return 0
-  return (minCenterDist - centerDistPx) / 2
+  const minCenterDist = YEAR_HANDLE_VISUAL_HALF * 2 + YEAR_HANDLE_ADJACENT_GAP_PX
+  return Math.max(1, Math.ceil(minCenterDist / pxPerYear))
 }
 
 function measureYearSliderBase() {
@@ -164,6 +145,23 @@ function normalizedRange(from, to) {
 
   if (nextFrom > nextTo) {
     ;[nextFrom, nextTo] = [nextTo, nextFrom]
+  }
+
+  return [nextFrom, nextTo]
+}
+
+function normalizedRangeWithGap(from, to) {
+  let [nextFrom, nextTo] = normalizedRange(from, to)
+  if (nextTo === nextFrom) return [nextFrom, nextTo]
+
+  const span = maxYear.value - minYear.value
+  const gap = minMarginYearsForTrack(yearSliderBaseWidth.value, span)
+  if (nextTo - nextFrom >= gap) return [nextFrom, nextTo]
+
+  if (nextFrom + gap <= maxYear.value) {
+    nextTo = nextFrom + gap
+  } else {
+    nextFrom = Math.max(minYear.value, nextTo - gap)
   }
 
   return [nextFrom, nextTo]
@@ -199,11 +197,9 @@ const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
 }))
 
-const yearHandleSpread = computed(() => {
-  const span = maxYear.value - minYear.value
-  const yearDiff = Math.abs(yearRange.value[1] - yearRange.value[0])
-  return computeYearHandleSpread(yearSliderBaseWidth.value, span, yearDiff)
-})
+const yearHandleSpread = computed(() => (
+  yearRange.value[0] === yearRange.value[1] ? YEAR_HANDLE_VISUAL_HALF : 0
+))
 
 const yearSliderSpreadStyle = computed(() => ({
   '--handle-spread': `${yearHandleSpread.value}px`,
@@ -634,7 +630,7 @@ function applyYearRange() {
 
 function onYearSliderChange(value) {
   rangeTouched.value = true
-  yearRange.value = normalizedRange(value[0], value[1])
+  yearRange.value = normalizedRangeWithGap(value[0], value[1])
   scheduleYearApply()
 }
 
