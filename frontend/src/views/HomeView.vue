@@ -105,15 +105,34 @@ const yearSliderTrack = ref(null)
 const yearSliderBaseWidth = ref(0)
 const HANDLE_SIZE_PX = 14
 const HANDLE_RING_PX = 2
-const HANDLE_VISUAL_GAP_PX = 3
+const ADJACENT_YEAR_GAP_PX = 2
 const HANDLE_VISUAL_DIAMETER_PX = HANDLE_SIZE_PX + HANDLE_RING_PX * 2
+const SAME_YEAR_HANDLE_SPREAD_PX = HANDLE_VISUAL_DIAMETER_PX / 2
 let yearSliderResizeObserver
+
+function resolveYearSliderTrackWidth() {
+  if (yearSliderBaseWidth.value > 0) return yearSliderBaseWidth.value
+
+  const track = yearSliderTrack.value
+  if (!track) return 0
+
+  const candidates = [
+    track.querySelector('.slider-base'),
+    track.querySelector('.slider-connects'),
+    track.querySelector('.slider-target'),
+    track,
+  ]
+
+  return candidates.reduce((maxWidth, element) => {
+    const width = element?.getBoundingClientRect().width ?? 0
+    return width > maxWidth ? width : maxWidth
+  }, 0)
+}
 
 function measureYearSliderBase() {
   nextTick(() => {
     requestAnimationFrame(() => {
-      const base = yearSliderTrack.value?.querySelector('.slider-base')
-      yearSliderBaseWidth.value = base ? base.getBoundingClientRect().width : 0
+      yearSliderBaseWidth.value = resolveYearSliderTrackWidth()
     })
   })
 }
@@ -131,17 +150,20 @@ function setupYearSliderSpacingObserver() {
 
 const yearHandleSpreadPx = computed(() => {
   const span = maxYear.value - minYear.value
-  if (span <= 0 || yearSliderBaseWidth.value <= 0) return 0
+  if (span <= 0) return 0
 
   const yearDiff = Math.max(0, yearRange.value[1] - yearRange.value[0])
-  const centerSepPx = (yearDiff / span) * yearSliderBaseWidth.value
-  const minCenterSepPx = HANDLE_VISUAL_DIAMETER_PX + HANDLE_VISUAL_GAP_PX
+  if (yearDiff === 0) return SAME_YEAR_HANDLE_SPREAD_PX
+
+  const trackWidth = resolveYearSliderTrackWidth()
+  const centerSepPx = trackWidth > 0 ? (yearDiff / span) * trackWidth : 0
+  const minCenterSepPx = HANDLE_VISUAL_DIAMETER_PX + ADJACENT_YEAR_GAP_PX
 
   if (centerSepPx >= minCenterSepPx) return 0
   return (minCenterSepPx - centerSepPx) / 2
 })
 
-const yearSliderTrackStyle = computed(() => ({
+const yearSliderStyle = computed(() => ({
   '--handle-spread': `${yearHandleSpreadPx.value}px`,
 }))
 
@@ -184,9 +206,15 @@ const yearSliderOptions = computed(() => ({
   margin: 0,
 }))
 
-const yearSliderClass = computed(() => ({
-  'year-slider--single-year': minYear.value === maxYear.value,
-}))
+const yearSliderClass = computed(() => {
+  const yearDiff = Math.max(0, yearRange.value[1] - yearRange.value[0])
+
+  return {
+    'year-slider--single-year': minYear.value === maxYear.value,
+    'year-slider--same-year-value': yearDiff === 0,
+    'year-slider--adjacent-years': yearDiff === 1,
+  }
+})
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -744,16 +772,19 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
+    measureYearSliderBase()
     return
   }
 
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
+    measureYearSliderBase()
     return
   }
 
   applyYearRange()
+  measureYearSliderBase()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
@@ -892,7 +923,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div ref="yearSliderTrack" class="year-filter-track" :style="yearSliderTrackStyle">
+    <div ref="yearSliderTrack" class="year-filter-track">
       <Slider
         v-model="yearRange"
         :min="minYear"
@@ -902,6 +933,7 @@ onBeforeUnmount(() => {
         :lazy="false"
         :options="yearSliderOptions"
         :class="['year-slider', yearSliderClass]"
+        :style="yearSliderStyle"
         @change="onYearSliderChange"
       />
       <div class="year-ticks">
@@ -1672,12 +1704,12 @@ onBeforeUnmount(() => {
 
     &-lower {
       z-index: 2;
-      margin-left: calc(-1 * var(--handle-spread, 0px));
+      translate: calc(-1 * var(--handle-spread, 0px)) 0;
     }
 
     &-upper {
       z-index: 3;
-      margin-left: var(--handle-spread, 0px);
+      translate: var(--handle-spread, 0px) 0;
     }
 
     &:hover,
