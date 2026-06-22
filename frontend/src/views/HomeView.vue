@@ -923,7 +923,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div ref="yearSliderTrack" class="year-filter-track">
+    <div ref="yearSliderTrack" class="year-filter-track" :style="yearSliderStyle">
       <Slider
         v-model="yearRange"
         :min="minYear"
