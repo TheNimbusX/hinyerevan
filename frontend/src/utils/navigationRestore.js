@@ -1,5 +1,6 @@
 export const SCROLL_RESTORE_KEY = 'hinyerevan:scroll-restore'
 export const GALLERY_RESTORE_KEY = 'hinyerevan:gallery-restore'
+export const HOME_MAP_RESTORE_KEY = 'hinyerevan:home-map-restore'
 
 export function saveScrollRestore(fromPath) {
   if (!fromPath || typeof window === 'undefined') return
@@ -43,4 +44,31 @@ export function consumeGalleryRestore() {
 
 export function hasGalleryRestore() {
   return Boolean(sessionStorage.getItem(GALLERY_RESTORE_KEY))
+}
+
+export function saveHomeMapRestore(state) {
+  sessionStorage.setItem(HOME_MAP_RESTORE_KEY, JSON.stringify(state))
+}
+
+export function peekHomeMapRestore() {
+  const raw = sessionStorage.getItem(HOME_MAP_RESTORE_KEY)
+  if (!raw) return null
+
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
+}
+
+export function consumeHomeMapRestore() {
+  const raw = sessionStorage.getItem(HOME_MAP_RESTORE_KEY)
+  if (!raw) return null
+
+  sessionStorage.removeItem(HOME_MAP_RESTORE_KEY)
+  try {
+    return JSON.parse(raw)
+  } catch {
+    return null
+  }
 }

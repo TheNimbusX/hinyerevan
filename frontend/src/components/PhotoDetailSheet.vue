@@ -16,7 +16,7 @@ import FacebookPublishedBadge from './FacebookPublishedBadge.vue'
 const props = defineProps({
   photoId: { type: [Number, String, null], default: null },
 })
-const emit = defineEmits(['close', 'navigate'])
+const emit = defineEmits(['close', 'navigate', 'open-full'])
 
 const { t, currentLanguage } = useI18n()
 const photo = ref(null)
@@ -363,7 +363,12 @@ onBeforeUnmount(() => {
         <header class="photo-sheet-bar">
           <span class="photo-sheet-grip" aria-hidden="true"></span>
           <div class="photo-sheet-bar-actions">
-            <RouterLink v-if="photo" class="photo-sheet-openfull" :to="`/photos/${photo.id}`">
+            <RouterLink
+              v-if="photo"
+              class="photo-sheet-openfull"
+              :to="`/photos/${photo.id}`"
+              @click="emit('open-full')"
+            >
               {{ t('openFullPage') }}
             </RouterLink>
             <button type="button" class="photo-sheet-hide" :aria-label="t('hidePanel')" @click="close">

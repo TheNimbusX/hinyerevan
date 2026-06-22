@@ -1,6 +1,6 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster'
@@ -21,8 +21,11 @@ import PhotoDetailSheet from '../components/PhotoDetailSheet.vue'
 import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import WinterBadgeIcon from '../components/WinterBadgeIcon.vue'
-
-const yearSliderOptions = { margin: 0 }
+import {
+  consumeHomeMapRestore,
+  peekHomeMapRestore,
+  saveHomeMapRestore,
+} from '../utils/navigationRestore'
 
 const markers = ref([])
 const photos = ref([])
@@ -69,7 +72,6 @@ const directionFilter = computed(() => {
 const winterFilter = computed(() => route.query.winter === '1' || route.query.winter === 'true')
 const mapFiltersActive = computed(() => reviewFilter.value || directionFilter.value !== '' || winterFilter.value)
 const filteredUserName = ref('')
-let savedMapView = null
 let suppressNextRangeWatch = false
 let markerSyncFrame
 let markerSyncTimer
@@ -99,11 +101,28 @@ function clampYear(year) {
   return Math.min(maxYear.value, Math.max(minYear.value, numericYear))
 }
 
-function normalizedRange(from, to) {
-  const nextFrom = clampYear(from)
-  const nextTo = clampYear(to)
+function minYearGap() {
+  return maxYear.value > minYear.value ? 1 : 0
+}
 
-  return nextFrom <= nextTo ? [nextFrom, nextTo] : [nextTo, nextFrom]
+function normalizedRange(from, to) {
+  let nextFrom = clampYear(from)
+  let nextTo = clampYear(to)
+
+  if (nextFrom > nextTo) {
+    ;[nextFrom, nextTo] = [nextTo, nextFrom]
+  }
+
+  const gap = minYearGap()
+  if (gap > 0 && nextTo - nextFrom < gap) {
+    if (nextFrom + gap <= maxYear.value) {
+      nextTo = nextFrom + gap
+    } else {
+      nextFrom = Math.max(minYear.value, nextTo - gap)
+    }
+  }
+
+  return [nextFrom, nextTo]
 }
 
 function resolveYearBounds(markerList = markers.value) {
@@ -129,6 +148,14 @@ const yearBounds = computed(() => resolveYearBounds())
 
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
+
+const yearSliderOptions = computed(() => ({
+  margin: minYearGap(),
+}))
+
+const yearSliderClass = computed(() => ({
+  'year-slider--single-year': minYearGap() === 0,
+}))
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -268,21 +295,36 @@ function markerPreview(marker) {
   `
 }
 
+function persistHomeMapState() {
+  if (typeof window === 'undefined') return
+
+  const center = map?.getCenter()
+  saveHomeMapRestore({
+    lat: center?.lat ?? null,
+    lng: center?.lng ?? null,
+    zoom: map?.getZoom() ?? DEFAULT_ZOOM,
+    yearRange: [...yearRange.value],
+    rangeTouched: rangeTouched.value,
+    mapProvider: mapProvider.value,
+    mapType: mapType.value,
+    query: { ...route.query },
+    scrollY: window.scrollY,
+  })
+}
+
+function applySavedMapView(saved) {
+  if (!map || !saved || saved.lat == null || saved.lng == null) return
+  map.setView([saved.lat, saved.lng], saved.zoom ?? DEFAULT_ZOOM, { animate: false })
+}
+
 function openPhoto(id) {
-  if (map && savedMapView == null) {
-    savedMapView = { center: map.getCenter(), zoom: map.getZoom() }
-  }
+  persistHomeMapState()
   activePhotoId.value = Number(id)
 }
 
 function closePhotoSheet() {
   activePhotoId.value = null
-}
-
-function restoreMapView() {
-  if (!map || !savedMapView) return
-  map.setView(savedMapView.center, savedMapView.zoom, { animate: false })
-  savedMapView = null
+  applySavedMapView(peekHomeMapRestore())
 }
 
 function applyMarkerYearBounds(forceReset = false) {
@@ -574,10 +616,27 @@ useLocalizedReady(async ({ path }) => {
 })
 
 onMounted(async () => {
+  const restore = consumeHomeMapRestore()
+
+  if (restore?.query !== undefined) {
+    await router.replace({ path: '/', query: restore.query || {} })
+  }
+
+  if (restore) {
+    if (restore.mapProvider) mapProvider.value = restore.mapProvider
+    if (restore.mapType) mapType.value = restore.mapType
+    if (Array.isArray(restore.yearRange) && restore.yearRange.length === 2) {
+      rangeTouched.value = Boolean(restore.rangeTouched)
+      suppressNextRangeWatch = true
+      yearRange.value = normalizedRange(restore.yearRange[0], restore.yearRange[1])
+      activeYearRange.value = [...yearRange.value]
+    }
+  }
+
   try {
     const markerData = await api(markersEndpoint())
     markers.value = Array.isArray(markerData) ? markerData : []
-    applyMarkerYearBounds(true)
+    applyMarkerYearBounds(!restore?.rangeTouched)
   } catch (event) {
     loadError.value = event.message
   } finally {
@@ -588,9 +647,25 @@ onMounted(async () => {
     } else {
       syncMarkersToFilter()
     }
+
+    if (restore) {
+      applySavedMapView(restore)
+      requestAnimationFrame(() => {
+        const scrollY = Number(restore.scrollY)
+        if (Number.isFinite(scrollY)) {
+          window.scrollTo({ top: scrollY, behavior: 'instant' })
+        }
+      })
+    }
   }
 
   loadSecondaryContent()
+})
+
+onBeforeRouteLeave((to) => {
+  if (to.name === 'photo-detail') {
+    persistHomeMapState()
+  }
 })
 
 watch(mapProvider, rebuildMapForProvider)
@@ -602,12 +677,6 @@ watch([theme, currentLanguage], () => {
   if (!map) return
   setTileLayer()
 })
-watch(activePhotoId, (id) => {
-  if (id == null) {
-    restoreMapView()
-  }
-})
-
 watch(activeYearRange, scheduleMarkerSync, { deep: true })
 
 async function reloadMarkersForFilter() {
@@ -795,7 +864,7 @@ onBeforeUnmount(() => {
         :tooltips="false"
         :lazy="false"
         :options="yearSliderOptions"
-        class="year-slider"
+        :class="['year-slider', yearSliderClass]"
         @change="onYearSliderChange"
       />
       <div class="year-ticks">
@@ -960,6 +1029,7 @@ onBeforeUnmount(() => {
     :photo-id="activePhotoId"
     @close="closePhotoSheet"
     @navigate="openPhoto"
+    @open-full="persistHomeMapState"
   />
 </template>
 

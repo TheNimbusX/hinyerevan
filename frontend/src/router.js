@@ -69,6 +69,10 @@ const router = createRouter({
         return false
       }
 
+      if (to.name === 'home') {
+        return false
+      }
+
       const scrollY = consumeScrollRestore(to.fullPath)
       if (scrollY != null) {
         return { top: scrollY, behavior: 'instant' }
@@ -80,7 +84,13 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from) => {
-  if (to.name === 'photo-detail' && from.name && from.name !== 'photo-detail' && from.name !== 'photos') {
+  if (
+    to.name === 'photo-detail'
+    && from.name
+    && from.name !== 'photo-detail'
+    && from.name !== 'photos'
+    && from.name !== 'home'
+  ) {
     saveScrollRestore(from.fullPath)
   }
 
