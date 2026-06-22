@@ -101,58 +101,11 @@ function clampYear(year) {
   return Math.min(maxYear.value, Math.max(minYear.value, numericYear))
 }
 
-const YEAR_HANDLE_PX = 14
-const YEAR_HANDLE_RING_PX = 2
-const YEAR_HANDLE_VISUAL_PX = YEAR_HANDLE_PX + YEAR_HANDLE_RING_PX * 2
-const yearSliderTrack = ref(null)
-const yearSliderHandleSpread = ref(0)
-let yearSliderResizeObserver
-
 function minYearGap() {
-  return maxYear.value > minYear.value ? 1 : 0
-}
-
-function yearRangeAdjacent() {
-  return minYearGap() > 0 && yearRange.value[1] - yearRange.value[0] <= minYearGap()
-}
-
-function recalculateYearSliderSpread() {
-  if (!yearRangeAdjacent()) {
-    yearSliderHandleSpread.value = 0
-    return
-  }
-
-  const track = yearSliderTrack.value
   const span = maxYear.value - minYear.value
-  if (!track || span <= 0) {
-    yearSliderHandleSpread.value = 0
-    return
-  }
-
-  const base = track.querySelector('.year-slider .slider-base')
-  const trackWidth = base?.getBoundingClientRect().width ?? track.getBoundingClientRect().width
-  if (trackWidth <= 0) return
-
-  const yearDiff = Math.max(minYearGap(), yearRange.value[1] - yearRange.value[0])
-  const centerGap = (trackWidth / span) * yearDiff
-
-  yearSliderHandleSpread.value =
-    centerGap >= YEAR_HANDLE_VISUAL_PX ? 0 : (YEAR_HANDLE_VISUAL_PX - centerGap) / 2
-}
-
-function setupYearSliderSpreadObserver() {
-  yearSliderResizeObserver?.disconnect()
-  const track = yearSliderTrack.value
-  if (!track || typeof ResizeObserver === 'undefined') {
-    recalculateYearSliderSpread()
-    return
-  }
-
-  yearSliderResizeObserver = new ResizeObserver(() => {
-    recalculateYearSliderSpread()
-  })
-  yearSliderResizeObserver.observe(track)
-  recalculateYearSliderSpread()
+  if (span <= 0) return 0
+  // Two years on the track — enough px between handles so they don't overlap.
+  return Math.min(2, span)
 }
 
 function normalizedRange(from, to) {
@@ -205,13 +158,7 @@ const yearSliderOptions = computed(() => ({
 
 const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYearGap() === 0,
-  'year-slider--handles-adjacent': yearRangeAdjacent() && yearSliderHandleSpread.value > 0,
 }))
-
-const yearSliderTrackStyle = computed(() => {
-  if (!yearRangeAdjacent() || yearSliderHandleSpread.value <= 0) return undefined
-  return { '--handle-spread': `${yearSliderHandleSpread.value}px` }
-})
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -716,9 +663,6 @@ onMounted(async () => {
   }
 
   loadSecondaryContent()
-
-  await nextTick()
-  setupYearSliderSpreadObserver()
 })
 
 onBeforeRouteLeave((to) => {
@@ -769,28 +713,22 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
-    recalculateYearSliderSpread()
     return
   }
 
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
-    recalculateYearSliderSpread()
     return
   }
 
   applyYearRange()
-  recalculateYearSliderSpread()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
-  nextTick(() => recalculateYearSliderSpread())
 })
 
 onBeforeUnmount(() => {
-  yearSliderResizeObserver?.disconnect()
-  yearSliderResizeObserver = null
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
@@ -920,7 +858,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div ref="yearSliderTrack" class="year-filter-track" :style="yearSliderTrackStyle">
+    <div class="year-filter-track">
       <Slider
         v-model="yearRange"
         :min="minYear"
@@ -1729,16 +1667,6 @@ onBeforeUnmount(() => {
 
   .slider-tooltip {
     display: none;
-  }
-
-  &--handles-adjacent {
-    .slider-handle-lower {
-      translate: calc(-1 * var(--handle-spread, 0)) 0;
-    }
-
-    .slider-handle-upper {
-      translate: var(--handle-spread, 0) 0;
-    }
   }
 }
 
