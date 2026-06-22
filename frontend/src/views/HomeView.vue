@@ -18,6 +18,11 @@ import { directionLabel, formatDateTime } from '../utils/locale'
 import googleLogo from '../assets/logos/google-logo.svg'
 import yandexLogo from '../assets/logos/yandex-logo.svg'
 import PhotoDetailSheet from '../components/PhotoDetailSheet.vue'
+import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
+import DirectionMarker from '../components/DirectionMarker.vue'
+import WinterBadgeIcon from '../components/WinterBadgeIcon.vue'
+
+const yearSliderOptions = { margin: 0 }
 
 const markers = ref([])
 const photos = ref([])
@@ -40,6 +45,7 @@ const markersLoading = ref(false)
 const mapProvider = ref('google')
 const mapType = ref('scheme')
 const mapPanelOpen = ref(false)
+const mapCompassOpen = ref(false)
 const activePhotoId = ref(null)
 const DEFAULT_CENTER = [40.179136, 44.511623]
 const DEFAULT_ZOOM = 13
@@ -56,7 +62,14 @@ const router = useRouter()
 const route = useRoute()
 const userFilter = computed(() => (route.query.user ? String(route.query.user) : ''))
 const reviewFilter = computed(() => route.query.review === '1' || route.query.review === 'true')
+const directionFilter = computed(() => {
+  const raw = route.query.direction
+  return raw != null && raw !== '' ? String(raw) : ''
+})
+const winterFilter = computed(() => route.query.winter === '1' || route.query.winter === 'true')
+const mapFiltersActive = computed(() => reviewFilter.value || directionFilter.value !== '' || winterFilter.value)
 const filteredUserName = ref('')
+let savedMapView = null
 let suppressNextRangeWatch = false
 let markerSyncFrame
 let markerSyncTimer
@@ -117,6 +130,15 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
+const compassDirection = computed(() =>
+  directionFilter.value === '' ? 1 : Number(directionFilter.value),
+)
+
+const directionFilterLabel = computed(() => {
+  if (directionFilter.value === '') return t('filterAllDirections')
+  return directionLabel(Number(directionFilter.value), t)
+})
+
 const availableMapTypes = computed(() => MAP_TYPES[mapProvider.value] || MAP_TYPES.google)
 
 const MAP_TYPE_LABELS = {
@@ -144,6 +166,8 @@ function markersEndpoint() {
   const params = new URLSearchParams()
   if (userFilter.value) params.set('user', userFilter.value)
   if (reviewFilter.value) params.set('review', '1')
+  if (directionFilter.value !== '') params.set('direction', directionFilter.value)
+  if (winterFilter.value) params.set('winter', '1')
   const qs = params.toString()
   return qs ? `/photos/markers?${qs}` : '/photos/markers'
 }
@@ -173,6 +197,31 @@ function toggleReviewFilter() {
     delete query.review
   } else {
     query.review = '1'
+  }
+  router.push({ path: '/', query })
+}
+
+function setDirectionFilter(value) {
+  const query = { ...route.query }
+  if (value === '' || value == null) {
+    delete query.direction
+  } else {
+    query.direction = String(value)
+  }
+  router.push({ path: '/', query })
+}
+
+function clearDirectionFilter() {
+  mapCompassOpen.value = false
+  setDirectionFilter('')
+}
+
+function toggleWinterFilter() {
+  const query = { ...route.query }
+  if (winterFilter.value) {
+    delete query.winter
+  } else {
+    query.winter = '1'
   }
   router.push({ path: '/', query })
 }
@@ -220,7 +269,20 @@ function markerPreview(marker) {
 }
 
 function openPhoto(id) {
+  if (map && savedMapView == null) {
+    savedMapView = { center: map.getCenter(), zoom: map.getZoom() }
+  }
   activePhotoId.value = Number(id)
+}
+
+function closePhotoSheet() {
+  activePhotoId.value = null
+}
+
+function restoreMapView() {
+  if (!map || !savedMapView) return
+  map.setView(savedMapView.center, savedMapView.zoom, { animate: false })
+  savedMapView = null
 }
 
 function applyMarkerYearBounds(forceReset = false) {
@@ -540,6 +602,12 @@ watch([theme, currentLanguage], () => {
   if (!map) return
   setTileLayer()
 })
+watch(activePhotoId, (id) => {
+  if (id == null) {
+    restoreMapView()
+  }
+})
+
 watch(activeYearRange, scheduleMarkerSync, { deep: true })
 
 async function reloadMarkersForFilter() {
@@ -554,7 +622,6 @@ async function reloadMarkersForFilter() {
     rebuildMarkerRegistry()
     applyMarkerYearBounds(true)
     syncMarkersToFilter()
-    if (map) map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
   } catch {
     // keep current data on transient errors
   } finally {
@@ -562,7 +629,7 @@ async function reloadMarkersForFilter() {
   }
 }
 
-watch([userFilter, reviewFilter], reloadMarkersForFilter)
+watch([userFilter, reviewFilter, directionFilter, winterFilter], reloadMarkersForFilter)
 
 watch(currentLanguage, () => {
   rebuildMarkerRegistry()
@@ -606,7 +673,7 @@ onBeforeUnmount(() => {
         <button
           type="button"
           class="map-tools-toggle"
-          :class="{ open: mapPanelOpen, active: reviewFilter }"
+          :class="{ open: mapPanelOpen, active: mapFiltersActive }"
           :aria-expanded="mapPanelOpen"
           :aria-label="t('mapSettings')"
           @click="mapPanelOpen = !mapPanelOpen"
@@ -642,7 +709,49 @@ onBeforeUnmount(() => {
                 </button>
               </div>
             </div>
-            <div class="map-tools-group">
+            <div class="map-tools-group map-tools-group--filters">
+              <span class="map-tools-label">{{ t('galleryFilters') }}</span>
+              <div class="map-filter-row">
+                <button
+                  type="button"
+                  class="map-filter-chip map-filter-chip--direction"
+                  :class="{ active: directionFilter !== '' }"
+                  @click="mapCompassOpen = !mapCompassOpen"
+                >
+                  <DirectionMarker
+                    v-if="directionFilter !== ''"
+                    :direction="Number(directionFilter)"
+                    :label="directionFilterLabel"
+                    size="small"
+                  />
+                  <span>{{ directionFilterLabel }}</span>
+                </button>
+                <button
+                  v-if="directionFilter !== ''"
+                  type="button"
+                  class="map-filter-chip map-filter-chip--clear"
+                  :aria-label="t('filterAllDirections')"
+                  @click="clearDirectionFilter"
+                >
+                  ×
+                </button>
+              </div>
+              <div v-if="mapCompassOpen" class="map-filter-compass">
+                <DirectionCompassPicker
+                  :model-value="compassDirection"
+                  @update:model-value="setDirectionFilter"
+                />
+              </div>
+              <button
+                type="button"
+                class="map-filter-chip map-filter-chip--winter"
+                :class="{ active: winterFilter }"
+                :aria-pressed="winterFilter"
+                @click="toggleWinterFilter"
+              >
+                <WinterBadgeIcon size="sm" />
+                <span>{{ t('filterWinterPhotos') }}</span>
+              </button>
               <button
                 type="button"
                 class="map-review-toggle"
@@ -685,6 +794,7 @@ onBeforeUnmount(() => {
         :step="1"
         :tooltips="false"
         :lazy="false"
+        :options="yearSliderOptions"
         class="year-slider"
         @change="onYearSliderChange"
       />
@@ -848,7 +958,7 @@ onBeforeUnmount(() => {
 
   <PhotoDetailSheet
     :photo-id="activePhotoId"
-    @close="activePhotoId = null"
+    @close="closePhotoSheet"
     @navigate="openPhoto"
   />
 </template>
@@ -961,7 +1071,9 @@ onBeforeUnmount(() => {
 .map-tools-panel {
   display: grid;
   gap: 12px;
-  width: min(78vw, 248px);
+  width: min(92vw, 300px);
+  max-height: min(72vh, 560px);
+  overflow-y: auto;
   padding: 12px;
   border: 1px solid rgba($ink, 0.08);
   border-radius: $radius-lg;
@@ -973,6 +1085,73 @@ onBeforeUnmount(() => {
 .map-tools-group {
   display: grid;
   gap: 7px;
+
+  &--filters {
+    gap: 8px;
+    padding-top: 4px;
+    border-top: 1px solid rgba($ink, 0.06);
+  }
+}
+
+.map-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 34px;
+  padding: 6px 11px;
+  border: 1px solid rgba($ink, 0.1);
+  border-radius: $radius-pill;
+  color: $ink;
+  background: rgba($ink, 0.02);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  @include interactive((background, color, border-color, box-shadow));
+
+  &:hover {
+    background: rgba($primary, 0.06);
+    border-color: rgba($primary, 0.22);
+  }
+
+  &.active {
+    color: #fff;
+    border-color: transparent;
+    background: linear-gradient(135deg, $primary, $primary-dark);
+    box-shadow: 0 6px 14px rgba($primary, 0.24);
+  }
+
+  &--clear {
+    min-width: 34px;
+    justify-content: center;
+    padding-inline: 0;
+    font-size: 16px;
+    font-weight: 500;
+  }
+
+  &--winter.active {
+    background: linear-gradient(135deg, #5eb8e8, #2d8fc4);
+    box-shadow: 0 6px 14px rgba(#2d8fc4, 0.28);
+  }
+
+  &--direction.active .direction-marker {
+    filter: brightness(0) invert(1);
+  }
+}
+
+.map-filter-compass {
+  padding: 4px 2px 2px;
+  border: 1px solid rgba($ink, 0.08);
+  border-radius: $radius-md;
+  background: rgba($ink, 0.02);
 }
 
 .map-tools-label {
@@ -1383,6 +1562,14 @@ onBeforeUnmount(() => {
       0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
     @include interactive((box-shadow, transform));
+
+    &-lower {
+      z-index: 2;
+    }
+
+    &-upper {
+      z-index: 3;
+    }
 
     &:hover,
     &:focus {

@@ -17,6 +17,11 @@ const ResetPasswordView = () => import('./views/ResetPasswordView.vue')
 import { api, getToken } from './api'
 import { applyRouteMeta } from './utils/seo'
 import { isAdminUser } from './utils/user'
+import {
+  consumeScrollRestore,
+  GALLERY_RESTORE_KEY,
+  saveScrollRestore,
+} from './utils/navigationRestore'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView, meta: { titleKey: 'pageTitleHome' } },
@@ -58,12 +63,27 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
-  scrollBehavior() {
+  scrollBehavior(to, from) {
+    if (from.name === 'photo-detail') {
+      if (to.name === 'photos' && sessionStorage.getItem(GALLERY_RESTORE_KEY)) {
+        return false
+      }
+
+      const scrollY = consumeScrollRestore(to.fullPath)
+      if (scrollY != null) {
+        return { top: scrollY, behavior: 'instant' }
+      }
+    }
+
     return { top: 0 }
   },
 })
 
 router.beforeEach(async (to, from) => {
+  if (to.name === 'photo-detail' && from.name && from.name !== 'photo-detail' && from.name !== 'photos') {
+    saveScrollRestore(from.fullPath)
+  }
+
   if (to.meta.requiresAuth && !getToken()) {
     window.dispatchEvent(
       new CustomEvent('hinyerevan:open-auth', {

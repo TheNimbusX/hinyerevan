@@ -95,6 +95,8 @@ class PhotoController extends Controller
         $cacheKey = 'photo_markers:v' . $version . ':' . md5(json_encode([
             'user' => (string) $request->query('user', ''),
             'review' => $request->boolean('review') ? 1 : 0,
+            'direction' => (string) $request->query('direction', ''),
+            'winter' => $request->boolean('winter') ? 1 : 0,
             'year_from' => (string) $request->query('year_from', ''),
             'year_to' => (string) $request->query('year_to', ''),
         ]));
@@ -106,7 +108,9 @@ class PhotoController extends Controller
                 ->when($request->filled('year_from'), fn ($query) => $query->where('year', '>=', (int) $request->year_from))
                 ->when($request->filled('year_to'), fn ($query) => $query->where('year', '<=', (int) $request->year_to))
                 ->when($request->boolean('review'), fn ($query) => $query->where('needs_location_review', 1))
-                ->select(['id', 'title', 'lat', 'lng', 'direction', 'year', 'file_id', 'datetime', 'video', 'needs_location_review'])
+                ->when($request->filled('direction'), fn ($query) => $query->where('direction', (int) $request->direction))
+                ->when($request->boolean('winter'), fn ($query) => $query->where('is_winter', 1))
+                ->select(['id', 'title', 'lat', 'lng', 'direction', 'year', 'file_id', 'datetime', 'video', 'needs_location_review', 'is_winter'])
                 ->get()
                 ->map(fn (Photo $photo) => [
                     'id' => $photo->id,
@@ -120,6 +124,7 @@ class PhotoController extends Controller
                     'datetime' => optional($photo->datetime)->toISOString(),
                     'has_video' => filled($photo->video),
                     'needs_location_review' => (bool) $photo->needs_location_review,
+                    'is_winter' => (bool) ($photo->is_winter ?? false),
                 ])
                 ->all();
         });

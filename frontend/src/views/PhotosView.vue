@@ -1,10 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onBeforeRouteLeave } from 'vue-router'
 import { imageUrl, localizedApi, api } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload } from '../composables/useLanguageReload'
 import { directionLabel } from '../utils/locale'
 import { photoDisplayLikes } from '../utils/photoStats'
+import { saveGalleryRestore, consumeGalleryRestore } from '../utils/navigationRestore'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
@@ -202,6 +204,56 @@ function loadMore() {
   load(meta.value.current_page + 1, true)
 }
 
+async function restoreGalleryState(state) {
+  if (!state) return false
+
+  filters.value = {
+    search: '',
+    year_from: '',
+    year_to: '',
+    media: '',
+    direction: '',
+    user: '',
+    winter: false,
+    ...state.filters,
+  }
+  selectedAuthor.value = state.selectedAuthor ?? null
+  authorQuery.value = state.authorQuery ?? ''
+  filtersOpen.value = Boolean(state.filtersOpen)
+  compassOpen.value = false
+  photoPages.value = []
+  meta.value = null
+  resetImageReady()
+
+  const pageCount = Math.max(1, Number(state.pageCount) || 1)
+  for (let page = 1; page <= pageCount; page += 1) {
+    await load(page, page > 1)
+  }
+
+  await nextTick()
+  requestAnimationFrame(() => {
+    const scrollY = Number(state.scrollY)
+    if (Number.isFinite(scrollY)) {
+      window.scrollTo({ top: scrollY, behavior: 'instant' })
+    }
+  })
+
+  return true
+}
+
+onBeforeRouteLeave((to) => {
+  if (to.name !== 'photo-detail') return
+
+  saveGalleryRestore({
+    scrollY: window.scrollY,
+    filters: { ...filters.value },
+    selectedAuthor: selectedAuthor.value,
+    authorQuery: authorQuery.value,
+    pageCount: Math.max(1, photoPages.value.length),
+    filtersOpen: filtersOpen.value,
+  })
+})
+
 watch(authorQuery, (value) => {
   if (selectedAuthor.value && value === (selectedAuthor.value.name || selectedAuthor.value.uid)) return
   selectedAuthor.value = null
@@ -210,7 +262,7 @@ watch(authorQuery, (value) => {
   authorTimer = setTimeout(() => searchAuthors(value), 280)
 })
 
-onMounted(() => {
+onMounted(async () => {
   api('/photos/site-stats', { ttl: 10 * 60 * 1000 })
     .then((payload) => {
       const count = Number(payload?.photos_published)
@@ -219,7 +271,12 @@ onMounted(() => {
       }
     })
     .catch(() => {})
-  load()
+
+  const restored = await restoreGalleryState(consumeGalleryRestore())
+  if (!restored) {
+    load()
+  }
+
   observer = new IntersectionObserver((entries) => {
     if (entries.some((entry) => entry.isIntersecting)) {
       loadMore()

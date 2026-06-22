@@ -355,6 +355,26 @@
     color: #f4f7ff;
   }
 
+  .map-filter-chip:not(.active) {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #e7ebf3;
+
+    &:hover {
+      background: rgba(124, 92, 219, 0.18);
+      border-color: rgba(124, 92, 219, 0.4);
+    }
+  }
+
+  .map-filter-compass {
+    background: rgba(255, 255, 255, 0.03);
+    border-color: rgba(255, 255, 255, 0.08);
+  }
+
+  .map-tools-group--filters {
+    border-top-color: rgba(255, 255, 255, 0.08);
+  }
+
   .map-actions button {
     background: rgba(255, 255, 255, 0.06);
     color: #e7ebf3;
