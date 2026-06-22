@@ -101,10 +101,50 @@ function clampYear(year) {
   return Math.min(maxYear.value, Math.max(minYear.value, numericYear))
 }
 
-function minYearGap() {
-  const span = maxYear.value - minYear.value
-  if (span <= 0) return 0
-  return Math.min(1, span)
+const yearSliderTrack = ref(null)
+const HANDLE_RING_PX = 2
+const HANDLE_VISUAL_GAP_PX = 2
+let yearSliderResizeObserver
+
+function updateYearSliderHandleSpacing() {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const track = yearSliderTrack.value
+      const root = track?.querySelector('.year-slider')
+      if (!root) return
+
+      const lower = root.querySelector('.slider-handle-lower')
+      const upper = root.querySelector('.slider-handle-upper')
+      if (!lower || !upper) return
+
+      const lowerRect = lower.getBoundingClientRect()
+      const upperRect = upper.getBoundingClientRect()
+      const lowerVisualRight = lowerRect.right + HANDLE_RING_PX
+      const upperVisualLeft = upperRect.left - HANDLE_RING_PX
+      const edgeGap = upperVisualLeft - lowerVisualRight
+      const deficit = HANDLE_VISUAL_GAP_PX - edgeGap
+
+      if (deficit > 0.5) {
+        const spread = deficit / 2
+        lower.style.setProperty('--handle-nudge', `${-spread}px`)
+        upper.style.setProperty('--handle-nudge', `${spread}px`)
+      } else {
+        lower.style.removeProperty('--handle-nudge')
+        upper.style.removeProperty('--handle-nudge')
+      }
+    })
+  })
+}
+
+function setupYearSliderSpacingObserver() {
+  yearSliderResizeObserver?.disconnect()
+  const track = yearSliderTrack.value
+  if (!track || typeof ResizeObserver === 'undefined') return
+
+  yearSliderResizeObserver = new ResizeObserver(() => {
+    updateYearSliderHandleSpacing()
+  })
+  yearSliderResizeObserver.observe(track)
 }
 
 function normalizedRange(from, to) {
@@ -113,15 +153,6 @@ function normalizedRange(from, to) {
 
   if (nextFrom > nextTo) {
     ;[nextFrom, nextTo] = [nextTo, nextFrom]
-  }
-
-  const gap = minYearGap()
-  if (gap > 0 && nextTo - nextFrom < gap) {
-    if (nextFrom + gap <= maxYear.value) {
-      nextTo = nextFrom + gap
-    } else {
-      nextFrom = Math.max(minYear.value, nextTo - gap)
-    }
   }
 
   return [nextFrom, nextTo]
@@ -152,11 +183,11 @@ const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
 const yearSliderOptions = computed(() => ({
-  margin: minYearGap(),
+  margin: 0,
 }))
 
 const yearSliderClass = computed(() => ({
-  'year-slider--single-year': minYearGap() === 0,
+  'year-slider--single-year': minYear.value === maxYear.value,
 }))
 
 const compassDirection = computed(() =>
@@ -586,6 +617,11 @@ function onYearSliderChange(value) {
   rangeTouched.value = true
   yearRange.value = normalizedRange(value[0], value[1])
   scheduleYearApply()
+  updateYearSliderHandleSpacing()
+}
+
+function onYearSliderSlide() {
+  updateYearSliderHandleSpacing()
 }
 
 async function loadSecondaryContent() {
@@ -662,6 +698,10 @@ onMounted(async () => {
   }
 
   loadSecondaryContent()
+
+  await nextTick()
+  setupYearSliderSpacingObserver()
+  updateYearSliderHandleSpacing()
 })
 
 onBeforeRouteLeave((to) => {
@@ -712,22 +752,28 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
+    updateYearSliderHandleSpacing()
     return
   }
 
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
+    updateYearSliderHandleSpacing()
     return
   }
 
   applyYearRange()
+  updateYearSliderHandleSpacing()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
+  updateYearSliderHandleSpacing()
 })
 
 onBeforeUnmount(() => {
+  yearSliderResizeObserver?.disconnect()
+  yearSliderResizeObserver = null
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
@@ -857,7 +903,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div class="year-filter-track">
+    <div ref="yearSliderTrack" class="year-filter-track">
       <Slider
         v-model="yearRange"
         :min="minYear"
@@ -868,6 +914,7 @@ onBeforeUnmount(() => {
         :options="yearSliderOptions"
         :class="['year-slider', yearSliderClass]"
         @change="onYearSliderChange"
+        @slide="onYearSliderSlide"
       />
       <div class="year-ticks">
         <span>{{ minYear }}</span>
@@ -1586,26 +1633,21 @@ onBeforeUnmount(() => {
 }
 
 .year-slider {
-  $handle-h: 12px;
-  $handle-tip: 5px;
-  $handle-body: 9px;
-  $handle-w: $handle-body + $handle-tip;
-
   --slider-bg: #e4eaf6;
   --slider-connect-bg: #{$accent};
-  --slider-handle-bg: transparent;
+  --slider-handle-bg: #fff;
   --slider-handle-border: 0;
   --slider-handle-ring-color: rgba(255, 145, 15, 0.22);
   --slider-height: 4px;
   --slider-radius: 999px;
-  --slider-handle-width: #{$handle-w};
-  --slider-handle-height: #{$handle-h};
-  --slider-handle-shadow: none;
+  --slider-handle-width: 14px;
+  --slider-handle-height: 14px;
+  --slider-handle-shadow: 0 4px 10px rgba($accent-dark, 0.32);
   padding: 0;
   min-width: 0;
 
   &.slider-target {
-    height: 20px;
+    height: 18px;
     padding-inline: 8px;
     border: 0;
     background: transparent;
@@ -1613,7 +1655,7 @@ onBeforeUnmount(() => {
   }
 
   .slider-base {
-    top: 8px;
+    top: 7px;
     height: 4px;
     border: 0;
     border-radius: $radius-pill;
@@ -1628,73 +1670,39 @@ onBeforeUnmount(() => {
   }
 
   .slider-handle {
-    top: -2px;
-    width: $handle-w;
-    height: $handle-h;
+    top: -5px;
+    width: var(--slider-handle-width);
+    height: var(--slider-handle-height);
     border: 0;
-    border-radius: 0;
-    background: transparent;
-    box-shadow: none;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow:
+      0 0 0 2px $accent,
+      0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
-    filter: drop-shadow(0 2px 5px rgba($accent-dark, 0.26));
-    @include interactive((filter));
-
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: #fff;
-      box-shadow: inset 0 0 0 2px $accent;
-      transition: transform 0.16s ease, box-shadow 0.16s ease;
-    }
+    translate: var(--handle-nudge, 0) 0;
+    @include interactive((box-shadow, scale));
 
     &-lower {
       z-index: 2;
-      right: 0 !important;
-      left: auto !important;
-
-      &::before {
-        border-radius: 3px 0 0 3px;
-        clip-path: polygon(0 0, #{$handle-body} 0, 100% 50%, #{$handle-body} 100%, 0 100%);
-        transform-origin: right center;
-      }
     }
 
     &-upper {
       z-index: 3;
-      left: 0 !important;
-      right: auto !important;
-
-      &::before {
-        border-radius: 0 3px 3px 0;
-        clip-path: polygon(#{$handle-tip} 0, 100% 0, 100% 100%, #{$handle-tip} 100%, 0 50%);
-        transform-origin: left center;
-      }
     }
 
     &:hover,
     &:focus {
-      filter: drop-shadow(0 3px 8px rgba($accent-dark, 0.36));
-
-      &::before {
-        box-shadow:
-          inset 0 0 0 2px $accent,
-          0 0 0 4px rgba($accent, 0.18);
-      }
-    }
-
-    &-lower:hover::before,
-    &-lower:focus::before {
-      transform: scale(1.12);
-    }
-
-    &-upper:hover::before,
-    &-upper:focus::before {
-      transform: scale(1.12);
+      scale: 1.18;
+      box-shadow:
+        0 0 0 2px $accent,
+        0 0 0 6px rgba($accent, 0.2),
+        0 6px 14px rgba($accent-dark, 0.4);
     }
 
     &:active {
       cursor: grabbing;
+      scale: 1.22;
     }
   }
 
