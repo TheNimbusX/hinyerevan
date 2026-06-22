@@ -102,36 +102,18 @@ function clampYear(year) {
 }
 
 const yearSliderTrack = ref(null)
+const yearSliderBaseWidth = ref(0)
+const HANDLE_SIZE_PX = 14
 const HANDLE_RING_PX = 2
-const HANDLE_VISUAL_GAP_PX = 2
+const HANDLE_VISUAL_GAP_PX = 3
+const HANDLE_VISUAL_DIAMETER_PX = HANDLE_SIZE_PX + HANDLE_RING_PX * 2
 let yearSliderResizeObserver
 
-function updateYearSliderHandleSpacing() {
+function measureYearSliderBase() {
   nextTick(() => {
     requestAnimationFrame(() => {
-      const track = yearSliderTrack.value
-      const root = track?.querySelector('.year-slider')
-      if (!root) return
-
-      const lower = root.querySelector('.slider-handle-lower')
-      const upper = root.querySelector('.slider-handle-upper')
-      if (!lower || !upper) return
-
-      const lowerRect = lower.getBoundingClientRect()
-      const upperRect = upper.getBoundingClientRect()
-      const lowerVisualRight = lowerRect.right + HANDLE_RING_PX
-      const upperVisualLeft = upperRect.left - HANDLE_RING_PX
-      const edgeGap = upperVisualLeft - lowerVisualRight
-      const deficit = HANDLE_VISUAL_GAP_PX - edgeGap
-
-      if (deficit > 0.5) {
-        const spread = deficit / 2
-        lower.style.setProperty('--handle-nudge', `${-spread}px`)
-        upper.style.setProperty('--handle-nudge', `${spread}px`)
-      } else {
-        lower.style.removeProperty('--handle-nudge')
-        upper.style.removeProperty('--handle-nudge')
-      }
+      const base = yearSliderTrack.value?.querySelector('.slider-base')
+      yearSliderBaseWidth.value = base ? base.getBoundingClientRect().width : 0
     })
   })
 }
@@ -142,10 +124,26 @@ function setupYearSliderSpacingObserver() {
   if (!track || typeof ResizeObserver === 'undefined') return
 
   yearSliderResizeObserver = new ResizeObserver(() => {
-    updateYearSliderHandleSpacing()
+    measureYearSliderBase()
   })
   yearSliderResizeObserver.observe(track)
 }
+
+const yearHandleSpreadPx = computed(() => {
+  const span = maxYear.value - minYear.value
+  if (span <= 0 || yearSliderBaseWidth.value <= 0) return 0
+
+  const yearDiff = Math.max(0, yearRange.value[1] - yearRange.value[0])
+  const centerSepPx = (yearDiff / span) * yearSliderBaseWidth.value
+  const minCenterSepPx = HANDLE_VISUAL_DIAMETER_PX + HANDLE_VISUAL_GAP_PX
+
+  if (centerSepPx >= minCenterSepPx) return 0
+  return (minCenterSepPx - centerSepPx) / 2
+})
+
+const yearSliderTrackStyle = computed(() => ({
+  '--handle-spread': `${yearHandleSpreadPx.value}px`,
+}))
 
 function normalizedRange(from, to) {
   let nextFrom = clampYear(from)
@@ -613,15 +611,9 @@ function applyYearRange() {
   scheduleYearApply()
 }
 
-function onYearSliderChange(value) {
+function onYearSliderChange() {
   rangeTouched.value = true
-  yearRange.value = normalizedRange(value[0], value[1])
   scheduleYearApply()
-  updateYearSliderHandleSpacing()
-}
-
-function onYearSliderSlide() {
-  updateYearSliderHandleSpacing()
 }
 
 async function loadSecondaryContent() {
@@ -701,7 +693,7 @@ onMounted(async () => {
 
   await nextTick()
   setupYearSliderSpacingObserver()
-  updateYearSliderHandleSpacing()
+  measureYearSliderBase()
 })
 
 onBeforeRouteLeave((to) => {
@@ -752,23 +744,20 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
-    updateYearSliderHandleSpacing()
     return
   }
 
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
-    updateYearSliderHandleSpacing()
     return
   }
 
   applyYearRange()
-  updateYearSliderHandleSpacing()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
-  updateYearSliderHandleSpacing()
+  measureYearSliderBase()
 })
 
 onBeforeUnmount(() => {
@@ -903,7 +892,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div ref="yearSliderTrack" class="year-filter-track">
+    <div ref="yearSliderTrack" class="year-filter-track" :style="yearSliderTrackStyle">
       <Slider
         v-model="yearRange"
         :min="minYear"
@@ -914,7 +903,6 @@ onBeforeUnmount(() => {
         :options="yearSliderOptions"
         :class="['year-slider', yearSliderClass]"
         @change="onYearSliderChange"
-        @slide="onYearSliderSlide"
       />
       <div class="year-ticks">
         <span>{{ minYear }}</span>
@@ -1680,15 +1668,16 @@ onBeforeUnmount(() => {
       0 0 0 2px $accent,
       0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
-    translate: var(--handle-nudge, 0) 0;
     @include interactive((box-shadow, scale));
 
     &-lower {
       z-index: 2;
+      margin-left: calc(-1 * var(--handle-spread, 0px));
     }
 
     &-upper {
       z-index: 3;
+      margin-left: var(--handle-spread, 0px);
     }
 
     &:hover,
