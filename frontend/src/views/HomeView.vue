@@ -101,62 +101,10 @@ function clampYear(year) {
   return Math.min(maxYear.value, Math.max(minYear.value, numericYear))
 }
 
-const YEAR_HANDLE_PX = 14
-const YEAR_HANDLE_EDGE_GAP_PX = 2
-const yearSliderTrack = ref(null)
-const yearSliderHandleSpread = ref(0)
-let yearSliderResizeObserver
-
 function minYearGap() {
   const span = maxYear.value - minYear.value
   if (span <= 0) return 0
   return Math.min(1, span)
-}
-
-function yearRangeOneYearApart() {
-  return minYearGap() > 0 && yearRange.value[1] - yearRange.value[0] <= minYearGap()
-}
-
-function recalculateYearSliderSpread() {
-  if (!yearRangeOneYearApart()) {
-    yearSliderHandleSpread.value = 0
-    return
-  }
-
-  const span = maxYear.value - minYear.value
-  const track = yearSliderTrack.value
-  if (!track || span <= 0) {
-    yearSliderHandleSpread.value = 0
-    return
-  }
-
-  const base = track.querySelector('.year-slider .slider-base')
-  const trackWidth = base?.getBoundingClientRect().width ?? track.getBoundingClientRect().width
-  if (trackWidth <= 0) return
-
-  const centerGap = trackWidth / span
-  if (centerGap >= YEAR_HANDLE_PX) {
-    yearSliderHandleSpread.value = 0
-    return
-  }
-
-  yearSliderHandleSpread.value =
-    (YEAR_HANDLE_PX - centerGap) / 2 + YEAR_HANDLE_EDGE_GAP_PX / 2
-}
-
-function setupYearSliderSpreadObserver() {
-  yearSliderResizeObserver?.disconnect()
-  const track = yearSliderTrack.value
-  if (!track || typeof ResizeObserver === 'undefined') {
-    recalculateYearSliderSpread()
-    return
-  }
-
-  yearSliderResizeObserver = new ResizeObserver(() => {
-    recalculateYearSliderSpread()
-  })
-  yearSliderResizeObserver.observe(track)
-  recalculateYearSliderSpread()
 }
 
 function normalizedRange(from, to) {
@@ -209,14 +157,7 @@ const yearSliderOptions = computed(() => ({
 
 const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYearGap() === 0,
-  'year-slider--handles-adjacent':
-    yearRangeOneYearApart() && yearSliderHandleSpread.value > 0,
 }))
-
-const yearSliderTrackStyle = computed(() => {
-  if (!yearRangeOneYearApart() || yearSliderHandleSpread.value <= 0) return undefined
-  return { '--handle-spread': `${yearSliderHandleSpread.value}px` }
-})
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -721,9 +662,6 @@ onMounted(async () => {
   }
 
   loadSecondaryContent()
-
-  await nextTick()
-  setupYearSliderSpreadObserver()
 })
 
 onBeforeRouteLeave((to) => {
@@ -774,28 +712,22 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
-    recalculateYearSliderSpread()
     return
   }
 
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
-    recalculateYearSliderSpread()
     return
   }
 
   applyYearRange()
-  recalculateYearSliderSpread()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
-  nextTick(() => recalculateYearSliderSpread())
 })
 
 onBeforeUnmount(() => {
-  yearSliderResizeObserver?.disconnect()
-  yearSliderResizeObserver = null
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
@@ -925,7 +857,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div ref="yearSliderTrack" class="year-filter-track" :style="yearSliderTrackStyle">
+    <div class="year-filter-track">
       <Slider
         v-model="yearRange"
         :min="minYear"
@@ -1654,21 +1586,26 @@ onBeforeUnmount(() => {
 }
 
 .year-slider {
+  $handle-h: 12px;
+  $handle-tip: 5px;
+  $handle-body: 9px;
+  $handle-w: $handle-body + $handle-tip;
+
   --slider-bg: #e4eaf6;
   --slider-connect-bg: #{$accent};
-  --slider-handle-bg: #fff;
+  --slider-handle-bg: transparent;
   --slider-handle-border: 0;
   --slider-handle-ring-color: rgba(255, 145, 15, 0.22);
   --slider-height: 4px;
   --slider-radius: 999px;
-  --slider-handle-width: 14px;
-  --slider-handle-height: 14px;
-  --slider-handle-shadow: 0 4px 10px rgba($accent-dark, 0.32);
+  --slider-handle-width: #{$handle-w};
+  --slider-handle-height: #{$handle-h};
+  --slider-handle-shadow: none;
   padding: 0;
   min-width: 0;
 
   &.slider-target {
-    height: 18px;
+    height: 20px;
     padding-inline: 8px;
     border: 0;
     background: transparent;
@@ -1676,7 +1613,7 @@ onBeforeUnmount(() => {
   }
 
   .slider-base {
-    top: 7px;
+    top: 8px;
     height: 4px;
     border: 0;
     border-radius: $radius-pill;
@@ -1691,38 +1628,73 @@ onBeforeUnmount(() => {
   }
 
   .slider-handle {
-    top: -5px;
-    width: var(--slider-handle-width);
-    height: var(--slider-handle-height);
+    top: -2px;
+    width: $handle-w;
+    height: $handle-h;
     border: 0;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow:
-      0 0 0 2px $accent,
-      0 4px 8px rgba($accent-dark, 0.32);
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
     cursor: grab;
-    @include interactive((box-shadow, scale));
+    filter: drop-shadow(0 2px 5px rgba($accent-dark, 0.26));
+    @include interactive((filter));
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: #fff;
+      box-shadow: inset 0 0 0 2px $accent;
+      transition: transform 0.16s ease, box-shadow 0.16s ease;
+    }
 
     &-lower {
       z-index: 2;
+      right: 0 !important;
+      left: auto !important;
+
+      &::before {
+        border-radius: 3px 0 0 3px;
+        clip-path: polygon(0 0, #{$handle-body} 0, 100% 50%, #{$handle-body} 100%, 0 100%);
+        transform-origin: right center;
+      }
     }
 
     &-upper {
       z-index: 3;
+      left: 0 !important;
+      right: auto !important;
+
+      &::before {
+        border-radius: 0 3px 3px 0;
+        clip-path: polygon(#{$handle-tip} 0, 100% 0, 100% 100%, #{$handle-tip} 100%, 0 50%);
+        transform-origin: left center;
+      }
     }
 
     &:hover,
     &:focus {
-      scale: 1.18;
-      box-shadow:
-        0 0 0 2px $accent,
-        0 0 0 6px rgba($accent, 0.2),
-        0 6px 14px rgba($accent-dark, 0.4);
+      filter: drop-shadow(0 3px 8px rgba($accent-dark, 0.36));
+
+      &::before {
+        box-shadow:
+          inset 0 0 0 2px $accent,
+          0 0 0 4px rgba($accent, 0.18);
+      }
+    }
+
+    &-lower:hover::before,
+    &-lower:focus::before {
+      transform: scale(1.12);
+    }
+
+    &-upper:hover::before,
+    &-upper:focus::before {
+      transform: scale(1.12);
     }
 
     &:active {
       cursor: grabbing;
-      scale: 1.22;
     }
   }
 
@@ -1734,16 +1706,6 @@ onBeforeUnmount(() => {
 
   .slider-tooltip {
     display: none;
-  }
-
-  &--handles-adjacent {
-    .slider-handle-lower {
-      translate: calc(-1 * var(--handle-spread, 0)) 0;
-    }
-
-    .slider-handle-upper {
-      translate: var(--handle-spread, 0) 0;
-    }
   }
 }
 

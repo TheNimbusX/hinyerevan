@@ -403,6 +403,18 @@
       background: #2a313d;
       box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.32);
     }
+
+    .slider-handle::before {
+      background: #151b28;
+      box-shadow: inset 0 0 0 2px $accent;
+    }
+
+    .slider-handle:hover::before,
+    .slider-handle:focus::before {
+      box-shadow:
+        inset 0 0 0 2px $accent,
+        0 0 0 4px rgba($accent, 0.22);
+    }
   }
 
   .year-ticks {
