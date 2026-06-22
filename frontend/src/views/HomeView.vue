@@ -110,29 +110,13 @@ const HANDLE_VISUAL_DIAMETER_PX = HANDLE_SIZE_PX + HANDLE_RING_PX * 2
 const SAME_YEAR_HANDLE_SPREAD_PX = HANDLE_VISUAL_DIAMETER_PX / 2
 let yearSliderResizeObserver
 
-function resolveYearSliderTrackWidth() {
-  if (yearSliderBaseWidth.value > 0) return yearSliderBaseWidth.value
-
-  const track = yearSliderTrack.value
-  if (!track) return 0
-
-  const candidates = [
-    track.querySelector('.slider-base'),
-    track.querySelector('.slider-connects'),
-    track.querySelector('.slider-target'),
-    track,
-  ]
-
-  return candidates.reduce((maxWidth, element) => {
-    const width = element?.getBoundingClientRect().width ?? 0
-    return width > maxWidth ? width : maxWidth
-  }, 0)
-}
-
 function measureYearSliderBase() {
   nextTick(() => {
     requestAnimationFrame(() => {
-      yearSliderBaseWidth.value = resolveYearSliderTrackWidth()
+      const track = yearSliderTrack.value
+      if (!track) return
+      const base = track.querySelector('.slider-base') || track.querySelector('.slider-target')
+      yearSliderBaseWidth.value = base?.getBoundingClientRect().width ?? track.clientWidth
     })
   })
 }
@@ -142,9 +126,7 @@ function setupYearSliderSpacingObserver() {
   const track = yearSliderTrack.value
   if (!track || typeof ResizeObserver === 'undefined') return
 
-  yearSliderResizeObserver = new ResizeObserver(() => {
-    measureYearSliderBase()
-  })
+  yearSliderResizeObserver = new ResizeObserver(measureYearSliderBase)
   yearSliderResizeObserver.observe(track)
 }
 
@@ -155,7 +137,7 @@ const yearHandleSpreadPx = computed(() => {
   const yearDiff = Math.max(0, yearRange.value[1] - yearRange.value[0])
   if (yearDiff === 0) return SAME_YEAR_HANDLE_SPREAD_PX
 
-  const trackWidth = resolveYearSliderTrackWidth()
+  const trackWidth = yearSliderBaseWidth.value || yearSliderTrack.value?.clientWidth || 0
   const centerSepPx = trackWidth > 0 ? (yearDiff / span) * trackWidth : 0
   const minCenterSepPx = HANDLE_VISUAL_DIAMETER_PX + ADJACENT_YEAR_GAP_PX
 
@@ -206,15 +188,9 @@ const yearSliderOptions = computed(() => ({
   margin: 0,
 }))
 
-const yearSliderClass = computed(() => {
-  const yearDiff = Math.max(0, yearRange.value[1] - yearRange.value[0])
-
-  return {
-    'year-slider--single-year': minYear.value === maxYear.value,
-    'year-slider--same-year-value': yearDiff === 0,
-    'year-slider--adjacent-years': yearDiff === 1,
-  }
-})
+const yearSliderClass = computed(() => ({
+  'year-slider--single-year': minYear.value === maxYear.value,
+}))
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -1612,6 +1588,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 2px;
   min-width: 0;
+  overflow: visible;
 }
 
 .year-filter-label {
@@ -1663,8 +1640,10 @@ onBeforeUnmount(() => {
   --slider-handle-width: 14px;
   --slider-handle-height: 14px;
   --slider-handle-shadow: 0 4px 10px rgba($accent-dark, 0.32);
+  --handle-spread: 0px;
   padding: 0;
   min-width: 0;
+  overflow: visible;
 
   &.slider-target {
     height: 18px;
@@ -1672,6 +1651,7 @@ onBeforeUnmount(() => {
     border: 0;
     background: transparent;
     box-shadow: none;
+    overflow: visible;
   }
 
   .slider-base {
@@ -1681,12 +1661,17 @@ onBeforeUnmount(() => {
     border-radius: $radius-pill;
     background: #e4eaf6;
     box-shadow: inset 0 1px 1px rgba(23, 52, 126, 0.08);
+    overflow: visible;
   }
 
   .slider-connect {
     height: 100%;
     border-radius: $radius-pill;
     background: linear-gradient(90deg, $accent, $accent-dark);
+  }
+
+  .slider-origin {
+    overflow: visible;
   }
 
   .slider-handle {
@@ -1700,21 +1685,21 @@ onBeforeUnmount(() => {
       0 0 0 2px $accent,
       0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
-    @include interactive((box-shadow, scale));
+    @include interactive((box-shadow, transform));
 
     &-lower {
       z-index: 2;
-      translate: calc(-1 * var(--handle-spread, 0px)) 0;
+      right: calc(var(--slider-handle-width) / -2 - var(--handle-spread, 0px));
     }
 
     &-upper {
       z-index: 3;
-      translate: var(--handle-spread, 0px) 0;
+      right: calc(var(--slider-handle-width) / -2 + var(--handle-spread, 0px));
     }
 
     &:hover,
     &:focus {
-      scale: 1.18;
+      transform: scale(1.18);
       box-shadow:
         0 0 0 2px $accent,
         0 0 0 6px rgba($accent, 0.2),
@@ -1723,7 +1708,7 @@ onBeforeUnmount(() => {
 
     &:active {
       cursor: grabbing;
-      scale: 1.22;
+      transform: scale(1.22);
     }
   }
 
