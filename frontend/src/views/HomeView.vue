@@ -101,8 +101,49 @@ function clampYear(year) {
   return Math.min(maxYear.value, Math.max(minYear.value, numericYear))
 }
 
+const yearSliderTrack = ref(null)
+let yearSliderResizeObserver
+
 function minYearGap() {
   return maxYear.value > minYear.value ? 1 : 0
+}
+
+function updateYearSliderHandleSpacing() {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const track = yearSliderTrack.value
+      const root = track?.querySelector('.year-slider')
+      if (!root) return
+
+      const lower = root.querySelector('.slider-handle-lower')
+      const upper = root.querySelector('.slider-handle-upper')
+      if (!lower || !upper) return
+
+      const lowerRect = lower.getBoundingClientRect()
+      const upperRect = upper.getBoundingClientRect()
+      const overlap = lowerRect.right - upperRect.left
+
+      if (overlap > 0) {
+        const spread = overlap / 2
+        lower.style.setProperty('--handle-nudge', `${-spread}px`)
+        upper.style.setProperty('--handle-nudge', `${spread}px`)
+      } else {
+        lower.style.removeProperty('--handle-nudge')
+        upper.style.removeProperty('--handle-nudge')
+      }
+    })
+  })
+}
+
+function setupYearSliderSpacingObserver() {
+  yearSliderResizeObserver?.disconnect()
+  const track = yearSliderTrack.value
+  if (!track || typeof ResizeObserver === 'undefined') return
+
+  yearSliderResizeObserver = new ResizeObserver(() => {
+    updateYearSliderHandleSpacing()
+  })
+  yearSliderResizeObserver.observe(track)
 }
 
 function normalizedRange(from, to) {
@@ -584,6 +625,11 @@ function onYearSliderChange(value) {
   rangeTouched.value = true
   yearRange.value = normalizedRange(value[0], value[1])
   scheduleYearApply()
+  updateYearSliderHandleSpacing()
+}
+
+function onYearSliderSlide() {
+  updateYearSliderHandleSpacing()
 }
 
 async function loadSecondaryContent() {
@@ -660,6 +706,10 @@ onMounted(async () => {
   }
 
   loadSecondaryContent()
+
+  await nextTick()
+  setupYearSliderSpacingObserver()
+  updateYearSliderHandleSpacing()
 })
 
 onBeforeRouteLeave((to) => {
@@ -710,22 +760,28 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
+    updateYearSliderHandleSpacing()
     return
   }
 
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
+    updateYearSliderHandleSpacing()
     return
   }
 
   applyYearRange()
+  updateYearSliderHandleSpacing()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
+  updateYearSliderHandleSpacing()
 })
 
 onBeforeUnmount(() => {
+  yearSliderResizeObserver?.disconnect()
+  yearSliderResizeObserver = null
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
@@ -855,7 +911,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div class="year-filter-track">
+    <div ref="yearSliderTrack" class="year-filter-track">
       <Slider
         v-model="yearRange"
         :min="minYear"
@@ -866,6 +922,7 @@ onBeforeUnmount(() => {
         :options="yearSliderOptions"
         :class="['year-slider', yearSliderClass]"
         @change="onYearSliderChange"
+        @slide="onYearSliderSlide"
       />
       <div class="year-ticks">
         <span>{{ minYear }}</span>
@@ -1622,8 +1679,8 @@ onBeforeUnmount(() => {
 
   .slider-handle {
     top: -5px;
-    width: 14px;
-    height: 14px;
+    width: var(--slider-handle-width);
+    height: var(--slider-handle-height);
     border: 0;
     border-radius: 50%;
     background: #fff;
@@ -1631,7 +1688,8 @@ onBeforeUnmount(() => {
       0 0 0 2px $accent,
       0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
-    @include interactive((box-shadow, transform));
+    translate: var(--handle-nudge, 0) 0;
+    @include interactive((box-shadow, scale));
 
     &-lower {
       z-index: 2;
@@ -1643,7 +1701,7 @@ onBeforeUnmount(() => {
 
     &:hover,
     &:focus {
-      transform: scale(1.18);
+      scale: 1.18;
       box-shadow:
         0 0 0 2px $accent,
         0 0 0 6px rgba($accent, 0.2),
@@ -1652,7 +1710,7 @@ onBeforeUnmount(() => {
 
     &:active {
       cursor: grabbing;
-      transform: scale(1.22);
+      scale: 1.22;
     }
   }
 
