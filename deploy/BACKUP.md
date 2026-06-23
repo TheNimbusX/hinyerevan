@@ -79,34 +79,61 @@ OFFSITE_SCP=user@backup-host:/backups \
 > periodically (`scp root@IP:/root/backups/hinyerevan-*.tar .`) or set
 > `OFFSITE_SCP` / `OFFSITE_RCLONE`.
 
+## Offsite: Yandex.Disk (rclone)
+
+Because the disk is small and the server has little RAM, the offsite copy is a
+**file mirror** on Yandex.Disk (not a single huge file). It is incremental,
+resumable and low-memory. Layout on `yadisk:hinyerevan`:
+
+```
+db/hin_yerevan-<stamp>.sql.gz   daily DB dumps (newest KEEP kept)
+config/                          backend.env, secrets.env, *.nginx, cron
+meta/manifest.txt                git commit + paths
+legacy/                          mirror of all photos
+storage-app/                     mirror of storage/app (caches excluded)
+```
+
+rclone remote setup (already done on prod; redo on a new box if needed):
+
+```bash
+rclone config create yadisk webdav url https://webdav.yandex.ru vendor other \
+  user <yandex-login> pass <app-password> --obscure
+```
+
+(The app password is created at id.yandex.ru → Security → App passwords →
+"Files (WebDAV)", and can be revoked anytime.)
+
 ## Restore on a new VPS
 
-1. Copy the archive to the new server, e.g. from your PC:
+### Option A — from the Yandex mirror (recommended for DR)
 
-   ```bash
-   scp hinyerevan-YYYYMMDD-HHMMSS.tar root@NEW_IP:/root/
-   ```
+```bash
+# 1. install rclone + configure the remote (or pass --provision to install it)
+rclone config create yadisk webdav url https://webdav.yandex.ru vendor other \
+  user <yandex-login> pass <app-password> --obscure
 
-2. Get `restore.sh` (clone the repo, or just scp the one script) and run it:
+# 2. fetch restore.sh and run it
+bash restore.sh --from-rclone yadisk:hinyerevan --provision   # fresh box
+bash restore.sh --from-rclone yadisk:hinyerevan               # stack present
+```
 
-   ```bash
-   # Fresh, empty Ubuntu/Debian server (installs the whole stack first):
-   bash restore.sh /root/hinyerevan-YYYYMMDD-HHMMSS.tar --provision
+### Option B — from a single portable file
 
-   # Server that already has nginx + php8.1-fpm + MySQL + node:
-   bash restore.sh /root/hinyerevan-YYYYMMDD-HHMMSS.tar
-   ```
+```bash
+scp hinyerevan-YYYYMMDD-HHMMSS.tar root@NEW_IP:/root/
+bash restore.sh /root/hinyerevan-YYYYMMDD-HHMMSS.tar --provision
+```
 
-   Restore will: install packages (with `--provision`), clone the code at the
-   backup's commit, restore `.env`/secrets, restore all photos, create the DB +
-   user and import the dump, restore the nginx vhost + cron, then run the normal
-   build (`composer`, `migrate`, frontend `npm run build`) and fix permissions.
+Either way restore will: install packages (with `--provision`), clone the code at
+the backup's commit, restore `.env`/secrets, restore all photos, create the DB +
+user and import the dump, restore the nginx vhost + cron, then run the normal
+build (`composer`, `migrate`, frontend `npm run build`) and fix permissions.
 
-3. Point DNS (`hinyerevan.com`) at the new IP, then issue SSL / finalise nginx:
+Finally point DNS (`hinyerevan.com`) at the new IP and issue SSL / finalise nginx:
 
-   ```bash
-   bash /var/www/hinyerevan/deploy/setup-prod-com.sh
-   ```
+```bash
+bash /var/www/hinyerevan/deploy/setup-prod-com.sh
+```
 
 That's it — the site is back.
 

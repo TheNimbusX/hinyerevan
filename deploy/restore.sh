@@ -3,10 +3,14 @@
 # HinYerevan — restore from a backup made by deploy/backup.sh onto THIS VPS.
 #
 # Usage (run as root on the NEW VPS):
+#   # A) from a single portable file made by backup.sh:
 #   bash restore.sh /path/to/hinyerevan-YYYYMMDD-HHMMSS.tar [--provision]
 #
+#   # B) from the offsite Yandex.Disk mirror (rclone remote must be configured):
+#   bash restore.sh --from-rclone yadisk:hinyerevan [--provision]
+#
 #   --provision   first install the full stack (nginx, php8.1-fpm, MySQL,
-#                 Node 20, Composer, git) on a clean Debian/Ubuntu box.
+#                 Node 20, Composer, git, rclone) on a clean Debian/Ubuntu box.
 #                 Omit it if the server already has the stack.
 #
 # What it does:
@@ -21,15 +25,27 @@
 # ============================================================================
 set -euo pipefail
 
-ARCHIVE="${1:-}"
+ARCHIVE=""
+FROM_RCLONE=""
 PROVISION=0
-for a in "${@:2}"; do [ "$a" = "--provision" ] && PROVISION=1; done
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --provision)   PROVISION=1 ;;
+    --from-rclone) FROM_RCLONE="${2:-}"; shift ;;
+    *)             [ -z "$ARCHIVE" ] && ARCHIVE="$1" ;;
+  esac
+  shift
+done
 
-if [ -z "$ARCHIVE" ] || [ ! -f "$ARCHIVE" ]; then
-  echo "Usage: bash restore.sh <archive.tar[.gz]> [--provision]" >&2
-  exit 1
+if [ -z "$FROM_RCLONE" ]; then
+  if [ -z "$ARCHIVE" ] || [ ! -f "$ARCHIVE" ]; then
+    echo "Usage:" >&2
+    echo "  bash restore.sh <archive.tar[.gz]> [--provision]" >&2
+    echo "  bash restore.sh --from-rclone <remote:path> [--provision]" >&2
+    exit 1
+  fi
+  ARCHIVE="$(readlink -f "$ARCHIVE")"
 fi
-ARCHIVE="$(readlink -f "$ARCHIVE")"
 
 APP_DIR="${APP_DIR:-/var/www/hinyerevan}"
 REPO_URL="${REPO_URL:-https://github.com/TheNimbusX/hinyerevan.git}"
@@ -55,12 +71,30 @@ if [ "$PROVISION" = "1" ]; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     apt-get install -y nodejs
   fi
+  if ! command -v rclone >/dev/null 2>&1; then
+    curl -fsSL https://rclone.org/install.sh | bash || true
+  fi
   systemctl enable --now mysql php8.1-fpm nginx || true
 fi
 
-# --- 2) extract + read manifest --------------------------------------------
-echo "==> Extracting $ARCHIVE"
-tar xf "$ARCHIVE" -C "$WORK"
+# --- 2) get metadata (manifest/config/db) ----------------------------------
+if [ -n "$FROM_RCLONE" ]; then
+  command -v rclone >/dev/null 2>&1 || { echo "FATAL: rclone not installed (use --provision)"; exit 1; }
+  if ! rclone lsf "$FROM_RCLONE/meta" >/dev/null 2>&1; then
+    echo "FATAL: cannot read $FROM_RCLONE — configure the rclone remote first." >&2
+    echo "  e.g. for Yandex.Disk WebDAV:" >&2
+    echo "  rclone config create yadisk webdav url https://webdav.yandex.ru vendor other \\" >&2
+    echo "    user <login> pass <app-password> --obscure" >&2
+    exit 1
+  fi
+  echo "==> Fetching metadata from $FROM_RCLONE"
+  rclone copy "$FROM_RCLONE/meta"   "$WORK/meta"
+  rclone copy "$FROM_RCLONE/config" "$WORK/config"
+  rclone copy "$FROM_RCLONE/db"     "$WORK/db"
+else
+  echo "==> Extracting $ARCHIVE"
+  tar xf "$ARCHIVE" -C "$WORK"
+fi
 MANIFEST="$WORK/meta/manifest.txt"
 [ -f "$MANIFEST" ] || { echo "FATAL: archive has no meta/manifest.txt" >&2; exit 1; }
 echo "---- manifest ----"; cat "$MANIFEST"; echo "------------------"
@@ -92,14 +126,20 @@ install -D -m 600 "$WORK/config/backend.env" "$BACKEND_DIR/.env"
 # --- 5) photos + storage/app -----------------------------------------------
 echo "==> Restoring photos -> $LEGACY_ROOT"
 mkdir -p "$LEGACY_ROOT"
-if [ -n "$LEGACY_BASE" ] && [ -d "$WORK/$LEGACY_BASE" ]; then
+if [ -n "$FROM_RCLONE" ]; then
+  rclone sync "$FROM_RCLONE/legacy" "$LEGACY_ROOT" --transfers 4 --checkers 8 --fast-list
+  if rclone lsf "$FROM_RCLONE/storage-app" >/dev/null 2>&1; then
+    mkdir -p "$BACKEND_DIR/storage/app"
+    rclone sync "$FROM_RCLONE/storage-app" "$BACKEND_DIR/storage/app" --transfers 4 --checkers 8 --fast-list
+  fi
+elif [ -n "$LEGACY_BASE" ] && [ -d "$WORK/$LEGACY_BASE" ]; then
   cp -a "$WORK/$LEGACY_BASE/." "$LEGACY_ROOT/"
+  if [ -d "$WORK/storage/app" ]; then
+    mkdir -p "$BACKEND_DIR/storage/app"
+    cp -a "$WORK/storage/app/." "$BACKEND_DIR/storage/app/"
+  fi
 else
   echo "WARN: no photo tree in archive ($LEGACY_BASE)"
-fi
-if [ -d "$WORK/storage/app" ]; then
-  mkdir -p "$BACKEND_DIR/storage/app"
-  cp -a "$WORK/storage/app/." "$BACKEND_DIR/storage/app/"
 fi
 
 # --- 6) database ------------------------------------------------------------
@@ -126,8 +166,10 @@ else
 fi
 
 echo "==> Importing database dump"
-DUMP_FILE="$(ls "$WORK"/db/*.sql.gz 2>/dev/null | head -n1)"
+# newest dump wins (the offsite mirror keeps several stamped dumps).
+DUMP_FILE="$(ls -1 "$WORK"/db/*.sql.gz 2>/dev/null | sort | tail -n1)"
 [ -n "$DUMP_FILE" ] || { echo "FATAL: no db dump in archive" >&2; exit 1; }
+echo "    using $(basename "$DUMP_FILE")"
 export MYSQL_PWD="$DB_PASS"
 gunzip -c "$DUMP_FILE" | mysql -h "$DB_HOST" -P "$DB_PORT" -u "$DB_USER" "$DB_NAME"
 

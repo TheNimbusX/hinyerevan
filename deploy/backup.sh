@@ -112,7 +112,7 @@ EOF
 echo "$GIT_COMMIT" > "$WORK/meta/git-commit.txt"
 cat "$WORK/meta/manifest.txt"
 
-# --- 4) assemble the single archive ----------------------------------------
+# --- 4) decide whether to write a local one-file archive --------------------
 # db-only archives get their own name prefix so rotation never mixes them with
 # (large) full archives.
 PREFIX="hinyerevan"; [ "$MODE" = "db" ] && PREFIX="hinyerevan-db"
@@ -122,49 +122,83 @@ if [ "$COMPRESS" = "1" ]; then OUT="$OUT.gz"; TAR_MODE=(czf); fi
 
 TAR_ARGS=(--exclude='storage/app/watermarked' --exclude='storage/app/cache' \
           -C "$WORK" meta db config)
+WRITE_LOCAL=1
 if [ "$MODE" = "full" ]; then
   if [ -d "$LEGACY_ROOT" ]; then
     PHOTOS_KB="$(du -sk "$LEGACY_ROOT" 2>/dev/null | cut -f1)"
     echo "==> Photos: $LEGACY_ROOT ($(du -sh "$LEGACY_ROOT" 2>/dev/null | cut -f1))"
-    # Safety: a full archive ~= the photo tree. Refuse to write it if there
-    # isn't clearly enough free space, otherwise the cron could fill the disk
-    # and take the site down. Use MODE=db for routine backups, or FORCE=1.
+    TAR_ARGS+=(-C "$(dirname "$LEGACY_ROOT")" "$LEGACY_BASE")
+    # A full one-file archive ~= the photo tree. Only write it locally when
+    # there is clearly enough free disk (otherwise we'd fill the disk and take
+    # the site down). When it doesn't fit we fall back to an offsite file-sync
+    # (rclone) instead, which streams file-by-file and needs no local space.
     FREE_KB="$(df -Pk "$BACKUP_DIR" | awk 'NR==2{print $4}')"
     NEED_KB=$(( ${PHOTOS_KB:-0} + 524288 ))   # photos + ~512MB headroom
     if [ "$FORCE" != "1" ] && [ "${FREE_KB:-0}" -lt "$NEED_KB" ]; then
-      echo "FATAL: not enough free space for a full backup." >&2
-      echo "  need ~$((NEED_KB/1024))MB, free $((FREE_KB/1024))MB in $BACKUP_DIR." >&2
-      echo "  Use MODE=db for routine backups, push offsite (OFFSITE_SCP/RCLONE)," >&2
-      echo "  free space, or re-run with FORCE=1 if you know it fits." >&2
-      exit 1
+      WRITE_LOCAL=0
+      echo "==> Not enough local disk for a one-file archive"
+      echo "    (need ~$((NEED_KB/1024))MB, free $((FREE_KB/1024))MB)."
+      if [ -z "${OFFSITE_RCLONE:-}" ]; then
+        echo "FATAL: no OFFSITE_RCLONE set, so there is nowhere to put the full" >&2
+        echo "       backup. Free disk and retry, set OFFSITE_RCLONE, or FORCE=1." >&2
+        exit 1
+      fi
+      echo "    -> will mirror photos offsite with rclone instead."
     fi
-    TAR_ARGS+=(-C "$(dirname "$LEGACY_ROOT")" "$LEGACY_BASE")
   else
     echo "WARN: legacy root $LEGACY_ROOT not found — photos NOT included" >&2
   fi
-  if [ -d "$BACKEND_DIR/storage/app" ]; then
-    TAR_ARGS+=(-C "$BACKEND_DIR" storage/app)
-  fi
+  [ -d "$BACKEND_DIR/storage/app" ] && TAR_ARGS+=(-C "$BACKEND_DIR" storage/app)
 else
   echo "==> MODE=db: database + config only (no photos)"
 fi
 
-echo "==> Writing $OUT"
-tar "${TAR_MODE[@]}" "$OUT" "${TAR_ARGS[@]}"
-echo "==> DONE: $OUT ($(du -h "$OUT" | cut -f1))"
+if [ "$WRITE_LOCAL" = "1" ]; then
+  echo "==> Writing $OUT"
+  tar "${TAR_MODE[@]}" "$OUT" "${TAR_ARGS[@]}"
+  echo "==> DONE (local): $OUT ($(du -h "$OUT" | cut -f1))"
+fi
 
-# --- 5) optional offsite copy ----------------------------------------------
-if [ -n "${OFFSITE_SCP:-}" ]; then
+# --- 5) offsite ------------------------------------------------------------
+# scp only makes sense for an existing local one-file archive.
+if [ -n "${OFFSITE_SCP:-}" ] && [ "$WRITE_LOCAL" = "1" ]; then
   echo "==> scp to $OFFSITE_SCP"
   scp -o StrictHostKeyChecking=accept-new "$OUT" "$OFFSITE_SCP/" || echo "WARN: offsite scp failed" >&2
 fi
+
 if [ -n "${OFFSITE_RCLONE:-}" ]; then
-  echo "==> rclone copy to $OFFSITE_RCLONE"
-  rclone copy "$OUT" "$OFFSITE_RCLONE" || echo "WARN: rclone copy failed" >&2
+  echo "==> Offsite (rclone) -> $OFFSITE_RCLONE"
+  # Small, always: stamped DB dump + latest config/meta (low bandwidth).
+  rclone copyto "$WORK/db/$DB_NAME.sql.gz" "$OFFSITE_RCLONE/db/$DB_NAME-$STAMP.sql.gz" \
+    || echo "WARN: rclone db upload failed" >&2
+  rclone copy "$WORK/config" "$OFFSITE_RCLONE/config" || echo "WARN: rclone config upload failed" >&2
+  rclone copy "$WORK/meta"   "$OFFSITE_RCLONE/meta"   || echo "WARN: rclone meta upload failed" >&2
+
+  if [ "$MODE" = "full" ]; then
+    # Mirror photos file-by-file: incremental, resumable, low memory — the only
+    # safe way to push 10+ GB from a small-RAM box.
+    if [ -d "$LEGACY_ROOT" ]; then
+      echo "==> rclone sync photos -> $OFFSITE_RCLONE/legacy"
+      rclone sync "$LEGACY_ROOT" "$OFFSITE_RCLONE/legacy" \
+        --transfers 4 --checkers 8 --fast-list || echo "WARN: rclone photo sync failed" >&2
+    fi
+    if [ -d "$BACKEND_DIR/storage/app" ]; then
+      echo "==> rclone sync storage/app -> $OFFSITE_RCLONE/storage-app"
+      rclone sync "$BACKEND_DIR/storage/app" "$OFFSITE_RCLONE/storage-app" \
+        --exclude 'watermarked/**' --exclude 'cache/**' \
+        --transfers 4 --checkers 8 --fast-list || echo "WARN: rclone storage sync failed" >&2
+    fi
+  fi
+
+  # Prune remote DB history to newest KEEP.
+  echo "==> Pruning remote DB dumps (keep newest $KEEP)"
+  rclone lsf "$OFFSITE_RCLONE/db" --files-only 2>/dev/null \
+    | grep -E "^${DB_NAME}-[0-9].*\.sql\.gz$" | sort | head -n "-$KEEP" \
+    | while read -r f; do rclone deletefile "$OFFSITE_RCLONE/db/$f" 2>/dev/null || true; done
 fi
 
-# --- 6) prune old archives (only within the same prefix) -------------------
-echo "==> Keeping newest $KEEP $MODE archive(s) in $BACKUP_DIR"
+# --- 6) prune local one-file archives (same prefix only) -------------------
+echo "==> Keeping newest $KEEP local $MODE archive(s) in $BACKUP_DIR"
 ls -1t "$BACKUP_DIR/$PREFIX"-*.tar "$BACKUP_DIR/$PREFIX"-*.tar.gz 2>/dev/null \
   | grep -E "/$PREFIX-[0-9]" \
   | tail -n +"$((KEEP + 1))" | xargs -r rm -f
