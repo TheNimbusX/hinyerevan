@@ -139,7 +139,17 @@ onBeforeUnmount(() => {
             :disabled="scale <= MIN_SCALE"
             @click="zoomOut"
           >
-            −
+            <span class="lightbox-zoom-btn__glyph">
+              <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+                <path
+                  d="M5 12h14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
           </button>
           <button
             type="button"
@@ -148,7 +158,17 @@ onBeforeUnmount(() => {
             :disabled="scale >= MAX_SCALE"
             @click="zoomIn"
           >
-            +
+            <span class="lightbox-zoom-btn__glyph">
+              <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+                <path
+                  d="M12 5v14M5 12h14"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.2"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </span>
           </button>
         </div>
         <figure class="lightbox-figure">
@@ -229,17 +249,14 @@ onBeforeUnmount(() => {
 .lightbox-zoom-btn {
   display: grid;
   place-items: center;
-  min-width: 44px;
+  width: 44px;
   height: 44px;
-  padding: 0 12px;
+  padding: 0;
   border: 0;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   cursor: pointer;
-  font-size: 24px;
-  font-weight: 500;
-  line-height: 1;
   @include interactive((background, transform));
 
   &:hover:not(:disabled) {
@@ -251,12 +268,19 @@ onBeforeUnmount(() => {
     cursor: default;
   }
 
-  &--primary {
-    font-size: 28px;
-    font-weight: 400;
-  }
-
   @include focus-ring(rgba(255, 255, 255, 0.55), 2px);
+}
+
+.lightbox-zoom-btn__glyph {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  line-height: 0;
+
+  svg {
+    display: block;
+  }
 }
 
 .lightbox-figure {
