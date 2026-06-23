@@ -370,6 +370,10 @@ function handleOpenAuth(event) {
   openAuth(mode)
 }
 
+watch(isHomeMap, (home) => {
+  document.documentElement.classList.toggle('home-map-page', home)
+}, { immediate: true })
+
 watch(authMode, () => {
   registerStep.value = 'form'
   registerCode.value = ''
@@ -456,6 +460,7 @@ router.afterEach(() => {
 })
 
 onBeforeUnmount(() => {
+  document.documentElement.classList.remove('home-map-page')
   document.body.style.overflow = ''
   window.removeEventListener('hinyerevan:auth-changed', syncAuthState)
   window.removeEventListener('hinyerevan:open-auth', handleOpenAuth)
@@ -479,7 +484,7 @@ onBeforeUnmount(() => {
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
             <RouterLink class="main-nav-link" to="/" @click="closeMenu">{{ t('map') }}</RouterLink>
-            <RouterLink class="main-nav-link main-nav-link--photos" to="/photos" @click="closeMenu">{{ photosNavLabel }}</RouterLink>
+            <RouterLink class="main-nav-link main-nav-link--photos" to="/photos" @click="closeMenu">{{ isHomeMap ? t('photos') : photosNavLabel }}</RouterLink>
             <RouterLink class="main-nav-link" to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
             <RouterLink class="main-nav-link main-nav-link--secondary" to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
             <RouterLink class="main-nav-link main-nav-link--secondary" to="/pages/aboutus" @click="closeMenu">{{ t('about') }}</RouterLink>
@@ -746,6 +751,8 @@ onBeforeUnmount(() => {
 
 <style lang="scss">
 // ---------- Top navigation (floating pill) -----------------------
+$home-sidebar-w: 320px;
+
 .site-header {
   position: fixed;
   top: 14px;
@@ -761,6 +768,8 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow: $shadow-md;
+  container-type: inline-size;
+  container-name: site-header;
 
   @include mq-down($bp-md) {
     top: 10px;
@@ -779,7 +788,13 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 20px;
   height: 56px;
+  min-width: 0;
   padding: 0 14px 0 18px;
+
+  @include mq-up($bp-md) {
+    display: flex;
+    gap: 12px;
+  }
 
   @include mq-down($bp-md) {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -796,6 +811,13 @@ onBeforeUnmount(() => {
   gap: 12px;
   min-width: 0;
   width: 100%;
+
+  @include mq-up($bp-md) {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    gap: 8px;
+  }
 
   .main-nav {
     justify-self: center;
@@ -853,6 +875,8 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+  min-width: 0;
   color: $ink;
   text-decoration: none;
   @include interactive((transform, opacity));
@@ -919,6 +943,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+
+  @include mq-up($bp-md) {
+    flex: 1;
+    justify-content: center;
+    overflow: hidden;
+  }
 
   @include mq-down($bp-md) {
     display: grid;
@@ -928,12 +959,14 @@ onBeforeUnmount(() => {
 
   a {
     position: relative;
-    padding: 8px 14px;
+    flex-shrink: 0;
+    padding: 8px 12px;
     color: $muted;
     font-size: 11px;
     font-weight: 500;
     text-decoration: none;
     border-radius: $radius-pill;
+    white-space: nowrap;
     @include interactive((color, background));
 
     &:hover {
@@ -964,7 +997,8 @@ onBeforeUnmount(() => {
 .header-tools {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
 
   @include mq-down($bp-md) {
     display: grid;
@@ -976,7 +1010,7 @@ onBeforeUnmount(() => {
 .header-tools-primary {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 
   @include mq-down($bp-md) {
     display: grid;
@@ -985,74 +1019,86 @@ onBeforeUnmount(() => {
   }
 }
 
-// ---------- Home map: header clears left photos sidebar ---------------
-.app-shell--home-map {
-  --home-sidebar-w: min(320px, 38vw);
+// Home map: header sits over the map area only (not the photos sidebar).
+html.home-map-page {
+  --home-sidebar-w: #{$home-sidebar-w};
+}
 
+html.home-map-page,
+.app-shell--home-map {
   @include mq-up($bp-md) {
     .site-header {
-      left: var(--home-sidebar-w);
+      left: $home-sidebar-w;
       right: 16px;
       width: auto;
       max-width: none;
       margin-inline: 0;
+      border-radius: 0 $radius-pill $radius-pill 0;
     }
 
     .site-header-inner {
-      gap: 12px;
-      padding-right: 12px;
-    }
-
-    .header-menu {
-      gap: 8px;
+      gap: 10px;
+      padding-right: 10px;
     }
 
     .main-nav {
       gap: 2px;
-      min-width: 0;
+
+      a {
+        padding: 8px 8px;
+      }
     }
 
+    .header-tools-primary {
+      display: none;
+    }
+
+    .header-tools-menu {
+      display: block;
+    }
+  }
+}
+
+// Compact header based on actual header width (works with sidebar offset on home).
+@include mq-up($bp-md) {
+  @container site-header (max-width: 980px) {
+    .main-nav-link--secondary {
+      display: none;
+    }
+
+    .brand-text small {
+      display: none;
+    }
+  }
+
+  @container site-header (max-width: 820px) {
+    .brand-text {
+      display: none;
+    }
+
+    .main-nav-link[href='/photos/random'] {
+      display: none;
+    }
+
+    .header-user-name {
+      display: none;
+    }
+
+    .main-nav a {
+      padding: 8px 6px;
+      font-size: 10px;
+    }
+  }
+
+  @container site-header (max-width: 680px) {
     .main-nav-link--photos {
-      max-width: 11em;
+      max-width: 6.5em;
       overflow: hidden;
       text-overflow: ellipsis;
-      white-space: nowrap;
     }
 
-    @media (max-width: 1120px) {
-      .header-tools-primary {
-        display: none;
-      }
-
-      .header-tools-menu {
-        display: block;
-      }
-    }
-
-    @media (max-width: 1020px) {
-      .main-nav-link--secondary {
-        display: none;
-      }
-    }
-
-    @media (max-width: 920px) {
-      .brand-text {
-        display: none;
-      }
-    }
-
-    @media (max-width: 860px) {
-      .main-nav-link[href='/photos/random'] {
-        display: none;
-      }
-
-      .header-user-name {
-        display: none;
-      }
-
-      .header-user-trigger {
-        padding-right: 6px;
-      }
+    .header-user-trigger {
+      padding-right: 6px;
     }
   }
 }

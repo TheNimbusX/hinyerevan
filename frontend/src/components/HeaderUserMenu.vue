@@ -217,7 +217,7 @@ onBeforeUnmount(() => {
   transform: translateY(-4px) scale(0.98);
 }
 
-@include mq-down($bp-xl) {
+@include mq-down($bp-md) {
   .header-user-menu {
     width: 100%;
   }

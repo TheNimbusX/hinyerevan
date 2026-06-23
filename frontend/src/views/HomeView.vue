@@ -1034,7 +1034,7 @@ onBeforeUnmount(() => {
     z-index: 550;
     display: flex;
     flex-direction: column;
-    width: var(--home-sidebar-w, min(320px, 38vw));
+    width: var(--home-sidebar-w, 320px);
     height: 100%;
     padding: 0;
     border: 0;
