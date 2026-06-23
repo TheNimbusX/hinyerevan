@@ -103,8 +103,32 @@ function clampYear(year) {
 
 /** Positions per calendar year on the track (same year = 1 step, adjacent years = wider span). */
 const SLOTS_PER_YEAR = 2
+/** Extra px between handle centers for each slot step on the track. */
+const SLOT_STEP_EXTRA_PX = 5
 const yearRangeSlots = ref([0, 1])
 let suppressNextSlotWatch = false
+
+function applyYearSliderHandleSpread() {
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      const lower = document.querySelector('.year-filter-track .slider-handle-lower')
+      const upper = document.querySelector('.year-filter-track .slider-handle-upper')
+      if (!lower || !upper) return
+
+      const [slotFrom, slotTo] = yearRangeSlots.value
+      const slotGap = Math.abs(Math.round(slotTo) - Math.round(slotFrom))
+      const spread = (slotGap * SLOT_STEP_EXTRA_PX) / 2
+
+      if (spread > 0) {
+        lower.style.setProperty('--handle-nudge', `${-spread}px`)
+        upper.style.setProperty('--handle-nudge', `${spread}px`)
+      } else {
+        lower.style.removeProperty('--handle-nudge')
+        upper.style.removeProperty('--handle-nudge')
+      }
+    })
+  })
+}
 
 const yearSliderMax = computed(() => {
   const span = maxYear.value - minYear.value
@@ -378,6 +402,7 @@ function setYearRange(from, to, markTouched = true) {
   }
   yearRange.value = normalizedRange(from, to)
   yearRangeSlots.value = yearsToSlots(yearRange.value[0], yearRange.value[1])
+  applyYearSliderHandleSpread()
 }
 
 function userAvatarUrl(user) {
@@ -615,11 +640,13 @@ function onYearSliderChange(value) {
   suppressNextRangeWatch = true
   yearRange.value = years
   scheduleYearApply()
+  applyYearSliderHandleSpread()
 }
 
 watch(yearRangeSlots, ([slotFrom, slotTo]) => {
   if (suppressNextSlotWatch) {
     suppressNextSlotWatch = false
+    applyYearSliderHandleSpread()
     return
   }
 
@@ -630,6 +657,7 @@ watch(yearRangeSlots, ([slotFrom, slotTo]) => {
     yearRange.value = years
   }
   scheduleYearApply()
+  applyYearSliderHandleSpread()
 })
 
 async function loadSecondaryContent() {
@@ -708,6 +736,9 @@ onMounted(async () => {
   }
 
   loadSecondaryContent()
+
+  await nextTick()
+  applyYearSliderHandleSpread()
 })
 
 onBeforeRouteLeave((to) => {
@@ -758,6 +789,7 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
+    applyYearSliderHandleSpread()
     return
   }
 
@@ -766,6 +798,7 @@ watch(yearRange, ([from, to]) => {
     yearRange.value = normalized
     yearRangeSlots.value = yearsToSlots(normalized[0], normalized[1])
     activeYearRange.value = normalized
+    applyYearSliderHandleSpread()
     return
   }
 
@@ -776,9 +809,11 @@ watch(yearRange, ([from, to]) => {
   }
 
   applyYearRange()
+  applyYearSliderHandleSpread()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
+  applyYearSliderHandleSpread()
 })
 
 onBeforeUnmount(() => {
@@ -922,6 +957,7 @@ onBeforeUnmount(() => {
         :options="yearSliderOptions"
         :class="['year-slider', yearSliderClass]"
         @change="onYearSliderChange"
+        @slide="applyYearSliderHandleSpread"
       />
       <div class="year-ticks">
         <span>{{ minYear }}</span>
@@ -1687,6 +1723,7 @@ onBeforeUnmount(() => {
       0 0 0 2px $accent,
       0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
+    translate: var(--handle-nudge, 0) 0;
     @include interactive((box-shadow, scale));
 
     &-lower {
