@@ -144,44 +144,13 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
-// The handle is a ~14px circle with a 2px accent ring → ~18px visual width.
-// Margin is value-based, so convert the handle width to "years" using the live
-// track width; this lets the two handles slide together until they touch and
-// then stop, instead of stacking/overlapping on a wide (multi-century) range.
-const HANDLE_TOUCH_PX = 18
-const sliderTrackWidth = ref(0)
-const yearTrackEl = ref(null)
-let yearTrackObserver = null
-
-const sliderMargin = computed(() => {
-  if (minYear.value >= maxYear.value) return 0
-  const span = maxYear.value - minYear.value
-  const usable = sliderTrackWidth.value - 16
-  if (usable <= 0) return 1
-  const years = Math.round((HANDLE_TOUCH_PX / usable) * span)
-  return Math.min(span, Math.max(1, years))
-})
-
+// margin: 0 lets both handles land on the same year (single-year selection).
+// The visual side-by-side look is handled in CSS by nudging each handle
+// outward by half its width, so equal values render as two touching circles
+// instead of stacking on top of each other.
 const yearSliderOptions = computed(() => ({
-  margin: sliderMargin.value,
+  margin: 0,
 }))
-
-function measureYearTrack() {
-  sliderTrackWidth.value = yearTrackEl.value?.clientWidth || 0
-}
-
-onMounted(() => {
-  measureYearTrack()
-  if (yearTrackEl.value && typeof ResizeObserver !== 'undefined') {
-    yearTrackObserver = new ResizeObserver(measureYearTrack)
-    yearTrackObserver.observe(yearTrackEl.value)
-  }
-})
-
-onBeforeUnmount(() => {
-  yearTrackObserver?.disconnect()
-  yearTrackObserver = null
-})
 
 const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
@@ -909,7 +878,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div class="year-filter-track" ref="yearTrackEl">
+    <div class="year-filter-track">
       <Slider
         v-model="yearRange"
         :min="minYear"
@@ -1844,12 +1813,17 @@ onBeforeUnmount(() => {
     cursor: grab;
     @include interactive((box-shadow, scale));
 
+    // Nudge each handle outward by half its width so that when both handles
+    // sit on the same year they render as two touching circles (instead of
+    // stacking into one). margin:0 still allows selecting a single year.
     &-lower {
       z-index: 2;
+      transform: translateX(-50%);
     }
 
     &-upper {
       z-index: 3;
+      transform: translateX(50%);
     }
 
     &:hover,
