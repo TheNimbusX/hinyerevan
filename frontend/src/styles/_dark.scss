@@ -1330,7 +1330,7 @@
   }
 
   // ---------- Mobile nav active state ---------------------------
-  @include mq-down($bp-md) {
+  @include mq-down($bp-xl) {
     .main-nav a.router-link-active {
       color: #f4f7ff;
       background: rgba(94, 127, 224, 0.35);

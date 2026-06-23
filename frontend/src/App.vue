@@ -90,6 +90,13 @@ const photosNavLabel = computed(() => {
   return t('photosMenu', { count })
 })
 
+const photosNavCompactLabel = computed(() => {
+  if (photosPublishedCount.value == null) return t('photos')
+  const locale = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' }[currentLanguage.value] || 'en-US'
+  const count = Number(photosPublishedCount.value).toLocaleString(locale)
+  return t('photosNavCompact', { count })
+})
+
 function loadSitePhotoCount() {
   api('/photos/site-stats', { ttl: 10 * 60 * 1000 })
     .then((payload) => {
@@ -476,7 +483,10 @@ onBeforeUnmount(() => {
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
             <RouterLink to="/" @click="closeMenu">{{ t('map') }}</RouterLink>
-            <RouterLink to="/photos" @click="closeMenu">{{ photosNavLabel }}</RouterLink>
+            <RouterLink to="/photos" class="nav-link-photos" :title="photosNavLabel" @click="closeMenu">
+              <span class="nav-label nav-label--full">{{ photosNavLabel }}</span>
+              <span class="nav-label nav-label--compact">{{ photosNavCompactLabel }}</span>
+            </RouterLink>
             <RouterLink to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
             <RouterLink to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
             <RouterLink to="/pages/aboutus" @click="closeMenu">{{ t('about') }}</RouterLink>
@@ -756,7 +766,7 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow: $shadow-md;
 
-  @include mq-down($bp-md) {
+  @include mq-down($bp-xl) {
     top: 10px;
     width: calc(100% - 20px);
     border-radius: $radius-lg;
@@ -773,9 +783,10 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 20px;
   height: 56px;
+  min-width: 0;
   padding: 0 14px 0 18px;
 
-  @include mq-down($bp-md) {
+  @include mq-down($bp-xl) {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
     height: 52px;
@@ -794,13 +805,15 @@ onBeforeUnmount(() => {
   .main-nav {
     justify-self: center;
     grid-column: 1;
+    min-width: 0;
   }
 
   .header-tools {
     grid-column: 2;
+    flex-shrink: 0;
   }
 
-  @include mq-down($bp-md) {
+  @include mq-down($bp-xl) {
     display: none;
     position: fixed;
     top: calc(10px + 52px + 10px);
@@ -847,6 +860,8 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
+  max-width: min(240px, 34vw);
   color: $ink;
   text-decoration: none;
   @include interactive((transform, opacity));
@@ -875,6 +890,7 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 2px;
   align-content: center;
+  min-width: 0;
   line-height: 1;
 
   strong {
@@ -885,6 +901,8 @@ onBeforeUnmount(() => {
     letter-spacing: -0.01em;
     color: $ink;
     white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 
     em {
       font-style: normal;
@@ -900,10 +918,14 @@ onBeforeUnmount(() => {
     letter-spacing: 0.005em;
     line-height: 1;
     white-space: nowrap;
-  }
+    overflow: hidden;
+    text-overflow: ellipsis;
 
-  @include mq-down($bp-sm) {
-    small {
+    @include mq-down($bp-sm) {
+      display: none;
+    }
+
+    @include mq-up($bp-xl) {
       display: none;
     }
   }
@@ -913,11 +935,34 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 4px;
+  min-width: 0;
 
-  @include mq-down($bp-md) {
+  @include mq-down($bp-xl) {
     display: grid;
     gap: 4px;
     width: 100%;
+  }
+
+  @include mq-up($bp-xl) {
+    gap: 2px;
+
+    a {
+      padding: 8px 10px;
+    }
+  }
+
+  .nav-label--compact {
+    display: none;
+  }
+
+  @include mq-up($bp-xl) {
+    .nav-label--full {
+      display: none;
+    }
+
+    .nav-label--compact {
+      display: inline;
+    }
   }
 
   a {
@@ -959,8 +1004,9 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
+  flex-shrink: 0;
 
-  @include mq-down($bp-md) {
+  @include mq-down($bp-xl) {
     display: grid;
     gap: 8px;
     width: 100%;
@@ -970,7 +1016,7 @@ onBeforeUnmount(() => {
 .header-tools-row {
   display: contents;
 
-  @include mq-down($bp-md) {
+  @include mq-down($bp-xl) {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 8px;
@@ -1088,7 +1134,7 @@ onBeforeUnmount(() => {
 .menu-toggle {
   display: none;
 
-  @include mq-down($bp-md) {
+  @include mq-down($bp-xl) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1179,7 +1225,7 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-@include mq-down($bp-md) {
+@include mq-down($bp-xl) {
   .main-nav a {
     padding: 11px 14px;
     text-align: left;
@@ -1204,6 +1250,24 @@ onBeforeUnmount(() => {
     width: 100%;
     min-height: 44px;
     justify-content: center;
+  }
+}
+
+@include mq-up($bp-xl) {
+  .header-action {
+    padding: 8px 12px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .header-user-menu .header-user-trigger {
+    max-width: 160px;
+  }
+
+  .header-user-menu .header-user-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
