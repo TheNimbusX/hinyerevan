@@ -21,42 +21,63 @@ irreplaceable:
 The **application code is not stored** in the archive — it is pulled from git
 during restore and pinned to the commit recorded in `manifest.txt`.
 
+## ⚠️ Disk space
+
+The photo library is ~13 GB and the server disk is only 39 GB (~4.5 GB free).
+A full archive is roughly the size of the photo library, so **you cannot keep
+several full backups on the server** — it would fill the disk and take the site
+down. Two strategies:
+
+- **Daily DB-only backup** on the server (a few MB) — this is the data that
+  actually changes every day.
+- **Full archive on demand / offsite** — make it right before migrating, or
+  send it offsite, instead of stockpiling locally.
+
+`backup.sh` refuses to write a full archive if there isn't enough free space
+(override with `FORCE=1`).
+
 ## Create a backup
 
 On the production VPS:
 
 ```bash
-bash /var/www/hinyerevan/deploy/backup.sh
+bash /var/www/hinyerevan/deploy/backup.sh           # full: DB + photos + config
+MODE=db bash /var/www/hinyerevan/deploy/backup.sh   # DB + config only (tiny)
 ```
 
-Output: `/root/backups/hinyerevan-YYYYMMDD-HHMMSS.tar`
+Output: `/root/backups/hinyerevan-YYYYMMDD-HHMMSS.tar` (full) or
+`/root/backups/hinyerevan-db-YYYYMMDD-HHMMSS.tar` (db-only).
 
 Useful env vars:
 
 ```bash
-KEEP=14 bash deploy/backup.sh                       # keep 14 archives
+KEEP=14 bash deploy/backup.sh                       # keep 14 archives (per type)
 COMPRESS=1 bash deploy/backup.sh                    # gzip the whole file (slower)
+FORCE=1 bash deploy/backup.sh                       # skip the free-space check
 OFFSITE_SCP=user@backup-host:/backups bash deploy/backup.sh   # copy offsite
 OFFSITE_RCLONE=mydrive:hinyerevan      bash deploy/backup.sh   # rclone offsite
 ```
 
-## Automate daily backups
+## Automate backups
 
 ```bash
 bash /var/www/hinyerevan/deploy/setup-backup-cron.sh
-# daily at 03:00, keeps newest 7; log: /var/log/hinyerevan-backup.log
+# daily DB-only backup at 03:00, keeps newest 14; log: /var/log/hinyerevan-backup.log
+# (no scheduled full/photo backup unless an offsite target is given)
 ```
 
-With offsite copy:
+Daily DB + weekly full, all pushed offsite (the safe production setup):
 
 ```bash
-OFFSITE_SCP=user@backup-host:/backups HOUR=4 KEEP=14 \
+OFFSITE_SCP=user@backup-host:/backups \
   bash /var/www/hinyerevan/deploy/setup-backup-cron.sh
+# offsite target present -> a weekly full backup is scheduled automatically
 ```
 
-> **Important:** keep at least one copy of the archive **off the server**.
-> A backup that only lives on the dying server does not protect you. Download
-> it periodically, or set `OFFSITE_SCP` / `OFFSITE_RCLONE`.
+> **Important:** keep at least one copy of the **full** archive off the server.
+> A backup that only lives on the dying server does not protect you. Download it
+> periodically (`scp root@IP:/root/backups/hinyerevan-*.tar .`) or set
+> `OFFSITE_SCP` / `OFFSITE_RCLONE`.
 
 ## Restore on a new VPS
 

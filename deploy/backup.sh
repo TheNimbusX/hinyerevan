@@ -20,10 +20,14 @@
 # Copy that file to the new VPS and run deploy/restore.sh there.
 #
 # Env overrides:
+#   MODE=full                  full = DB + photos + config (default, for DR /
+#                              moving to a new VPS). db = DB + config only
+#                              (tiny; safe for frequent local backups).
 #   BACKUP_DIR=/root/backups   where archives are written
 #   KEEP=7                     how many archives to keep (older ones pruned)
 #   COMPRESS=0                 1 = gzip the whole archive (slow; photos are
 #                              already compressed, so off by default)
+#   FORCE=0                    1 = skip the free-disk-space safety check
 #   OFFSITE_SCP=user@host:/dir scp the finished archive there (optional)
 #   OFFSITE_RCLONE=remote:dir  rclone copy the finished archive there (optional)
 # ============================================================================
@@ -36,6 +40,8 @@ SECRETS_FILE="${SECRETS_FILE:-/root/.hinyerevan-secrets.env}"
 BACKUP_DIR="${BACKUP_DIR:-/root/backups}"
 KEEP="${KEEP:-7}"
 COMPRESS="${COMPRESS:-0}"
+MODE="${MODE:-full}"
+FORCE="${FORCE:-0}"
 
 [ -f "$ENV_FILE" ] || { echo "FATAL: missing $ENV_FILE" >&2; exit 1; }
 
@@ -107,20 +113,40 @@ echo "$GIT_COMMIT" > "$WORK/meta/git-commit.txt"
 cat "$WORK/meta/manifest.txt"
 
 # --- 4) assemble the single archive ----------------------------------------
-OUT="$BACKUP_DIR/hinyerevan-$STAMP.tar"
+# db-only archives get their own name prefix so rotation never mixes them with
+# (large) full archives.
+PREFIX="hinyerevan"; [ "$MODE" = "db" ] && PREFIX="hinyerevan-db"
+OUT="$BACKUP_DIR/$PREFIX-$STAMP.tar"
 TAR_MODE=(cf)
 if [ "$COMPRESS" = "1" ]; then OUT="$OUT.gz"; TAR_MODE=(czf); fi
 
 TAR_ARGS=(--exclude='storage/app/watermarked' --exclude='storage/app/cache' \
           -C "$WORK" meta db config)
-if [ -d "$LEGACY_ROOT" ]; then
-  echo "==> Photos: $LEGACY_ROOT ($(du -sh "$LEGACY_ROOT" 2>/dev/null | cut -f1))"
-  TAR_ARGS+=(-C "$(dirname "$LEGACY_ROOT")" "$LEGACY_BASE")
+if [ "$MODE" = "full" ]; then
+  if [ -d "$LEGACY_ROOT" ]; then
+    PHOTOS_KB="$(du -sk "$LEGACY_ROOT" 2>/dev/null | cut -f1)"
+    echo "==> Photos: $LEGACY_ROOT ($(du -sh "$LEGACY_ROOT" 2>/dev/null | cut -f1))"
+    # Safety: a full archive ~= the photo tree. Refuse to write it if there
+    # isn't clearly enough free space, otherwise the cron could fill the disk
+    # and take the site down. Use MODE=db for routine backups, or FORCE=1.
+    FREE_KB="$(df -Pk "$BACKUP_DIR" | awk 'NR==2{print $4}')"
+    NEED_KB=$(( ${PHOTOS_KB:-0} + 524288 ))   # photos + ~512MB headroom
+    if [ "$FORCE" != "1" ] && [ "${FREE_KB:-0}" -lt "$NEED_KB" ]; then
+      echo "FATAL: not enough free space for a full backup." >&2
+      echo "  need ~$((NEED_KB/1024))MB, free $((FREE_KB/1024))MB in $BACKUP_DIR." >&2
+      echo "  Use MODE=db for routine backups, push offsite (OFFSITE_SCP/RCLONE)," >&2
+      echo "  free space, or re-run with FORCE=1 if you know it fits." >&2
+      exit 1
+    fi
+    TAR_ARGS+=(-C "$(dirname "$LEGACY_ROOT")" "$LEGACY_BASE")
+  else
+    echo "WARN: legacy root $LEGACY_ROOT not found — photos NOT included" >&2
+  fi
+  if [ -d "$BACKEND_DIR/storage/app" ]; then
+    TAR_ARGS+=(-C "$BACKEND_DIR" storage/app)
+  fi
 else
-  echo "WARN: legacy root $LEGACY_ROOT not found — photos NOT included" >&2
-fi
-if [ -d "$BACKEND_DIR/storage/app" ]; then
-  TAR_ARGS+=(-C "$BACKEND_DIR" storage/app)
+  echo "==> MODE=db: database + config only (no photos)"
 fi
 
 echo "==> Writing $OUT"
@@ -137,8 +163,9 @@ if [ -n "${OFFSITE_RCLONE:-}" ]; then
   rclone copy "$OUT" "$OFFSITE_RCLONE" || echo "WARN: rclone copy failed" >&2
 fi
 
-# --- 6) prune old archives --------------------------------------------------
-echo "==> Keeping newest $KEEP archive(s) in $BACKUP_DIR"
-ls -1t "$BACKUP_DIR"/hinyerevan-*.tar "$BACKUP_DIR"/hinyerevan-*.tar.gz 2>/dev/null \
+# --- 6) prune old archives (only within the same prefix) -------------------
+echo "==> Keeping newest $KEEP $MODE archive(s) in $BACKUP_DIR"
+ls -1t "$BACKUP_DIR/$PREFIX"-*.tar "$BACKUP_DIR/$PREFIX"-*.tar.gz 2>/dev/null \
+  | grep -E "/$PREFIX-[0-9]" \
   | tail -n +"$((KEEP + 1))" | xargs -r rm -f
-ls -lh "$BACKUP_DIR"/hinyerevan-*.tar* 2>/dev/null || true
+ls -lh "$BACKUP_DIR"/ 2>/dev/null || true
