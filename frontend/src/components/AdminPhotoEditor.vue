@@ -68,11 +68,21 @@ function editMarkerIcon() {
   return getDirectionIcon(form.value.direction)
 }
 
+function bindMarkerDrag(marker) {
+  marker.off('dragend')
+  marker.on('dragend', () => {
+    const latlng = marker.getLatLng()
+    form.value.lat = latlng.lat.toFixed(12)
+    form.value.lng = latlng.lng.toFixed(12)
+  })
+}
+
 function setCoordinates(latlng) {
   form.value.lat = latlng.lat.toFixed(12)
   form.value.lng = latlng.lng.toFixed(12)
   if (!editMarker) {
-    editMarker = L.marker(latlng, { icon: editMarkerIcon() }).addTo(editMap)
+    editMarker = L.marker(latlng, { icon: editMarkerIcon(), draggable: true }).addTo(editMap)
+    bindMarkerDrag(editMarker)
   } else {
     editMarker.setLatLng(latlng)
     editMarker.setIcon(editMarkerIcon())
@@ -139,23 +149,33 @@ function fillFromPhoto(photo) {
   }
 }
 
+async function mountEditMap() {
+  await nextTick()
+  initEditMap()
+  if (!editMap || !form.value.lat || !form.value.lng) return
+  const latlng = L.latLng(Number(form.value.lat), Number(form.value.lng))
+  editMap.setView(latlng, 15)
+  setCoordinates(latlng)
+  requestAnimationFrame(() => editMap?.invalidateSize())
+}
+
 async function loadPhoto() {
   loading.value = true
   error.value = ''
+  editMarker?.remove()
+  editMarker = null
+  editMap?.remove()
+  editMap = null
   try {
     const photo = await api(`/admin/photos/${props.photoId}`)
     fillFromPhoto(photo)
-    await nextTick()
-    initEditMap()
-    if (editMap && form.value.lat && form.value.lng) {
-      const latlng = L.latLng(Number(form.value.lat), Number(form.value.lng))
-      editMap.setView(latlng, 13)
-      setCoordinates(latlng)
-    }
   } catch (event) {
     error.value = event.message
   } finally {
     loading.value = false
+    if (!error.value) {
+      await mountEditMap()
+    }
   }
 }
 
@@ -234,9 +254,6 @@ watch(
 watch(
   () => props.photoId,
   () => {
-    editMap?.remove()
-    editMap = null
-    editMarker = null
     loadPhoto()
   },
 )
@@ -252,6 +269,8 @@ onMounted(async () => {
 })
 
 onBeforeUnmount(() => {
+  editMarker?.remove()
+  editMarker = null
   editMap?.remove()
   editMap = null
 })
