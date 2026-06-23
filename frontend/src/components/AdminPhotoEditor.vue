@@ -149,14 +149,27 @@ function fillFromPhoto(photo) {
   }
 }
 
+const MAP_INVALIDATE_DELAYS = [0, 80, 200, 450]
+
+function scheduleMapInvalidate() {
+  MAP_INVALIDATE_DELAYS.forEach((delay) => {
+    setTimeout(() => editMap?.invalidateSize(), delay)
+  })
+}
+
 async function mountEditMap() {
   await nextTick()
+  if (!editMapElement.value) {
+    await new Promise((resolve) => setTimeout(resolve, 40))
+    await nextTick()
+  }
   initEditMap()
+  scheduleMapInvalidate()
   if (!editMap || !form.value.lat || !form.value.lng) return
   const latlng = L.latLng(Number(form.value.lat), Number(form.value.lng))
   editMap.setView(latlng, 15)
   setCoordinates(latlng)
-  requestAnimationFrame(() => editMap?.invalidateSize())
+  scheduleMapInvalidate()
 }
 
 async function loadPhoto() {
@@ -258,6 +271,33 @@ watch(
   },
 )
 
+watch(loading, (value) => {
+  if (!value && !error.value) {
+    mountEditMap()
+  }
+})
+
+watch(
+  () => [form.value.lat, form.value.lng],
+  ([lat, lng]) => {
+    if (!editMap) return
+    const latNum = Number(lat)
+    const lngNum = Number(lng)
+    if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) return
+    const current = editMarker?.getLatLng()
+    if (
+      current &&
+      Math.abs(current.lat - latNum) < 1e-9 &&
+      Math.abs(current.lng - lngNum) < 1e-9
+    ) {
+      return
+    }
+    const latlng = L.latLng(latNum, lngNum)
+    setCoordinates(latlng)
+    editMap.panTo(latlng)
+  },
+)
+
 onMounted(async () => {
   try {
     const page = await api('/facebook/page')
@@ -299,9 +339,23 @@ onBeforeUnmount(() => {
           <input v-model="form.title" :placeholder="t('title')" required />
         </label>
 
-        <div class="admin-photo-editor__map-shell">
-          <div ref="editMapElement" class="admin-photo-editor__map"></div>
-          <span class="admin-photo-editor__map-hint">{{ t('clickMapToSetPoint') }}</span>
+        <div class="map-picker-field">
+          <span class="upload-field-label">{{ t('location') }}</span>
+          <p class="map-picker-hint">{{ t('mapCoordinateHint') }}</p>
+          <div class="map-picker-coords">
+            <label>
+              <span>Lat</span>
+              <input v-model="form.lat" inputmode="decimal" required />
+            </label>
+            <label>
+              <span>Lng</span>
+              <input v-model="form.lng" inputmode="decimal" required />
+            </label>
+          </div>
+          <div class="upload-map-shell">
+            <div ref="editMapElement" class="upload-map"></div>
+            <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
+          </div>
         </div>
 
         <label class="check-line review-check">
@@ -504,32 +558,6 @@ onBeforeUnmount(() => {
   }
 }
 
-.admin-photo-editor__map-shell {
-  position: relative;
-  overflow: hidden;
-  border: 1px solid rgba($primary, 0.14);
-  border-radius: 18px;
-  background: $primary-light;
-}
-
-.admin-photo-editor__map {
-  height: 220px;
-}
-
-.admin-photo-editor__map-hint {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 500;
-  padding: 7px 10px;
-  border-radius: $radius-pill;
-  color: $primary;
-  background: #fff;
-  font-size: 12px;
-  font-weight: 500;
-  box-shadow: 0 10px 24px rgba(23, 52, 126, 0.16);
-}
-
 .admin-photo-editor__actions {
   display: flex;
   flex-wrap: wrap;
@@ -550,10 +578,4 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-[data-theme='dark'] {
-  .admin-photo-editor__map-hint {
-    background: #161b25;
-    color: #e7ebf3;
-  }
-}
 </style>
