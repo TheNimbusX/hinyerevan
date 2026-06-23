@@ -1011,6 +1011,15 @@
     color: #e7ebf3;
   }
 
+  .upload-map-hint,
+  .upload-map-recenter {
+    background: #161b25;
+  }
+
+  .upload-map-recenter:hover {
+    color: #fff;
+  }
+
   .map-picker-hint {
     color: #98a0ae;
   }

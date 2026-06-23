@@ -29,6 +29,9 @@ let uploadMap
 let uploadMapTileLayer
 let uploadMarker
 
+const YEREVAN_CENTER = [40.179136, 44.511623]
+const UPLOAD_MAP_ZOOM = 13
+
 const form = ref({
   title: '',
   year: '',
@@ -92,14 +95,19 @@ function initUploadMap() {
   setupLeaflet()
   const layer = getMapTileLayer('google', theme.value, currentLanguage.value)
   uploadMap = L.map(uploadMapElement.value, {
-    center: [40.179136, 44.511623],
-    zoom: 13,
+    center: YEREVAN_CENTER,
+    zoom: UPLOAD_MAP_ZOOM,
     attributionControl: false,
     crs: layer.crs,
   })
   uploadMapTileLayer = L.tileLayer(layer.url, layer.options).addTo(uploadMap)
   uploadMap.on('click', (event) => setCoordinates(event.latlng))
   requestAnimationFrame(() => uploadMap?.invalidateSize())
+}
+
+function centerMapOnYerevan() {
+  if (!uploadMap) return
+  uploadMap.setView(YEREVAN_CENTER, UPLOAD_MAP_ZOOM, { animate: true })
 }
 
 watch([theme, currentLanguage], () => {
@@ -238,6 +246,25 @@ onBeforeUnmount(() => {
           </label>
           <div class="upload-map-shell">
             <div ref="uploadMapElement" class="upload-map"></div>
+            <button
+              type="button"
+              class="upload-map-recenter"
+              :aria-label="t('mapRecenterYerevan')"
+              :title="t('mapRecenterYerevan')"
+              @click="centerMapOnYerevan"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                <path
+                  d="M12 2v4M12 18v4M2 12h4M18 12h4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span>{{ t('mapRecenterYerevan') }}</span>
+            </button>
             <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
           </div>
           <label class="check-line review-check">

@@ -354,7 +354,6 @@ onBeforeUnmount(() => {
           </div>
           <div class="upload-map-shell">
             <div ref="editMapElement" class="upload-map"></div>
-            <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
           </div>
         </div>
 
