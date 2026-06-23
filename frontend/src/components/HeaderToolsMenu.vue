@@ -58,9 +58,10 @@ onBeforeUnmount(() => {
       @click="toggle"
     >
       <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-        <circle cx="12" cy="5.5" r="1.6" fill="currentColor" />
-        <circle cx="12" cy="12" r="1.6" fill="currentColor" />
-        <circle cx="12" cy="18.5" r="1.6" fill="currentColor" />
+        <path d="M4 8h7M15 8h5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <path d="M4 16h5M13 16h7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+        <circle cx="13" cy="8" r="2.4" fill="none" stroke="currentColor" stroke-width="2" />
+        <circle cx="11" cy="16" r="2.4" fill="none" stroke="currentColor" stroke-width="2" />
       </svg>
     </button>
 
@@ -97,37 +98,45 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   border: 1px solid $line;
-  border-radius: 10px;
+  border-radius: $radius-pill;
   background: $surface;
   color: $ink;
   cursor: pointer;
-  @include interactive((background, border-color, transform));
+  @include interactive((background, border-color, color, transform));
 
   &:hover {
+    color: #fff;
     border-color: $ink;
+    background: $ink;
     transform: translateY(-1px);
   }
 
   @include focus-ring(rgba($primary, 0.4), 2px);
 }
 
+.header-tools-menu.open .header-tools-menu__trigger {
+  color: #fff;
+  border-color: $ink;
+  background: $ink;
+}
+
 .header-tools-menu__panel {
   position: absolute;
-  top: calc(100% + 8px);
+  top: calc(100% + 10px);
   right: 0;
   z-index: 920;
   display: grid;
-  gap: 12px;
+  gap: 14px;
   width: min(280px, calc(100vw - 24px));
-  padding: 12px;
+  padding: 16px;
   border: 1px solid $line;
-  border-radius: $radius-md;
+  border-radius: $radius-lg;
   background: $surface;
-  box-shadow: $shadow-lg;
+  box-shadow: 0 20px 48px rgba(20, 24, 34, 0.18);
 }
 
 .header-tools-menu__group {
@@ -139,34 +148,35 @@ onBeforeUnmount(() => {
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid $line;
 }
 
 .header-tools-menu__label {
   color: $muted;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .header-tools-menu__action {
   width: 100%;
-  padding: 10px 14px;
-  border: 1px solid $line;
+  margin-top: 2px;
+  padding: 11px 14px;
+  border: 0;
   border-radius: $radius-pill;
-  background: $surface-soft;
-  color: $ink;
+  background: $ink;
+  color: #fff;
   cursor: pointer;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   text-align: center;
-  @include interactive((background, color, border-color, transform));
+  @include interactive((background, transform, box-shadow));
 
   &:hover {
-    color: #fff;
-    border-color: $ink;
-    background: $ink;
     transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(20, 24, 34, 0.22);
   }
 
   @include focus-ring(rgba($primary, 0.4), 2px);
@@ -194,7 +204,15 @@ onBeforeUnmount(() => {
 
     &:hover {
       border-color: #f4f7ff;
+      background: #f4f7ff;
+      color: #14171e;
     }
+  }
+
+  .header-tools-menu.open .header-tools-menu__trigger {
+    border-color: #f4f7ff;
+    background: #f4f7ff;
+    color: #14171e;
   }
 
   .header-tools-menu__panel {
@@ -203,19 +221,20 @@ onBeforeUnmount(() => {
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
   }
 
+  .header-tools-menu__group--row {
+    border-top-color: #2a313d;
+  }
+
   .header-tools-menu__label {
     color: #98a0ae;
   }
 
   .header-tools-menu__action {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: #e7ebf3;
+    background: #f4f7ff;
+    color: #14171e;
 
     &:hover {
-      border-color: #f4f7ff;
-      background: #f4f7ff;
-      color: #14171e;
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.45);
     }
   }
 }

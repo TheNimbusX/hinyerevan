@@ -1024,7 +1024,7 @@ $home-sidebar-w: 320px;
   }
 }
 
-// Home map: header sits over the map area only (not the photos sidebar).
+// Home map: header is a detached pill over the map, right of the photos column.
 html.home-map-page {
   --home-sidebar-w: #{$home-sidebar-w};
 }
@@ -1033,12 +1033,12 @@ html.home-map-page,
 .app-shell--home-map {
   @include mq-up($bp-md) {
     .site-header {
-      left: $home-sidebar-w;
+      left: calc(#{$home-sidebar-w} + 16px);
       right: 16px;
       width: auto;
       max-width: none;
       margin-inline: 0;
-      border-radius: 0 $radius-pill $radius-pill 0;
+      border-radius: $radius-pill;
     }
 
     // Branding now lives in the left column, so drop it from the top bar.
@@ -1050,20 +1050,20 @@ html.home-map-page,
     .facebook-page-badge--floating {
       display: none;
     }
+  }
+}
 
-    .site-header-inner {
-      gap: 10px;
-      padding-right: 10px;
+// Compact the header by actual header width — works on every page and adapts
+// automatically when the home sidebar narrows the bar. Nav links always stay
+// reachable; only cosmetic bits drop and tools fold into the "More" menu.
+@include mq-up($bp-md) {
+  @container site-header (max-width: 1060px) {
+    .brand-text small {
+      display: none;
     }
+  }
 
-    .main-nav {
-      gap: 2px;
-
-      a {
-        padding: 8px 8px;
-      }
-    }
-
+  @container site-header (max-width: 880px) {
     .header-tools-primary {
       display: none;
     }
@@ -1071,27 +1071,18 @@ html.home-map-page,
     .header-tools-menu {
       display: block;
     }
-  }
-}
 
-// Compact header based on actual header width (works with sidebar offset on home).
-@include mq-up($bp-md) {
-  @container site-header (max-width: 980px) {
-    .main-nav-link--secondary {
-      display: none;
+    .main-nav {
+      gap: 2px;
     }
 
-    .brand-text small {
-      display: none;
+    .main-nav a {
+      padding: 8px 9px;
     }
   }
 
-  @container site-header (max-width: 820px) {
+  @container site-header (max-width: 620px) {
     .brand-text {
-      display: none;
-    }
-
-    .main-nav-link[href='/photos/random'] {
       display: none;
     }
 
@@ -1099,21 +1090,13 @@ html.home-map-page,
       display: none;
     }
 
-    .main-nav a {
-      padding: 8px 6px;
-      font-size: 10px;
-    }
-  }
-
-  @container site-header (max-width: 680px) {
-    .main-nav-link--photos {
-      max-width: 6.5em;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
     .header-user-trigger {
       padding-right: 6px;
+    }
+
+    .main-nav a {
+      padding: 8px 7px;
+      font-size: 10.5px;
     }
   }
 }

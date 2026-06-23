@@ -1094,7 +1094,7 @@ onBeforeUnmount(() => {
 
 .home-brand__logo-link {
   display: inline-flex;
-  border-radius: 12px;
+  border-radius: 5px;
   @include interactive((transform));
 
   &:hover {
@@ -1106,9 +1106,9 @@ onBeforeUnmount(() => {
 
 .home-brand__logo {
   display: block;
-  width: 54px;
-  height: 54px;
-  border-radius: 12px;
+  width: 111px;
+  height: 111px;
+  border-radius: 5px;
   object-fit: cover;
   background: #fff;
   box-shadow: 0 6px 16px rgba(20, 24, 34, 0.16);
