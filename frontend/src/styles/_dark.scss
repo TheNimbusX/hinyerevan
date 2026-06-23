@@ -484,11 +484,11 @@
   }
 
   .home-latest-sidebar {
-    border-color: rgba(255, 255, 255, 0.1);
+    border-right-color: #2a313d;
     background:
       linear-gradient(180deg, rgba(22, 27, 37, 0.96), rgba(16, 20, 28, 0.94)),
       #161b25;
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
+    box-shadow: 8px 0 24px rgba(0, 0, 0, 0.35);
   }
 
   .home-latest-sidebar__head {
@@ -497,14 +497,6 @@
 
   .home-latest-sidebar__scroll::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.18);
-  }
-
-  .home-latest-sidebar__all {
-    color: #9eb4ff;
-
-    &:hover {
-      color: #c8d4ff;
-    }
   }
 
   .rating-skeleton-block {

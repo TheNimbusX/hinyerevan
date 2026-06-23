@@ -843,7 +843,6 @@ onBeforeUnmount(() => {
       <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
         <div class="home-latest-sidebar__head">
           <h2>{{ t('latestPhotos') }}</h2>
-          <RouterLink class="home-latest-sidebar__all" to="/photos">{{ t('explorePhotos') }}</RouterLink>
         </div>
         <div class="home-latest-sidebar__scroll">
           <HomeLatestPhotosList
@@ -1030,32 +1029,42 @@ onBeforeUnmount(() => {
 
   @include mq-up($bp-md) {
     position: absolute;
-    top: 14px;
-    left: 16px;
+    top: 0;
+    left: 0;
     z-index: 550;
     display: flex;
     flex-direction: column;
-    width: min(320px, calc(100% - 32px));
-    max-height: calc(100% - 28px);
+    width: min(320px, 38vw);
+    height: 100%;
     padding: 0;
-    border: 1px solid rgba($ink, 0.08);
-    border-radius: $radius-lg;
+    border: 0;
+    border-right: 1px solid rgba($ink, 0.08);
+    border-radius: 0;
     background: rgba(255, 255, 255, 0.94);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
-    box-shadow: 0 16px 40px rgba(20, 24, 34, 0.18);
+    box-shadow: 8px 0 24px rgba(20, 24, 34, 0.12);
     overflow: hidden;
     pointer-events: auto;
+
+    .latest-photo {
+      padding: 10px 12px;
+
+      img {
+        display: block;
+        width: 100%;
+        height: 120px;
+        border-radius: 0;
+        object-fit: cover;
+        background: transparent;
+      }
+    }
   }
 }
 
 .home-latest-sidebar__head {
-  display: flex;
   flex-shrink: 0;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 18px 16px 12px;
+  padding: 16px 16px 12px;
   border-bottom: 1px solid $line;
 
   h2 {
@@ -1065,23 +1074,10 @@ onBeforeUnmount(() => {
   }
 }
 
-.home-latest-sidebar__all {
-  flex-shrink: 0;
-  color: $primary;
-  font-size: 11px;
-  font-weight: 600;
-  text-decoration: none;
-  @include interactive((color));
-
-  &:hover {
-    color: $primary-dark;
-  }
-}
-
 .home-latest-sidebar__scroll {
   flex: 1;
   min-height: 0;
-  padding: 0 12px 14px;
+  padding: 0 0 14px;
   overflow-y: auto;
   scrollbar-gutter: stable;
 
