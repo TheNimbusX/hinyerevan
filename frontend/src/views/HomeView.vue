@@ -136,11 +136,12 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
-const yearSliderOptions = { margin: 0 }
+const yearSliderOptions = computed(() => ({
+  margin: minYear.value >= maxYear.value ? 0 : 1,
+}))
 
 const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
-  'year-slider--same-year': yearRange.value[0] === yearRange.value[1],
 }))
 
 const compassDirection = computed(() =>
@@ -1604,16 +1605,6 @@ onBeforeUnmount(() => {
     height: 100%;
     border-radius: $radius-pill;
     background: linear-gradient(90deg, $accent, $accent-dark);
-  }
-
-  &.year-slider--same-year {
-    .slider-handle-lower {
-      translate: calc(var(--slider-handle-width) / -2) 0;
-    }
-
-    .slider-handle-upper {
-      translate: calc(var(--slider-handle-width) / 2) 0;
-    }
   }
 
   .slider-handle {
