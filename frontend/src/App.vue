@@ -766,7 +766,7 @@ onBeforeUnmount(() => {
   -webkit-backdrop-filter: blur(24px) saturate(180%);
   box-shadow: $shadow-md;
 
-  @include mq-down($bp-xl) {
+  @include mq-down($bp-md) {
     top: 10px;
     width: calc(100% - 20px);
     border-radius: $radius-lg;
@@ -786,7 +786,7 @@ onBeforeUnmount(() => {
   min-width: 0;
   padding: 0 14px 0 18px;
 
-  @include mq-down($bp-xl) {
+  @include mq-down($bp-md) {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 10px;
     height: 52px;
@@ -813,7 +813,7 @@ onBeforeUnmount(() => {
     flex-shrink: 0;
   }
 
-  @include mq-down($bp-xl) {
+  @include mq-down($bp-md) {
     display: none;
     position: fixed;
     top: calc(10px + 52px + 10px);
@@ -925,7 +925,7 @@ onBeforeUnmount(() => {
       display: none;
     }
 
-    @include mq-up($bp-xl) {
+    @include mq-up($bp-md) {
       display: none;
     }
   }
@@ -937,17 +937,24 @@ onBeforeUnmount(() => {
   gap: 4px;
   min-width: 0;
 
-  @include mq-down($bp-xl) {
+  @include mq-down($bp-md) {
     display: grid;
     gap: 4px;
     width: 100%;
   }
 
-  @include mq-up($bp-xl) {
+  @include mq-up($bp-md) {
     gap: 2px;
 
     a {
-      padding: 8px 10px;
+      padding: 8px 7px;
+    }
+  }
+
+  @media (min-width: #{$bp-md}) and (max-width: 1200px) {
+    a {
+      padding: 8px 5px;
+      font-size: 10.5px;
     }
   }
 
@@ -1006,7 +1013,7 @@ onBeforeUnmount(() => {
   gap: 10px;
   flex-shrink: 0;
 
-  @include mq-down($bp-xl) {
+  @include mq-down($bp-md) {
     display: grid;
     gap: 8px;
     width: 100%;
@@ -1016,7 +1023,7 @@ onBeforeUnmount(() => {
 .header-tools-row {
   display: contents;
 
-  @include mq-down($bp-xl) {
+  @include mq-down($bp-md) {
     display: grid;
     grid-template-columns: 1fr auto;
     gap: 8px;
@@ -1134,7 +1141,7 @@ onBeforeUnmount(() => {
 .menu-toggle {
   display: none;
 
-  @include mq-down($bp-xl) {
+  @include mq-down($bp-md) {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1260,14 +1267,35 @@ onBeforeUnmount(() => {
     white-space: nowrap;
   }
 
+  .header-tools {
+    gap: 6px;
+  }
+
   .header-user-menu .header-user-trigger {
-    max-width: 160px;
+    max-width: 130px;
+    padding: 4px 8px 4px 4px;
   }
 
   .header-user-menu .header-user-name {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+}
+
+// Between burger breakpoint and wide desktop — compact header tools
+@media (min-width: #{$bp-xl}) and (max-width: 1440px) {
+  .header-action {
+    padding: 7px 10px;
+    font-size: 11px;
+  }
+
+  .header-tools {
+    gap: 5px;
+  }
+
+  .language-switcher button {
+    padding: 5px 6px;
   }
 }
 
