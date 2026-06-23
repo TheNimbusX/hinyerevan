@@ -484,10 +484,11 @@
   }
 
   .home-latest-sidebar {
+    border-color: rgba(255, 255, 255, 0.1);
     background:
-      linear-gradient(180deg, rgba(22, 27, 37, 0.98), rgba(16, 20, 28, 0.96)),
+      linear-gradient(180deg, rgba(22, 27, 37, 0.96), rgba(16, 20, 28, 0.94)),
       #161b25;
-    border-right-color: #2a313d;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.42);
   }
 
   .home-latest-sidebar__head {

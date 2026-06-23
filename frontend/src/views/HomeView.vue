@@ -724,22 +724,6 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="home-hero-layout">
-    <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
-      <div class="home-latest-sidebar__head">
-        <h2>{{ t('latestPhotos') }}</h2>
-        <RouterLink class="home-latest-sidebar__all" to="/photos">{{ t('explorePhotos') }}</RouterLink>
-      </div>
-      <div class="home-latest-sidebar__scroll">
-        <HomeLatestPhotosList
-          :photos="photos"
-          :loading="secondaryLoading"
-          :skeleton-count="latestSkeletonItems"
-          compact
-        />
-      </div>
-    </aside>
-
   <section class="legacy-map-shell">
     <div class="real-map">
       <div ref="mapElement" class="leaflet-map"></div>
@@ -855,9 +839,23 @@ onBeforeUnmount(() => {
         </div>
       </transition>
       <span v-if="loadError" class="map-loading error">{{ loadError }}</span>
+
+      <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
+        <div class="home-latest-sidebar__head">
+          <h2>{{ t('latestPhotos') }}</h2>
+          <RouterLink class="home-latest-sidebar__all" to="/photos">{{ t('explorePhotos') }}</RouterLink>
+        </div>
+        <div class="home-latest-sidebar__scroll">
+          <HomeLatestPhotosList
+            :photos="photos"
+            :loading="secondaryLoading"
+            :skeleton-count="latestSkeletonItems"
+            compact
+          />
+        </div>
+      </aside>
     </div>
   </section>
-  </div>
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
@@ -1027,33 +1025,27 @@ onBeforeUnmount(() => {
 </template>
 
 <style lang="scss">
-.home-hero-layout {
-  @include mq-up($bp-md) {
-    display: grid;
-    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-    width: 100vw;
-    margin-right: calc(50% - 50vw);
-    margin-left: calc(50% - 50vw);
-    margin-bottom: 22px;
-    border-top: 1px solid $line;
-    border-bottom: 1px solid $line;
-    background: $bg-deep;
-  }
-}
-
 .home-latest-sidebar {
   display: none;
 
   @include mq-up($bp-md) {
+    position: absolute;
+    top: 14px;
+    left: 16px;
+    z-index: 550;
     display: flex;
     flex-direction: column;
-    min-height: 0;
-    max-height: min(82vh, 820px);
+    width: min(320px, calc(100% - 32px));
+    max-height: calc(100% - 28px);
     padding: 0;
-    border: 0;
-    border-right: 1px solid $line;
-    border-radius: 0;
+    border: 1px solid rgba($ink, 0.08);
+    border-radius: $radius-lg;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 16px 40px rgba(20, 24, 34, 0.18);
     overflow: hidden;
+    pointer-events: auto;
   }
 }
 
@@ -1134,16 +1126,6 @@ onBeforeUnmount(() => {
     margin-top: 4px;
     color: $muted;
     font-size: 11px;
-  }
-}
-
-.home-hero-layout .legacy-map-shell {
-  @include mq-up($bp-md) {
-    width: auto;
-    margin: 0;
-    border-top: 0;
-    border-bottom: 0;
-    border-radius: 0;
   }
 }
 
