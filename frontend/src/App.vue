@@ -395,6 +395,10 @@ function openFacebookModal() {
   facebookOpen.value = true
 }
 
+function handleOpenFacebook() {
+  openFacebookModal()
+}
+
 function closeFacebookModal() {
   facebookOpen.value = false
   const route = router.currentRoute.value
@@ -448,6 +452,7 @@ onMounted(async () => {
   }
   window.addEventListener('hinyerevan:auth-changed', syncAuthState)
   window.addEventListener('hinyerevan:open-auth', handleOpenAuth)
+  window.addEventListener('hinyerevan:open-facebook', handleOpenFacebook)
   window.addEventListener('pageshow', resetUiOverlays)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') resetUiOverlays()
@@ -464,6 +469,7 @@ onBeforeUnmount(() => {
   document.body.style.overflow = ''
   window.removeEventListener('hinyerevan:auth-changed', syncAuthState)
   window.removeEventListener('hinyerevan:open-auth', handleOpenAuth)
+  window.removeEventListener('hinyerevan:open-facebook', handleOpenFacebook)
   window.removeEventListener('pageshow', resetUiOverlays)
 })
 </script>
@@ -483,7 +489,6 @@ onBeforeUnmount(() => {
 
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
-            <RouterLink class="main-nav-link" to="/" @click="closeMenu">{{ t('map') }}</RouterLink>
             <RouterLink class="main-nav-link main-nav-link--photos" to="/photos" @click="closeMenu">{{ isHomeMap ? t('photos') : photosNavLabel }}</RouterLink>
             <RouterLink class="main-nav-link" to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
             <RouterLink class="main-nav-link main-nav-link--secondary" to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
@@ -1034,6 +1039,16 @@ html.home-map-page,
       max-width: none;
       margin-inline: 0;
       border-radius: 0 $radius-pill $radius-pill 0;
+    }
+
+    // Branding now lives in the left column, so drop it from the top bar.
+    .site-header .brand {
+      display: none;
+    }
+
+    // Floating FB badge moves into the branding block on home.
+    .facebook-page-badge--floating {
+      display: none;
     }
 
     .site-header-inner {

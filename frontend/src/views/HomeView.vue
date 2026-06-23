@@ -19,6 +19,8 @@ import googleLogo from '../assets/logos/google-logo.svg'
 import yandexLogo from '../assets/logos/yandex-logo.svg'
 import PhotoDetailSheet from '../components/PhotoDetailSheet.vue'
 import HomeLatestPhotosList from '../components/HomeLatestPhotosList.vue'
+import FacebookPageBadge from '../components/FacebookPageBadge.vue'
+import siteLogo from '../assets/logos/Logo2026.png'
 import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import WinterBadgeIcon from '../components/WinterBadgeIcon.vue'
@@ -33,7 +35,7 @@ const photos = ref([])
 const ratings = ref(null)
 const secondaryLoading = ref(true)
 const latestSkeletonItems = 8
-const LATEST_PHOTOS_LIMIT = 10
+const LATEST_PHOTOS_LIMIT = 8
 const ratingViewsSkeletonItems = [0, 1, 2, 3, 4, 5, 6]
 const ratingLikesSkeletonItems = [0, 1, 2, 3, 4, 5, 6]
 const ratingCommentsSkeletonItems = [0, 1, 2, 3, 4, 5]
@@ -44,6 +46,10 @@ const RATING_COMMENTS_LIMIT = 6
 
 function ratingPhotos(list, limit) {
   return (list || []).slice(0, limit)
+}
+
+function openFacebookPage() {
+  window.dispatchEvent(new CustomEvent('hinyerevan:open-facebook'))
 }
 const loading = ref(true)
 const markersLoading = ref(false)
@@ -841,6 +847,16 @@ onBeforeUnmount(() => {
       <span v-if="loadError" class="map-loading error">{{ loadError }}</span>
 
       <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
+        <div class="home-brand">
+          <RouterLink class="home-brand__logo-link" to="/" :aria-label="t('backToHome')">
+            <img class="home-brand__logo" :src="siteLogo" alt="HinYerevan.com" />
+          </RouterLink>
+          <div class="home-brand__text">
+            <strong class="home-brand__name">HinYerevan<em>.com</em></strong>
+            <small class="home-brand__tagline">{{ t('tagline') }}</small>
+            <FacebookPageBadge variant="inline" class="home-brand__fb" @open="openFacebookPage" />
+          </div>
+        </div>
         <div class="home-latest-sidebar__head">
           <h2>{{ t('latestPhotos') }}</h2>
         </div>
@@ -1062,9 +1078,78 @@ onBeforeUnmount(() => {
   }
 }
 
+.home-brand {
+  display: none;
+
+  @include mq-up($bp-md) {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 16px 16px 14px;
+    border-bottom: 1px solid $line;
+  }
+}
+
+.home-brand__logo-link {
+  display: inline-flex;
+  border-radius: 12px;
+  @include interactive((transform));
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  @include focus-ring(rgba($primary, 0.4), 2px);
+}
+
+.home-brand__logo {
+  display: block;
+  width: 54px;
+  height: 54px;
+  border-radius: 12px;
+  object-fit: cover;
+  background: #fff;
+  box-shadow: 0 6px 16px rgba(20, 24, 34, 0.16);
+}
+
+.home-brand__text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.home-brand__name {
+  font-family: $font-serif;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: $ink;
+  white-space: nowrap;
+
+  em {
+    font-style: normal;
+    font-weight: 400;
+    color: inherit;
+  }
+}
+
+.home-brand__tagline {
+  color: $muted;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.home-brand__fb {
+  margin-top: 7px;
+  justify-self: start;
+}
+
 .home-latest-sidebar__head {
   flex-shrink: 0;
-  padding: 16px 16px 12px;
+  padding: 14px 16px 10px;
   border-bottom: 1px solid $line;
 
   h2 {
