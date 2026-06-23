@@ -101,78 +101,6 @@ function clampYear(year) {
   return Math.min(maxYear.value, Math.max(minYear.value, numericYear))
 }
 
-/** Positions per calendar year on the track (same year = 1 step, adjacent years = wider span). */
-const SLOTS_PER_YEAR = 2
-/** Extra px between handle centers for each slot step on the track. */
-const SLOT_STEP_EXTRA_PX = 5
-const yearRangeSlots = ref([0, 1])
-let suppressNextSlotWatch = false
-
-function applyYearSliderHandleSpread() {
-  nextTick(() => {
-    requestAnimationFrame(() => {
-      const lower = document.querySelector('.year-filter-track .slider-handle-lower')
-      const upper = document.querySelector('.year-filter-track .slider-handle-upper')
-      if (!lower || !upper) return
-
-      lower.style.removeProperty('--handle-nudge')
-      upper.style.removeProperty('--handle-nudge')
-
-      const [from, to] = yearRange.value
-      const yearDiff = Math.abs(Number(to) - Number(from))
-      // Extra spacing only when handles sit on the same or adjacent years.
-      if (yearDiff > 1) return
-
-      const [slotFrom, slotTo] = yearRangeSlots.value
-      const slotGap = Math.abs(Math.round(slotTo) - Math.round(slotFrom))
-      const cappedGap = Math.min(slotGap, SLOTS_PER_YEAR + 1)
-      const spread = (cappedGap * SLOT_STEP_EXTRA_PX) / 2
-
-      if (spread > 0) {
-        lower.style.setProperty('--handle-nudge', `${-spread}px`)
-        upper.style.setProperty('--handle-nudge', `${spread}px`)
-      }
-    })
-  })
-}
-
-const yearSliderMax = computed(() => {
-  const span = maxYear.value - minYear.value
-  return Math.max(1, span * SLOTS_PER_YEAR + (SLOTS_PER_YEAR - 1))
-})
-
-function yearsToSlots(from, to) {
-  const [yearFrom, yearTo] = normalizedRange(from, to)
-  const start = (yearFrom - minYear.value) * SLOTS_PER_YEAR
-  const endBase = (yearTo - minYear.value) * SLOTS_PER_YEAR
-
-  if (yearFrom === yearTo) {
-    return [start, start + 1]
-  }
-
-  return [start, endBase + SLOTS_PER_YEAR - 1]
-}
-
-function slotToYear(slot) {
-  return minYear.value + Math.floor(Math.round(Number(slot)) / SLOTS_PER_YEAR)
-}
-
-function slotsToYears(slotFrom, slotTo) {
-  let slotStart = Math.round(Number(slotFrom))
-  let slotEnd = Math.round(Number(slotTo))
-
-  if (slotStart > slotEnd) {
-    ;[slotStart, slotEnd] = [slotEnd, slotStart]
-  }
-
-  return normalizedRange(slotToYear(slotStart), slotToYear(slotEnd))
-}
-
-function syncYearRangeSlotsFromYears() {
-  const [from, to] = yearRange.value
-  yearRangeSlots.value = yearsToSlots(from, to)
-}
-
 function normalizedRange(from, to) {
   let nextFrom = clampYear(from)
   let nextTo = clampYear(to)
@@ -208,7 +136,9 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
-const yearSliderOptions = { margin: 1 }
+const yearSliderOptions = computed(() => ({
+  margin: minYear.value >= maxYear.value ? 0 : 1,
+}))
 
 const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
@@ -404,11 +334,8 @@ function setYearRange(from, to, markTouched = true) {
     rangeTouched.value = true
   } else {
     suppressNextRangeWatch = true
-    suppressNextSlotWatch = true
   }
   yearRange.value = normalizedRange(from, to)
-  yearRangeSlots.value = yearsToSlots(yearRange.value[0], yearRange.value[1])
-  applyYearSliderHandleSpread()
 }
 
 function userAvatarUrl(user) {
@@ -642,29 +569,9 @@ function applyYearRange() {
 
 function onYearSliderChange(value) {
   rangeTouched.value = true
-  const years = slotsToYears(value[0], value[1])
-  suppressNextRangeWatch = true
-  yearRange.value = years
+  yearRange.value = normalizedRange(value[0], value[1])
   scheduleYearApply()
-  applyYearSliderHandleSpread()
 }
-
-watch(yearRangeSlots, ([slotFrom, slotTo]) => {
-  if (suppressNextSlotWatch) {
-    suppressNextSlotWatch = false
-    applyYearSliderHandleSpread()
-    return
-  }
-
-  rangeTouched.value = true
-  const years = slotsToYears(slotFrom, slotTo)
-  if (years[0] !== yearRange.value[0] || years[1] !== yearRange.value[1]) {
-    suppressNextRangeWatch = true
-    yearRange.value = years
-  }
-  scheduleYearApply()
-  applyYearSliderHandleSpread()
-})
 
 async function loadSecondaryContent() {
   secondaryLoading.value = true
@@ -708,9 +615,7 @@ onMounted(async () => {
     if (Array.isArray(restore.yearRange) && restore.yearRange.length === 2) {
       rangeTouched.value = Boolean(restore.rangeTouched)
       suppressNextRangeWatch = true
-      suppressNextSlotWatch = true
       yearRange.value = normalizedRange(restore.yearRange[0], restore.yearRange[1])
-      yearRangeSlots.value = yearsToSlots(yearRange.value[0], yearRange.value[1])
       activeYearRange.value = [...yearRange.value]
     }
   }
@@ -742,9 +647,6 @@ onMounted(async () => {
   }
 
   loadSecondaryContent()
-
-  await nextTick()
-  applyYearSliderHandleSpread()
 })
 
 onBeforeRouteLeave((to) => {
@@ -795,31 +697,19 @@ watch(yearRange, ([from, to]) => {
   if (suppressNextRangeWatch) {
     suppressNextRangeWatch = false
     activeYearRange.value = normalized
-    applyYearSliderHandleSpread()
     return
   }
 
   if (normalized[0] !== from || normalized[1] !== to) {
-    suppressNextSlotWatch = true
     yearRange.value = normalized
-    yearRangeSlots.value = yearsToSlots(normalized[0], normalized[1])
     activeYearRange.value = normalized
-    applyYearSliderHandleSpread()
     return
   }
 
-  const nextSlots = yearsToSlots(normalized[0], normalized[1])
-  if (nextSlots[0] !== yearRangeSlots.value[0] || nextSlots[1] !== yearRangeSlots.value[1]) {
-    suppressNextSlotWatch = true
-    yearRangeSlots.value = nextSlots
-  }
-
   applyYearRange()
-  applyYearSliderHandleSpread()
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
-  applyYearSliderHandleSpread()
 })
 
 onBeforeUnmount(() => {
@@ -954,16 +844,15 @@ onBeforeUnmount(() => {
     <span class="year-filter-label">{{ t('yearRange') }}</span>
     <div class="year-filter-track">
       <Slider
-        v-model="yearRangeSlots"
-        :min="0"
-        :max="yearSliderMax"
+        v-model="yearRange"
+        :min="minYear"
+        :max="maxYear"
         :step="1"
         :tooltips="false"
         :lazy="false"
         :options="yearSliderOptions"
         :class="['year-slider', yearSliderClass]"
         @change="onYearSliderChange"
-        @slide="applyYearSliderHandleSpread"
       />
       <div class="year-ticks">
         <span>{{ minYear }}</span>
@@ -1729,7 +1618,6 @@ onBeforeUnmount(() => {
       0 0 0 2px $accent,
       0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
-    translate: var(--handle-nudge, 0) 0;
     @include interactive((box-shadow, scale));
 
     &-lower {
