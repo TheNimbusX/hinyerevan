@@ -115,16 +115,22 @@ function applyYearSliderHandleSpread() {
       const upper = document.querySelector('.year-filter-track .slider-handle-upper')
       if (!lower || !upper) return
 
+      lower.style.removeProperty('--handle-nudge')
+      upper.style.removeProperty('--handle-nudge')
+
+      const [from, to] = yearRange.value
+      const yearDiff = Math.abs(Number(to) - Number(from))
+      // Extra spacing only when handles sit on the same or adjacent years.
+      if (yearDiff > 1) return
+
       const [slotFrom, slotTo] = yearRangeSlots.value
       const slotGap = Math.abs(Math.round(slotTo) - Math.round(slotFrom))
-      const spread = (slotGap * SLOT_STEP_EXTRA_PX) / 2
+      const cappedGap = Math.min(slotGap, SLOTS_PER_YEAR + 1)
+      const spread = (cappedGap * SLOT_STEP_EXTRA_PX) / 2
 
       if (spread > 0) {
         lower.style.setProperty('--handle-nudge', `${-spread}px`)
         upper.style.setProperty('--handle-nudge', `${spread}px`)
-      } else {
-        lower.style.removeProperty('--handle-nudge')
-        upper.style.removeProperty('--handle-nudge')
       }
     })
   })
