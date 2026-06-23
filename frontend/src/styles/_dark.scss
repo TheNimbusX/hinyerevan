@@ -483,6 +483,29 @@
     }
   }
 
+  .home-latest-sidebar {
+    background:
+      linear-gradient(180deg, rgba(22, 27, 37, 0.98), rgba(16, 20, 28, 0.96)),
+      #161b25;
+    border-right-color: #2a313d;
+  }
+
+  .home-latest-sidebar__head {
+    border-bottom-color: #2a313d;
+  }
+
+  .home-latest-sidebar__scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+  }
+
+  .home-latest-sidebar__all {
+    color: #9eb4ff;
+
+    &:hover {
+      color: #c8d4ff;
+    }
+  }
+
   .rating-skeleton-block {
     background:
       linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent),

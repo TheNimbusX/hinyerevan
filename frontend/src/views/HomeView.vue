@@ -7,7 +7,7 @@ import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import Slider from '@vueform/slider'
 import '@vueform/slider/themes/default.css'
-import { api, cachedApi, imageUrl, localizedApi, previewPhotoPath, safeAvatarUrl } from '../api'
+import { api, cachedApi, imageUrl, localizedApi, safeAvatarUrl } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
@@ -18,6 +18,7 @@ import { directionLabel, formatDateTime } from '../utils/locale'
 import googleLogo from '../assets/logos/google-logo.svg'
 import yandexLogo from '../assets/logos/yandex-logo.svg'
 import PhotoDetailSheet from '../components/PhotoDetailSheet.vue'
+import HomeLatestPhotosList from '../components/HomeLatestPhotosList.vue'
 import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 import DirectionMarker from '../components/DirectionMarker.vue'
 import WinterBadgeIcon from '../components/WinterBadgeIcon.vue'
@@ -31,7 +32,8 @@ const markers = ref([])
 const photos = ref([])
 const ratings = ref(null)
 const secondaryLoading = ref(true)
-const latestSkeletonItems = [0, 1, 2]
+const latestSkeletonItems = 8
+const LATEST_PHOTOS_LIMIT = 10
 const ratingViewsSkeletonItems = [0, 1, 2, 3, 4, 5, 6]
 const ratingLikesSkeletonItems = [0, 1, 2, 3, 4, 5, 6]
 const ratingCommentsSkeletonItems = [0, 1, 2, 3, 4, 5]
@@ -579,7 +581,7 @@ async function loadSecondaryContent() {
     // Loaded separately so a failure here never blocks the map markers.
     const [ratingData, photoData] = await Promise.allSettled([
       cachedApi('/ratings'),
-      cachedApi('/photos?per_page=3'),
+      cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`),
     ])
     if (ratingData.status === 'fulfilled') ratings.value = ratingData.value
     if (photoData.status === 'fulfilled') photos.value = photoData.value.data || []
@@ -596,8 +598,8 @@ useLocalizedReady(async ({ path }) => {
     ratings.value = await cachedApi('/ratings')
     return
   }
-  if (path === '/photos?per_page=3') {
-    const photoData = await cachedApi('/photos?per_page=3')
+  if (path === `/photos?per_page=${LATEST_PHOTOS_LIMIT}`) {
+    const photoData = await cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`)
     photos.value = photoData?.data || []
   }
 })
@@ -722,6 +724,22 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
+  <div class="home-hero-layout">
+    <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
+      <div class="home-latest-sidebar__head">
+        <h2>{{ t('latestPhotos') }}</h2>
+        <RouterLink class="home-latest-sidebar__all" to="/photos">{{ t('explorePhotos') }}</RouterLink>
+      </div>
+      <div class="home-latest-sidebar__scroll">
+        <HomeLatestPhotosList
+          :photos="photos"
+          :loading="secondaryLoading"
+          :skeleton-count="latestSkeletonItems"
+          compact
+        />
+      </div>
+    </aside>
+
   <section class="legacy-map-shell">
     <div class="real-map">
       <div ref="mapElement" class="leaflet-map"></div>
@@ -839,6 +857,7 @@ onBeforeUnmount(() => {
       <span v-if="loadError" class="map-loading error">{{ loadError }}</span>
     </div>
   </section>
+  </div>
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
@@ -872,26 +891,13 @@ onBeforeUnmount(() => {
   </div>
 
   <section class="section-grid rating-grid" :aria-busy="secondaryLoading">
-    <article class="panel latest-panel">
+    <article class="panel latest-panel latest-panel--mobile">
       <h2>{{ t('latestPhotos') }}</h2>
-      <template v-if="secondaryLoading">
-        <div v-for="item in latestSkeletonItems" :key="item" class="latest-photo rating-skeleton-latest" aria-hidden="true">
-          <span class="rating-skeleton-block rating-skeleton-block--hero" />
-          <span class="rating-skeleton-block rating-skeleton-block--title" />
-        </div>
-        <p class="rating-panel-loading">{{ t('loading') }}</p>
-      </template>
-      <template v-else>
-        <RouterLink v-for="photo in photos" :key="photo.id" class="latest-photo" :to="`/photos/${photo.id}`">
-          <img
-            :src="imageUrl(previewPhotoPath(photo.images))"
-            :alt="photo.title"
-          />
-          <div class="latest-photo-meta">
-            <strong>{{ photo.title }}</strong>
-          </div>
-        </RouterLink>
-      </template>
+      <HomeLatestPhotosList
+        :photos="photos"
+        :loading="secondaryLoading"
+        :skeleton-count="latestSkeletonItems"
+      />
     </article>
     <article class="panel rating-list-panel">
       <h2>{{ t('photosByViews') }}</h2>
@@ -1021,6 +1027,126 @@ onBeforeUnmount(() => {
 </template>
 
 <style lang="scss">
+.home-hero-layout {
+  @include mq-up($bp-md) {
+    display: grid;
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    width: 100vw;
+    margin-right: calc(50% - 50vw);
+    margin-left: calc(50% - 50vw);
+    margin-bottom: 22px;
+    border-top: 1px solid $line;
+    border-bottom: 1px solid $line;
+    background: $bg-deep;
+  }
+}
+
+.home-latest-sidebar {
+  display: none;
+
+  @include mq-up($bp-md) {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    max-height: min(82vh, 820px);
+    padding: 0;
+    border: 0;
+    border-right: 1px solid $line;
+    border-radius: 0;
+    overflow: hidden;
+  }
+}
+
+.home-latest-sidebar__head {
+  display: flex;
+  flex-shrink: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 18px 16px 12px;
+  border-bottom: 1px solid $line;
+
+  h2 {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.25;
+  }
+}
+
+.home-latest-sidebar__all {
+  flex-shrink: 0;
+  color: $primary;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: none;
+  @include interactive((color));
+
+  &:hover {
+    color: $primary-dark;
+  }
+}
+
+.home-latest-sidebar__scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 12px 14px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba($ink, 0.18);
+  }
+}
+
+.latest-panel--mobile {
+  @include mq-up($bp-md) {
+    display: none !important;
+  }
+}
+
+.latest-photo--compact {
+  padding: 10px 4px;
+
+  img {
+    max-height: 112px;
+    object-fit: cover;
+  }
+
+  .latest-photo-meta {
+    margin-top: 8px;
+  }
+
+  strong {
+    display: -webkit-box;
+    overflow: hidden;
+    font-size: 12px;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  small {
+    display: block;
+    margin-top: 4px;
+    color: $muted;
+    font-size: 11px;
+  }
+}
+
+.home-hero-layout .legacy-map-shell {
+  @include mq-up($bp-md) {
+    width: auto;
+    margin: 0;
+    border-top: 0;
+    border-bottom: 0;
+    border-radius: 0;
+  }
+}
+
 .legacy-map-shell {
   position: relative;
   width: 100vw;
