@@ -1016,8 +1016,16 @@
     background: #161b25;
   }
 
-  .upload-map-recenter:hover {
+  .upload-map-recenter {
     color: #fff;
+
+    svg {
+      color: #fff;
+    }
+
+    &:hover {
+      color: #fff;
+    }
   }
 
   .map-picker-hint {

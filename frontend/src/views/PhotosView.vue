@@ -455,7 +455,6 @@ onBeforeUnmount(() => {
               loading="lazy"
               decoding="async"
             />
-            <span class="photo-year">{{ photo.year }}</span>
             <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
               <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
             </span>
@@ -923,22 +922,6 @@ onBeforeUnmount(() => {
     font-weight: 400;
     @include truncate;
   }
-}
-
-.photo-year {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  z-index: 2;
-  display: inline-flex;
-  padding: 3px 8px;
-  border-radius: $radius-pill;
-  color: #fff;
-  background: rgba($accent, 0.92);
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  backdrop-filter: blur(4px);
 }
 
 .photo-video-badge {

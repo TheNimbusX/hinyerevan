@@ -12,6 +12,8 @@ import DirectionMarker from './DirectionMarker.vue'
 import LikeIcon from './LikeIcon.vue'
 import YoutubeEmbed from './YoutubeEmbed.vue'
 import FacebookPublishedBadge from './FacebookPublishedBadge.vue'
+import PhotoZoomLightbox from './PhotoZoomLightbox.vue'
+import PhotoDetailZoomTrigger from './PhotoDetailZoomTrigger.vue'
 
 const props = defineProps({
   photoId: { type: [Number, String, null], default: null },
@@ -41,6 +43,12 @@ const currentUser = inject('currentUser', ref(null))
 const currentUserUnique = computed(() => currentUser.value?.unique || '')
 const photoDirectionLabel = computed(() => (photo.value ? directionLabel(photo.value.direction, t) : ''))
 const addedLabel = computed(() => (photo.value ? formatDateTime(photo.value.datetime, currentLanguage.value) : ''))
+const lightboxSubtitle = computed(() => {
+  if (!photo.value) return ''
+  const parts = [String(photo.value.year || '')]
+  if (photo.value.author) parts.push(userDisplayName(photo.value.author, t))
+  return parts.filter(Boolean).join(' · ')
+})
 const displayLikes = computed(() => photo.value?.likes_total ?? photo.value?.likes_count ?? 0)
 const siteOnlyLikes = computed(() => Math.max(0, displayLikes.value - (photo.value?.facebook?.likes || 0)))
 
@@ -393,17 +401,7 @@ onBeforeUnmount(() => {
                 <div class="photo-detail-frame">
                   <button type="button" class="photo-detail-image" :aria-label="t('openFullscreen')" @click="openLightbox">
                     <img :src="detailImageSrc" :alt="photo.title" @error="retryDetailImage" />
-                    <span class="photo-detail-expand" aria-hidden="true">
-                      <svg viewBox="0 0 24 24" width="20" height="20">
-                        <path
-                          d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          stroke-linecap="round"
-                        />
-                      </svg>
-                    </span>
+                    <PhotoDetailZoomTrigger />
                   </button>
                   <div class="photo-detail-actions">
                     <button
@@ -567,18 +565,14 @@ onBeforeUnmount(() => {
       </section>
     </transition>
 
-    <transition name="lightbox">
-      <div v-if="lightboxOpen && photo" class="photo-lightbox" @click.self="closeLightbox">
-        <button class="lightbox-close" type="button" :aria-label="t('cancel')" @click="closeLightbox">×</button>
-        <figure class="lightbox-figure">
-          <img :src="detailImageSrc" :alt="photo.title" />
-          <figcaption>
-            <strong>{{ photo.title }}</strong>
-            <span>{{ photo.year }}<template v-if="photo.author"> · {{ userDisplayName(photo.author, t) }}</template></span>
-          </figcaption>
-        </figure>
-      </div>
-    </transition>
+    <PhotoZoomLightbox
+      :open="lightboxOpen"
+      :src="detailImageSrc"
+      :alt="photo?.title || ''"
+      :title="photo?.title || ''"
+      :subtitle="lightboxSubtitle"
+      @close="closeLightbox"
+    />
   </Teleport>
 </template>
 

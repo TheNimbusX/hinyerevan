@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { api, clearApiCacheForPath, fullPhotoPath, getToken, imageUrl, localizedApi, photoDownloadUrl, previewPhotoPath, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
@@ -15,6 +15,8 @@ import YoutubeEmbed from '../components/YoutubeEmbed.vue'
 import FacebookPublishedBadge from '../components/FacebookPublishedBadge.vue'
 import BeforeAfterPanorama from '../components/BeforeAfterPanorama.vue'
 import PhotoMiniMap from '../components/PhotoMiniMap.vue'
+import PhotoZoomLightbox from '../components/PhotoZoomLightbox.vue'
+import PhotoDetailZoomTrigger from '../components/PhotoDetailZoomTrigger.vue'
 
 const route = useRoute()
 const photo = ref(null)
@@ -50,6 +52,14 @@ const photoDirectionLabel = computed(() =>
 const addedLabel = computed(() =>
   photo.value ? formatDateTime(photo.value.datetime, currentLanguage.value) : '',
 )
+
+const lightboxSubtitle = computed(() => {
+  if (!photo.value) return ''
+  const parts = [String(photo.value.year || '')]
+  if (photo.value.author) parts.push(userDisplayName(photo.value.author, t))
+  return parts.filter(Boolean).join(' · ')
+})
+
 const displayLikes = computed(() => photo.value?.likes_total ?? photo.value?.likes_count ?? 0)
 const siteOnlyLikes = computed(() => Math.max(0, displayLikes.value - (photo.value?.facebook?.likes || 0)))
 
@@ -64,18 +74,10 @@ async function fetchPhotoDetail(id) {
 
 function openLightbox() {
   lightboxOpen.value = true
-  document.body.style.overflow = 'hidden'
 }
 
 function closeLightbox() {
   lightboxOpen.value = false
-  document.body.style.overflow = ''
-}
-
-function handleLightboxKey(event) {
-  if (event.key === 'Escape' && lightboxOpen.value) {
-    closeLightbox()
-  }
 }
 
 function authorAvatar(author) {
@@ -290,12 +292,6 @@ async function downloadPhoto() {
 
 onMounted(() => {
   load()
-  window.addEventListener('keydown', handleLightboxKey)
-})
-
-onBeforeUnmount(() => {
-  document.body.style.overflow = ''
-  window.removeEventListener('keydown', handleLightboxKey)
 })
 
 watch(() => route.params.id, () => {
@@ -406,17 +402,7 @@ watch(isAuthenticated, () => {
           @click="openLightbox"
         >
           <img :src="detailImageSrc" :alt="photo.title" @error="retryDetailImage" />
-          <span class="photo-detail-expand" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="20" height="20">
-              <path
-                d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-              />
-            </svg>
-          </span>
+          <PhotoDetailZoomTrigger />
         </button>
         <div class="photo-detail-actions">
           <button
@@ -634,24 +620,14 @@ watch(isAuthenticated, () => {
     />
   </section>
 
-  <Teleport to="body">
-    <transition name="lightbox">
-      <div
-        v-if="lightboxOpen && photo"
-        class="photo-lightbox"
-        @click.self="closeLightbox"
-      >
-        <button class="lightbox-close" type="button" :aria-label="t('cancel')" @click="closeLightbox">×</button>
-        <figure class="lightbox-figure">
-          <img :src="detailImageSrc" :alt="photo.title" />
-          <figcaption>
-            <strong>{{ photo.title }}</strong>
-            <span>{{ photo.year }}<template v-if="photo.author"> · {{ userDisplayName(photo.author, t) }}</template></span>
-          </figcaption>
-        </figure>
-      </div>
-    </transition>
-  </Teleport>
+  <PhotoZoomLightbox
+    :open="lightboxOpen"
+    :src="detailImageSrc"
+    :alt="photo?.title || ''"
+    :title="photo?.title || ''"
+    :subtitle="lightboxSubtitle"
+    @close="closeLightbox"
+  />
 </template>
 
 <style lang="scss">
@@ -687,32 +663,7 @@ watch(isAuthenticated, () => {
     }
   }
 
-  &:hover .photo-detail-expand {
-    opacity: 1;
-    transform: translateY(0);
-  }
-
   @include focus-ring(rgba($primary, 0.45), 3px);
-}
-
-.photo-detail-expand {
-  position: absolute;
-  left: 14px;
-  bottom: 14px;
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: rgba(20, 24, 34, 0.78);
-  color: #fff;
-  backdrop-filter: blur(8px);
-  opacity: 0;
-  transform: translateY(4px);
-  pointer-events: none;
-  transition:
-    opacity $duration ease,
-    transform $duration ease;
 }
 
 .photo-detail-actions {
@@ -1178,114 +1129,5 @@ watch(isAuthenticated, () => {
 .fade-enter-from,
 .fade-leave-to {
   opacity: 0;
-}
-
-// ---------- Lightbox --------------------------------------------
-.photo-lightbox {
-  position: fixed;
-  inset: 0;
-  z-index: 1100;
-  display: grid;
-  place-items: center;
-  padding: 32px;
-  background: rgba(8, 11, 18, 0.92);
-  backdrop-filter: blur(8px);
-  cursor: default;
-
-  @include mq-down($bp-sm) {
-    padding: 14px;
-  }
-}
-
-.lightbox-close {
-  position: absolute;
-  top: 18px;
-  right: 18px;
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 44px;
-  border: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  cursor: pointer;
-  font-size: 28px;
-  line-height: 0;
-  @include interactive((background, transform));
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: rotate(90deg);
-  }
-
-  @include focus-ring(rgba(255, 255, 255, 0.55), 2px);
-}
-
-.lightbox-figure {
-  display: grid;
-  gap: 14px;
-  max-width: min(1400px, 100%);
-  max-height: 100%;
-  margin: 0;
-  cursor: default;
-
-  @include mq-down($bp-sm) {
-    gap: 10px;
-  }
-
-  img {
-    max-width: 100%;
-    max-height: calc(100vh - 140px);
-    object-fit: contain;
-    border-radius: 2px;
-    box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
-
-    @include mq-down($bp-sm) {
-      max-height: calc(100vh - 110px);
-    }
-  }
-
-  figcaption {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: baseline;
-    justify-content: center;
-    color: rgba(255, 255, 255, 0.92);
-
-    strong {
-      font-family: $font-serif;
-      font-weight: 500;
-      font-size: 18px;
-    }
-
-    span {
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 13px;
-    }
-  }
-}
-
-.lightbox-enter-active,
-.lightbox-leave-active {
-  transition:
-    opacity $duration ease,
-    transform $duration ease;
-}
-
-.lightbox-enter-from,
-.lightbox-leave-to {
-  opacity: 0;
-}
-
-.lightbox-enter-from .lightbox-figure,
-.lightbox-leave-to .lightbox-figure {
-  transform: scale(0.96);
-}
-
-.lightbox-enter-active .lightbox-figure,
-.lightbox-leave-active .lightbox-figure {
-  transition: transform $duration $ease;
 }
 </style>
