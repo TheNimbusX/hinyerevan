@@ -489,7 +489,7 @@ onBeforeUnmount(() => {
 
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
-            <RouterLink class="main-nav-link main-nav-link--photos" to="/photos" @click="closeMenu">{{ isHomeMap ? t('photos') : photosNavLabel }}</RouterLink>
+            <RouterLink class="main-nav-link main-nav-link--photos" to="/photos" @click="closeMenu">{{ photosNavLabel }}</RouterLink>
             <RouterLink class="main-nav-link" to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
             <RouterLink class="main-nav-link main-nav-link--secondary" to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
             <RouterLink class="main-nav-link main-nav-link--secondary" to="/pages/aboutus" @click="closeMenu">{{ t('about') }}</RouterLink>

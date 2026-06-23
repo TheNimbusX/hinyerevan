@@ -144,9 +144,44 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
+// The handle is a ~14px circle with a 2px accent ring → ~18px visual width.
+// Margin is value-based, so convert the handle width to "years" using the live
+// track width; this lets the two handles slide together until they touch and
+// then stop, instead of stacking/overlapping on a wide (multi-century) range.
+const HANDLE_TOUCH_PX = 18
+const sliderTrackWidth = ref(0)
+const yearTrackEl = ref(null)
+let yearTrackObserver = null
+
+const sliderMargin = computed(() => {
+  if (minYear.value >= maxYear.value) return 0
+  const span = maxYear.value - minYear.value
+  const usable = sliderTrackWidth.value - 16
+  if (usable <= 0) return 1
+  const years = Math.round((HANDLE_TOUCH_PX / usable) * span)
+  return Math.min(span, Math.max(1, years))
+})
+
 const yearSliderOptions = computed(() => ({
-  margin: minYear.value >= maxYear.value ? 0 : 1,
+  margin: sliderMargin.value,
 }))
+
+function measureYearTrack() {
+  sliderTrackWidth.value = yearTrackEl.value?.clientWidth || 0
+}
+
+onMounted(() => {
+  measureYearTrack()
+  if (yearTrackEl.value && typeof ResizeObserver !== 'undefined') {
+    yearTrackObserver = new ResizeObserver(measureYearTrack)
+    yearTrackObserver.observe(yearTrackEl.value)
+  }
+})
+
+onBeforeUnmount(() => {
+  yearTrackObserver?.disconnect()
+  yearTrackObserver = null
+})
 
 const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
@@ -874,7 +909,7 @@ onBeforeUnmount(() => {
 
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
-    <div class="year-filter-track">
+    <div class="year-filter-track" ref="yearTrackEl">
       <Slider
         v-model="yearRange"
         :min="minYear"
