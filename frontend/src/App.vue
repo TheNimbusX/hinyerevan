@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { removeStuckUiOverlays, isInAppBrowser } from './utils/overlayCleanup'
 import { api, apiUrl, getToken, safeAvatarUrl, setToken } from './api'
 import { getUiLanguage } from './utils/browserTranslate'
@@ -13,6 +13,7 @@ import SiteFooter from './components/SiteFooter.vue'
 import FacebookPageBadge from './components/FacebookPageBadge.vue'
 import FacebookPageModal from './components/FacebookPageModal.vue'
 import HeaderUserMenu from './components/HeaderUserMenu.vue'
+import HeaderToolsMenu from './components/HeaderToolsMenu.vue'
 import DevAuthGate from './components/DevAuthGate.vue'
 import RecaptchaField from './components/RecaptchaField.vue'
 
@@ -72,6 +73,8 @@ function providerIcon(id) {
 }
 
 const router = useRouter()
+const route = useRoute()
+const isHomeMap = computed(() => route.path === '/')
 const { t, currentLanguage } = useI18n()
 const photosPublishedCount = ref(null)
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
@@ -88,13 +91,6 @@ const photosNavLabel = computed(() => {
   const locale = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' }[currentLanguage.value] || 'en-US'
   const count = Number(photosPublishedCount.value).toLocaleString(locale)
   return t('photosMenu', { count })
-})
-
-const photosNavCompactLabel = computed(() => {
-  if (photosPublishedCount.value == null) return t('photos')
-  const locale = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' }[currentLanguage.value] || 'en-US'
-  const count = Number(photosPublishedCount.value).toLocaleString(locale)
-  return t('photosNavCompact', { count })
 })
 
 function loadSitePhotoCount() {
@@ -469,7 +465,7 @@ onBeforeUnmount(() => {
 
 <template>
   <DevAuthGate v-if="devAuthRequired && !devAuthOk" @authenticated="onDevAuthOk" />
-  <div v-else class="app-shell">
+  <div v-else class="app-shell" :class="{ 'app-shell--home-map': isHomeMap }">
     <header class="site-header notranslate">
       <div class="site-header-inner">
         <RouterLink class="brand" to="/" @click="closeMenu">
@@ -482,23 +478,23 @@ onBeforeUnmount(() => {
 
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
-            <RouterLink to="/" @click="closeMenu">{{ t('map') }}</RouterLink>
-            <RouterLink to="/photos" class="nav-link-photos" :title="photosNavLabel" @click="closeMenu">
-              <span class="nav-label nav-label--full">{{ photosNavLabel }}</span>
-              <span class="nav-label nav-label--compact">{{ photosNavCompactLabel }}</span>
-            </RouterLink>
-            <RouterLink to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
-            <RouterLink to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
-            <RouterLink to="/pages/aboutus" @click="closeMenu">{{ t('about') }}</RouterLink>
-            <RouterLink to="/pages/faq" @click="closeMenu">{{ t('faq') }}</RouterLink>
+            <RouterLink class="main-nav-link" to="/" @click="closeMenu">{{ t('map') }}</RouterLink>
+            <RouterLink class="main-nav-link main-nav-link--photos" to="/photos" @click="closeMenu">{{ photosNavLabel }}</RouterLink>
+            <RouterLink class="main-nav-link" to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
+            <RouterLink class="main-nav-link main-nav-link--secondary" to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
+            <RouterLink class="main-nav-link main-nav-link--secondary" to="/pages/aboutus" @click="closeMenu">{{ t('about') }}</RouterLink>
+            <RouterLink class="main-nav-link main-nav-link--secondary" to="/pages/faq" @click="closeMenu">{{ t('faq') }}</RouterLink>
           </nav>
 
           <div class="header-tools">
-            <div class="header-tools-row">
-              <LanguageSwitcher />
-              <ThemeToggle />
+            <div class="header-tools-primary">
+              <div class="header-tools-row">
+                <LanguageSwitcher />
+                <ThemeToggle />
+              </div>
+              <button class="nav-button header-action" type="button" @click="requireAuthForUpload">{{ t('addPhoto') }}</button>
             </div>
-            <button class="nav-button header-action" type="button" @click="requireAuthForUpload">{{ t('addPhoto') }}</button>
+            <HeaderToolsMenu @add-photo="requireAuthForUpload" />
             <HeaderUserMenu v-if="currentUser" :user="currentUser" @close="closeMenu" />
             <button v-else class="button button-small" type="button" @click="openAuth('login')">{{ t('signIn') }}</button>
           </div>
@@ -783,7 +779,6 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 20px;
   height: 56px;
-  min-width: 0;
   padding: 0 14px 0 18px;
 
   @include mq-down($bp-md) {
@@ -805,12 +800,10 @@ onBeforeUnmount(() => {
   .main-nav {
     justify-self: center;
     grid-column: 1;
-    min-width: 0;
   }
 
   .header-tools {
     grid-column: 2;
-    flex-shrink: 0;
   }
 
   @include mq-down($bp-md) {
@@ -860,8 +853,6 @@ onBeforeUnmount(() => {
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  min-width: 0;
-  max-width: min(240px, 34vw);
   color: $ink;
   text-decoration: none;
   @include interactive((transform, opacity));
@@ -890,7 +881,6 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 2px;
   align-content: center;
-  min-width: 0;
   line-height: 1;
 
   strong {
@@ -901,8 +891,6 @@ onBeforeUnmount(() => {
     letter-spacing: -0.01em;
     color: $ink;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 
     em {
       font-style: normal;
@@ -918,14 +906,10 @@ onBeforeUnmount(() => {
     letter-spacing: 0.005em;
     line-height: 1;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
 
-    @include mq-down($bp-sm) {
-      display: none;
-    }
-
-    @include mq-up($bp-md) {
+  @include mq-down($bp-sm) {
+    small {
       display: none;
     }
   }
@@ -935,41 +919,11 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  min-width: 0;
 
   @include mq-down($bp-md) {
     display: grid;
     gap: 4px;
     width: 100%;
-  }
-
-  @include mq-up($bp-md) {
-    gap: 2px;
-
-    a {
-      padding: 8px 7px;
-    }
-  }
-
-  @media (min-width: #{$bp-md}) and (max-width: 1200px) {
-    a {
-      padding: 8px 5px;
-      font-size: 10.5px;
-    }
-  }
-
-  .nav-label--compact {
-    display: none;
-  }
-
-  @include mq-up($bp-xl) {
-    .nav-label--full {
-      display: none;
-    }
-
-    .nav-label--compact {
-      display: inline;
-    }
   }
 
   a {
@@ -1011,12 +965,101 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  flex-shrink: 0;
 
   @include mq-down($bp-md) {
     display: grid;
     gap: 8px;
     width: 100%;
+  }
+}
+
+.header-tools-primary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  @include mq-down($bp-md) {
+    display: grid;
+    gap: 8px;
+    width: 100%;
+  }
+}
+
+// ---------- Home map: header clears left photos sidebar ---------------
+.app-shell--home-map {
+  --home-sidebar-w: min(320px, 38vw);
+
+  @include mq-up($bp-md) {
+    .site-header {
+      left: var(--home-sidebar-w);
+      right: 16px;
+      width: auto;
+      max-width: none;
+      margin-inline: 0;
+    }
+
+    .site-header-inner {
+      gap: 12px;
+      padding-right: 12px;
+    }
+
+    .header-menu {
+      gap: 8px;
+    }
+
+    .main-nav {
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .main-nav-link--photos {
+      max-width: 11em;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    @media (max-width: 1120px) {
+      .header-tools-primary {
+        display: none;
+      }
+
+      .header-tools-menu {
+        display: block;
+      }
+    }
+
+    @media (max-width: 1020px) {
+      .main-nav-link--secondary {
+        display: none;
+      }
+    }
+
+    @media (max-width: 920px) {
+      .brand-text {
+        display: none;
+      }
+    }
+
+    @media (max-width: 860px) {
+      .main-nav-link[href='/photos/random'] {
+        display: none;
+      }
+
+      .header-user-name {
+        display: none;
+      }
+
+      .header-user-trigger {
+        padding-right: 6px;
+      }
+    }
+  }
+}
+
+@include mq-down($bp-md) {
+  .header-tools-menu {
+    display: none !important;
   }
 }
 
@@ -1232,7 +1275,7 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
-@include mq-down($bp-xl) {
+@include mq-down($bp-md) {
   .main-nav a {
     padding: 11px 14px;
     text-align: left;
@@ -1253,49 +1296,11 @@ onBeforeUnmount(() => {
 
   .header-tools .header-action,
   .header-tools .header-user-menu,
+  .header-tools .header-tools-menu,
   .header-tools .button {
     width: 100%;
     min-height: 44px;
     justify-content: center;
-  }
-}
-
-@include mq-up($bp-xl) {
-  .header-action {
-    padding: 8px 12px;
-    font-size: 11px;
-    white-space: nowrap;
-  }
-
-  .header-tools {
-    gap: 6px;
-  }
-
-  .header-user-menu .header-user-trigger {
-    max-width: 130px;
-    padding: 4px 8px 4px 4px;
-  }
-
-  .header-user-menu .header-user-name {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-}
-
-// Between burger breakpoint and wide desktop — compact header tools
-@media (min-width: #{$bp-xl}) and (max-width: 1440px) {
-  .header-action {
-    padding: 7px 10px;
-    font-size: 11px;
-  }
-
-  .header-tools {
-    gap: 5px;
-  }
-
-  .language-switcher button {
-    padding: 5px 6px;
   }
 }
 

@@ -1029,12 +1029,12 @@ onBeforeUnmount(() => {
 
   @include mq-up($bp-md) {
     position: absolute;
-    top: var(--header-h, 80px);
+    top: 0;
     left: 0;
     z-index: 550;
     display: flex;
     flex-direction: column;
-    width: min(320px, 38vw);
+    width: var(--home-sidebar-w, min(320px, 38vw));
     height: 100%;
     padding: 0;
     border: 0;

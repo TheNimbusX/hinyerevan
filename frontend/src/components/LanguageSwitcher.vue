@@ -6,6 +6,14 @@ import armenianFlag from '../assets/flags/am.svg'
 import russianFlag from '../assets/flags/ru.svg'
 import englishFlag from '../assets/flags/en.svg'
 
+defineProps({
+  layout: {
+    type: String,
+    default: 'auto',
+    validator: (value) => ['auto', 'dropdown', 'segmented'].includes(value),
+  },
+})
+
 const { currentLanguage, languages, setLanguage, t } = useI18n()
 
 const open = ref(false)
@@ -63,7 +71,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="language-switcher notranslate">
+  <div ref="root" class="language-switcher notranslate" :class="{ 'is-segmented': layout === 'segmented' }">
     <!-- Mobile drawer: fixed-height segmented control, no dropdown -->
     <div class="language-segmented" role="listbox" :aria-label="t('language')">
       <button
@@ -121,6 +129,19 @@ onBeforeUnmount(() => {
 <style lang="scss">
 .language-switcher {
   position: relative;
+
+  &.is-segmented {
+    .language-segmented {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+      width: 100%;
+    }
+
+    .language-dropdown {
+      display: none;
+    }
+  }
 }
 
 .language-browser-hint {
