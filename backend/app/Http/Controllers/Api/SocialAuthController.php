@@ -70,7 +70,8 @@ class SocialAuthController extends Controller
         $driver = $this->socialiteDriver($provider, $this->usesOAuthSession($provider));
 
         return match ($provider) {
-            'facebook' => $driver->scopes(['email', 'public_profile'])->redirect(),
+            // email omitted: Advanced Access not granted; login works via public_profile + FB user id.
+            'facebook' => $driver->scopes(['public_profile'])->redirect(),
             'yandex' => $driver->scopes(['login:email', 'login:info'])->redirect(),
             default => $driver->redirect(),
         };
