@@ -121,6 +121,7 @@ class PhotoController extends Controller
                     'direction' => $photo->direction,
                     'direction_label' => $photo->direction_label,
                     'thumb_url' => $photo->image_urls['thumb'],
+                    'large_url' => $photo->image_urls['large'],
                     'datetime' => optional($photo->datetime)->toISOString(),
                     'has_video' => filled($photo->video),
                     'needs_location_review' => (bool) $photo->needs_location_review,

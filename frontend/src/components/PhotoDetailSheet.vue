@@ -526,7 +526,7 @@ onBeforeUnmount(() => {
                   class="related-card sheet-related-card"
                   @click="navigate(item.id)"
                 >
-                  <img :src="imageUrl(item.images.thumb)" :alt="item.title" />
+                  <img :src="imageUrl(item.images.large || item.images.thumb)" :alt="item.title" />
                   <span class="related-year">{{ item.year }}</span>
                   <strong>{{ item.title }}</strong>
                 </button>

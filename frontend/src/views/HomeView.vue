@@ -282,7 +282,7 @@ function markerPreview(marker) {
     <a class="marker-preview-card" href="/photos/${marker.id}">
       <span class="marker-preview-media">
         <span class="marker-preview-skeleton" aria-hidden="true"></span>
-        <img src="${imageUrl(marker.thumb_url)}" alt="" loading="lazy" decoding="async"
+        <img src="${imageUrl(marker.large_url || marker.thumb_url)}" alt="" loading="lazy" decoding="async"
           onload="this.classList.add('is-loaded')" onerror="this.classList.add('is-loaded')">
       </span>
       <span class="marker-preview-year">${marker.year}</span>
@@ -1073,9 +1073,9 @@ onBeforeUnmount(() => {
       img {
         display: block;
         width: 100%;
-        height: 120px;
+        height: auto;
         border-radius: 0;
-        object-fit: cover;
+        object-fit: contain;
         background: transparent;
       }
     }
@@ -1190,8 +1190,8 @@ onBeforeUnmount(() => {
   padding: 10px 4px;
 
   img {
-    max-height: 112px;
-    object-fit: cover;
+    height: auto;
+    object-fit: contain;
   }
 
   .latest-photo-meta {

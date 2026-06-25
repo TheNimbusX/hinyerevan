@@ -763,7 +763,10 @@ class LegacyPhotoStorage
         try {
             $client = Http::timeout(12);
             $proxy = trim((string) config('services.oauth.proxy', ''));
-            if ($proxy !== '') {
+            // The OAuth proxy exists for Yandex; routing Facebook/Graph avatar URLs
+            // through it breaks the download, so fetch those hosts directly.
+            $isFacebook = (bool) preg_match('/(facebook\.com|fbcdn\.net|fbsbx\.com)/i', $url);
+            if ($proxy !== '' && ! $isFacebook) {
                 $client = $client->withOptions(['proxy' => $proxy]);
             }
 

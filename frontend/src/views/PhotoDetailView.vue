@@ -556,7 +556,7 @@ watch(isAuthenticated, () => {
         class="related-card"
         :to="`/photos/${item.id}`"
       >
-        <img :src="imageUrl(item.images.thumb)" :alt="item.title" />
+        <img :src="imageUrl(item.images.large || item.images.thumb)" :alt="item.title" />
         <span class="related-year">{{ item.year }}</span>
         <strong>{{ item.title }}</strong>
       </RouterLink>
@@ -581,7 +581,7 @@ watch(isAuthenticated, () => {
         class="related-card"
         :to="`/photos/${item.id}`"
       >
-        <img :src="imageUrl(item.images.thumb)" :alt="item.title" />
+        <img :src="imageUrl(item.images.large || item.images.thumb)" :alt="item.title" />
         <span class="related-year">{{ item.year }}</span>
         <strong>{{ item.title }}</strong>
         <small>{{ item.views }} {{ t('views') }}</small>

@@ -227,6 +227,11 @@ async function submitForgotPassword() {
     return
   }
 
+  if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken.value) {
+    authError.value = t('captchaRequired')
+    return
+  }
+
   authError.value = ''
   forgotMessage.value = ''
   forgotLoading.value = true
@@ -276,6 +281,10 @@ async function submitAuth() {
     if (authMode.value === 'register' && registerStep.value === 'form') {
       await sendRegisterCode()
       return
+    }
+
+    if (authMode.value === 'login' && import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken.value) {
+      throw new Error(t('captchaRequired'))
     }
 
     const payload = authMode.value === 'login'
