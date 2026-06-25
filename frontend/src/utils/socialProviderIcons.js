@@ -51,7 +51,13 @@ export function isSocialNetwork(network) {
 export function socialAvatarUrl(network) {
   const key = normalizeNetworkKey(network)
   if (!isSocialNetwork(key)) return ''
-  return `data:image/svg+xml,${encodeURIComponent(socialProviderIcons[key])}`
+  let svg = socialProviderIcons[key]
+  // The inline icons omit the SVG namespace (fine for v-html, but a standalone
+  // <img src="data:image/svg+xml"> document fails to render without it).
+  if (!svg.includes('xmlns=')) {
+    svg = svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')
+  }
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`
 }
 
 export function socialProviderIcon(id) {

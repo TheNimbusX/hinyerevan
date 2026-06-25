@@ -323,13 +323,13 @@ export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
 }
 
 /**
- * Avatar for a user object. For accounts that signed in through a social
- * network we always show that network's brand logo (the boss wants the
- * social-network logo instead of a profile picture). Everyone else falls
- * back to their stored photo / default avatar.
+ * Avatar for a user object. If the user has their own photo we show it.
+ * Otherwise, for accounts that signed in through a social network we show that
+ * network's brand logo; everyone else gets the default fallback avatar.
  */
 export function avatarForUser(user, fallback = '/Logo2026.png') {
-  const logo = socialAvatarUrl(user?.network)
-  if (logo) return logo
-  return safeAvatarUrl(user?.photo, fallback)
+  const NO_PHOTO = '\u0000no-photo'
+  const own = safeAvatarUrl(user?.photo, NO_PHOTO)
+  if (own !== NO_PHOTO) return own
+  return socialAvatarUrl(user?.network) || fallback
 }
