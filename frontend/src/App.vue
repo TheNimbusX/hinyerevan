@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { removeStuckUiOverlays, isInAppBrowser } from './utils/overlayCleanup'
 import { api, apiUrl, getToken, safeAvatarUrl, setToken } from './api'
 import { getUiLanguage } from './utils/browserTranslate'
+import { formatAuthError } from './utils/authErrors'
 import { useI18n } from './i18n'
 import siteLogo from './assets/logos/Logo2026.png'
 import { socialProviderIcon } from './utils/socialProviderIcons'
@@ -248,10 +249,7 @@ async function submitForgotPassword() {
     })
     forgotMessage.value = payload?.message || t('forgotPasswordSent')
   } catch (event) {
-    authError.value =
-      event?.name === 'AbortError' || event?.message === 'Request timed out'
-        ? t('forgotPasswordError')
-        : event?.message || t('forgotPasswordError')
+    authError.value = formatAuthError(event, t)
     recaptchaField.value?.reset()
   } finally {
     forgotLoading.value = false
@@ -298,6 +296,7 @@ async function submitAuth() {
             login: authForm.value.login,
             password: authForm.value.password,
             recaptcha_token: recaptchaToken.value,
+            lang: getUiLanguage(),
           },
         })
       : await confirmRegister()
@@ -314,7 +313,7 @@ async function submitAuth() {
       await router.push(next)
     }
   } catch (event) {
-    authError.value = event.message
+    authError.value = formatAuthError(event, t)
     recaptchaField.value?.reset()
   }
 }

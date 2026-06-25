@@ -229,16 +229,41 @@ export async function api(path, options = {}) {
   if (!response.ok) {
     // Laravel validation: { message, errors: { field: [messages...] } }
     let message = payload?.message || 'Request failed'
-    if (payload && typeof payload === 'object' && payload.errors && typeof payload.errors === 'object') {
-      const firstField = Object.keys(payload.errors)[0]
-      const firstMessage = firstField ? payload.errors[firstField]?.[0] : null
-      if (typeof firstMessage === 'string' && firstMessage.trim() !== '') {
-        message = firstMessage
+    const errors = payload?.errors && typeof payload.errors === 'object' ? payload.errors : null
+    if (errors) {
+      const fieldPriority = [
+        'login',
+        'password',
+        'uid',
+        'email',
+        'code',
+        'recaptcha_token',
+        'first_name',
+        'last_name',
+        'password_confirmation',
+        'current_password',
+      ]
+      let picked = ''
+      for (const field of fieldPriority) {
+        const candidate = errors[field]?.[0]
+        if (typeof candidate === 'string' && candidate.trim() !== '') {
+          picked = candidate.trim()
+          break
+        }
       }
+      if (!picked) {
+        const firstField = Object.keys(errors)[0]
+        const firstMessage = firstField ? errors[firstField]?.[0] : null
+        if (typeof firstMessage === 'string' && firstMessage.trim() !== '') {
+          picked = firstMessage.trim()
+        }
+      }
+      if (picked) message = picked
     }
 
     const err = new Error(message)
     err.status = response.status
+    err.errors = errors
     throw err
   }
 

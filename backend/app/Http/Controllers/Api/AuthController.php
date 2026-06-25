@@ -32,10 +32,15 @@ class AuthController extends Controller
     {
         abort_unless(LegacySchema::usersReady(), 503, 'Legacy users table is not connected yet.');
 
+        UiLocale::apply($request);
+
         $credentials = $request->validate([
             'login' => ['required', 'string'],
             'password' => ['required', 'string'],
             'recaptcha_token' => ['nullable', 'string'],
+        ], [
+            'login.required' => __('auth.login_required'),
+            'password.required' => __('auth.password_required'),
         ]);
 
         $this->verifyRecaptcha((string) ($credentials['recaptcha_token'] ?? ''));
@@ -48,11 +53,11 @@ class AuthController extends Controller
 
         if (! $user || ! $this->passwordMatches($credentials['password'], (string) $user->password)) {
             throw ValidationException::withMessages([
-                'login' => 'Invalid credentials.',
+                'login' => __('auth.invalid_credentials'),
             ]);
         }
 
-        abort_if($user->isBlocked(), 403, 'This account is blocked.');
+        abort_if($user->isBlocked(), 403, __('auth.account_blocked'));
 
         $user->forceFill(['last_ip' => $request->ip()])->save();
 
@@ -79,6 +84,22 @@ class AuthController extends Controller
             'birth_year' => ['nullable', 'integer', 'between:1900,2026'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
             'recaptcha_token' => ['nullable', 'string'],
+        ], [
+            'uid.required' => __('auth.username_required'),
+            'uid.alpha_num' => __('auth.username_invalid'),
+            'uid.min' => __('auth.username_min'),
+            'uid.max' => __('auth.username_max'),
+            'uid.unique' => __('auth.username_taken'),
+            'first_name.required' => __('auth.first_name_required'),
+            'first_name.min' => __('auth.first_name_min'),
+            'last_name.required' => __('auth.last_name_required'),
+            'last_name.min' => __('auth.last_name_min'),
+            'email.required' => __('password.validation_email_required'),
+            'email.email' => __('password.validation_email_invalid'),
+            'email.unique' => __('auth.email_taken'),
+            'password.required' => __('auth.password_required'),
+            'password.min' => __('password.validation_password_min'),
+            'password.confirmed' => __('password.validation_password_confirmed'),
         ]);
 
         if ($request->hasFile('photo')) {
@@ -157,8 +178,14 @@ class AuthController extends Controller
         ) {
             Cache::forget($cacheKey);
 
+            if (User::query()->where('uid', $reg['uid'])->exists()) {
+                throw ValidationException::withMessages([
+                    'uid' => __('auth.username_taken'),
+                ]);
+            }
+
             throw ValidationException::withMessages([
-                'email' => __('register.code_invalid'),
+                'email' => __('auth.email_taken'),
             ]);
         }
 
@@ -271,7 +298,7 @@ class AuthController extends Controller
 
         if (! $this->passwordMatches($data['current_password'], (string) $user->password)) {
             throw ValidationException::withMessages([
-                'current_password' => 'Current password is invalid.',
+                'current_password' => __('auth.current_password_invalid'),
             ]);
         }
 
