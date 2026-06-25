@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { api, safeAvatarUrl, setToken } from '../api'
+import { api, avatarForUser, setToken } from '../api'
 import { useI18n } from '../i18n'
 import { isAdminUser } from '../utils/user'
 import siteLogo from '../assets/logos/Logo2026.png'
@@ -22,7 +22,7 @@ const root = ref(null)
 const showAdminLink = computed(() => isAdminUser(props.user))
 
 function avatarUrl(user) {
-  return safeAvatarUrl(user?.photo, siteLogo)
+  return avatarForUser(user, siteLogo)
 }
 
 function toggle() {

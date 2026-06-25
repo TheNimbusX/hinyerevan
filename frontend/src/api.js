@@ -1,4 +1,5 @@
 import { getUiLanguage } from './utils/browserTranslate'
+import { socialAvatarUrl } from './utils/socialProviderIcons'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api'
 const TOKEN_KEY = 'hinyerevan_token'
@@ -319,4 +320,16 @@ export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
   }
 
   return imageUrl(`/api/photos/file/users/${photo}?w=512&v=2`)
+}
+
+/**
+ * Avatar for a user object. For accounts that signed in through a social
+ * network we always show that network's brand logo (the boss wants the
+ * social-network logo instead of a profile picture). Everyone else falls
+ * back to their stored photo / default avatar.
+ */
+export function avatarForUser(user, fallback = '/Logo2026.png') {
+  const logo = socialAvatarUrl(user?.network)
+  if (logo) return logo
+  return safeAvatarUrl(user?.photo, fallback)
 }

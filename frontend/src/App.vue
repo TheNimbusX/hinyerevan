@@ -68,6 +68,10 @@ const showRegisterPassword = ref(false)
 const showRegisterPasswordConfirm = ref(false)
 const socialProviders = ref([])
 const socialRedirecting = ref(null)
+const socialCaptchaRequired = computed(() => Boolean(import.meta.env.VITE_RECAPTCHA_SITE_KEY))
+const socialLoginDisabled = computed(
+  () => Boolean(socialRedirecting.value) || (socialCaptchaRequired.value && !recaptchaToken.value),
+)
 function providerIcon(id) {
   return socialProviderIcon(id)
 }
@@ -360,6 +364,10 @@ function selectAvatar(event) {
 }
 
 function socialLogin(providerId) {
+  if (socialCaptchaRequired.value && !recaptchaToken.value) {
+    authError.value = t('captchaRequired')
+    return
+  }
   rememberAuthReturn(authRedirect.value)
   socialRedirecting.value = providerId
   window.location.href = apiUrl(`/auth/social/${providerId}/redirect`)
@@ -579,21 +587,37 @@ onBeforeUnmount(() => {
             <button type="button" :class="{ on: authMode === 'register' }" @click="authMode = 'register'">{{ t('register') }}</button>
           </div>
 
-          <div v-if="authMode !== 'forgot' && registerStep === 'form' && socialProviders.length" class="auth-social">
-            <button
-              v-for="provider in socialProviders"
-              :key="provider.id"
-              type="button"
-              class="auth-social__btn"
-              :class="[`auth-social__btn--${provider.id}`, { 'is-loading': socialRedirecting === provider.id }]"
-              :disabled="Boolean(socialRedirecting)"
-              :aria-label="provider.label"
-              @click="socialLogin(provider.id)"
+          <RecaptchaField
+            v-if="needsCaptcha"
+            ref="recaptchaField"
+            v-model:token="recaptchaToken"
+            :active="needsCaptcha"
+            class="auth-captcha-top"
+          />
+
+          <template v-if="authMode !== 'forgot' && registerStep === 'form'">
+            <div v-if="socialProviders.length" class="auth-social">
+              <button
+                v-for="provider in socialProviders"
+                :key="provider.id"
+                type="button"
+                class="auth-social__btn"
+                :class="[`auth-social__btn--${provider.id}`, { 'is-loading': socialRedirecting === provider.id }]"
+                :disabled="socialLoginDisabled"
+                :aria-label="provider.label"
+                @click="socialLogin(provider.id)"
+              >
+                <span class="auth-social__icon" v-html="providerIcon(provider.id)"></span>
+              </button>
+            </div>
+            <p v-else class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
+            <p
+              v-if="socialProviders.length && socialCaptchaRequired && !recaptchaToken"
+              class="auth-social-hint"
             >
-              <span class="auth-social__icon" v-html="providerIcon(provider.id)"></span>
-            </button>
-          </div>
-          <p v-else-if="authMode !== 'forgot' && registerStep === 'form'" class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
+              {{ t('captchaSocialHint') }}
+            </p>
+          </template>
 
           <p v-if="authMode !== 'forgot' && registerStep === 'form' && socialProviders.length" class="auth-divider"><span>{{ t('orContinueWithEmail') }}</span></p>
 
@@ -605,7 +629,6 @@ onBeforeUnmount(() => {
               :disabled="forgotLoading"
               required
             />
-            <RecaptchaField ref="recaptchaField" v-model:token="recaptchaToken" :active="needsCaptcha" />
             <p v-if="forgotMessage" class="success">{{ forgotMessage }}</p>
             <p v-if="authError" class="error">{{ authError }}</p>
             <button class="button" type="submit" :disabled="forgotLoading">
@@ -752,7 +775,6 @@ onBeforeUnmount(() => {
               </label>
               <small class="form-help">{{ t('passwordHelp') }}</small>
             </template>
-            <RecaptchaField ref="recaptchaField" v-model:token="recaptchaToken" :active="needsCaptcha" />
             <button class="button" type="submit">{{ t('continue') }}</button>
             <p v-if="authError" class="error">{{ authError }}</p>
             </template>
@@ -1491,6 +1513,18 @@ html.home-map-page,
   color: $muted;
   font-size: 12px;
   line-height: 1.45;
+  text-align: center;
+}
+
+.auth-captcha-top {
+  margin-bottom: 14px;
+}
+
+.auth-social-hint {
+  margin: -4px 0 14px;
+  color: $muted;
+  font-size: 12px;
+  line-height: 1.4;
   text-align: center;
 }
 

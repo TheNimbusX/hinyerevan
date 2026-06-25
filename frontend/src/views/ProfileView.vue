@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { api, apiUrl, imageUrl, safeAvatarUrl, setToken } from '../api'
+import { api, apiUrl, avatarForUser, imageUrl, setToken } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useI18n } from '../i18n'
 import { formatCommentBody } from '../utils/commentBody'
@@ -100,7 +100,7 @@ const initials = computed(() => {
 })
 
 function avatarFor(u) {
-  return safeAvatarUrl(u?.photo, siteLogo)
+  return avatarForUser(u, siteLogo)
 }
 
 function formatDate(value) {

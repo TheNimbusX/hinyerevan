@@ -28,6 +28,32 @@ export const socialNetworkLabels = {
   hinyerevan: '',
 }
 
+const NETWORK_ICON_ALIASES = {
+  vk: 'vkontakte',
+  ok: 'odnoklassniki',
+  mail: 'mailru',
+  'mail.ru': 'mailru',
+  googleplus: 'google',
+  'google-plus': 'google',
+}
+
+function normalizeNetworkKey(network) {
+  const key = String(network || '').toLowerCase().trim()
+  return NETWORK_ICON_ALIASES[key] || key
+}
+
+export function isSocialNetwork(network) {
+  const key = normalizeNetworkKey(network)
+  return key !== '' && key !== 'hinyerevan' && Boolean(socialProviderIcons[key])
+}
+
+/** Data URI of a social network brand logo, usable directly as an <img src>. */
+export function socialAvatarUrl(network) {
+  const key = normalizeNetworkKey(network)
+  if (!isSocialNetwork(key)) return ''
+  return `data:image/svg+xml,${encodeURIComponent(socialProviderIcons[key])}`
+}
+
 export function socialProviderIcon(id) {
   return socialProviderIcons[id] || ''
 }
