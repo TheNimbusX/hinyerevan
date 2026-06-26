@@ -62,9 +62,8 @@ const DEFAULT_CENTER = [40.179136, 44.511623]
 const DEFAULT_ZOOM = 13
 const earliestAllowedYear = 1500
 const latestAllowedYear = new Date().getFullYear()
-const DEFAULT_UPPER_YEAR = 2000
-const yearRange = ref([earliestAllowedYear, DEFAULT_UPPER_YEAR])
-const activeYearRange = ref([earliestAllowedYear, DEFAULT_UPPER_YEAR])
+const yearRange = ref([earliestAllowedYear, latestAllowedYear])
+const activeYearRange = ref([earliestAllowedYear, latestAllowedYear])
 const rangeTouched = ref(false)
 const loadError = ref('')
 const { t, currentLanguage } = useI18n()
@@ -332,7 +331,7 @@ function applyMarkerYearBounds(forceReset = false) {
 
   if (forceReset || !rangeTouched.value) {
     rangeTouched.value = false
-    setYearRange(nextMin, Math.min(nextMax, DEFAULT_UPPER_YEAR), false)
+    setYearRange(nextMin, nextMax, false)
     applyYearRangeNow()
     return
   }
@@ -897,9 +896,9 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <span class="year-filter-values">
-      <strong>{{ yearRange[0] <= minYear ? '——' : yearRange[0] }}</strong>
+      <strong>{{ loading ? '——' : yearRange[0] }}</strong>
       <em>—</em>
-      <strong>{{ yearRange[1] }}</strong>
+      <strong>{{ loading ? '——' : yearRange[1] }}</strong>
     </span>
   </section>
 
