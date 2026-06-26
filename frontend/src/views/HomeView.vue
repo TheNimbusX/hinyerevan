@@ -8,6 +8,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import Slider from '@vueform/slider'
 import '@vueform/slider/themes/default.css'
 import { api, avatarForUser, cachedApi, imageUrl, localizedApi, safeAvatarUrl } from '../api'
+import { useMapReset } from '../composables/useMapReset'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
@@ -65,6 +66,7 @@ const latestAllowedYear = new Date().getFullYear()
 const yearRange = ref([earliestAllowedYear, latestAllowedYear])
 const activeYearRange = ref([earliestAllowedYear, latestAllowedYear])
 const rangeTouched = ref(false)
+const { resetSignal } = useMapReset()
 const loadError = ref('')
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
@@ -754,14 +756,16 @@ watch(yearBounds, () => {
   applyMarkerYearBounds(false)
 })
 
-watch(() => route.query.map_reset, (val) => {
-  if (!val) return
-  // Clear the reset param without triggering filter watchers
-  router.replace({ path: '/', query: {} })
-  // Reset year range
+watch(resetSignal, (val) => {
+  if (!val) return // skip initial value 0
+  // Clear any active URL filters
+  if (Object.keys(route.query).length > 0) {
+    router.replace({ path: '/', query: {} })
+  }
+  // Reset year range to data bounds
   rangeTouched.value = false
   applyMarkerYearBounds(true)
-  // Reset map view to initial position
+  // Return map to starting position
   if (map) map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
 })
 

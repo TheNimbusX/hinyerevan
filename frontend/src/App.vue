@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { removeStuckUiOverlays, isInAppBrowser } from './utils/overlayCleanup'
+import { useMapReset } from './composables/useMapReset'
 import { api, apiUrl, getToken, safeAvatarUrl, setToken } from './api'
 import { getUiLanguage } from './utils/browserTranslate'
 import { formatAuthError } from './utils/authErrors'
@@ -82,6 +83,7 @@ function providerIcon(id) {
 const router = useRouter()
 const route = useRoute()
 const isHomeMap = computed(() => route.path === '/')
+const { triggerReset } = useMapReset()
 const { t, currentLanguage } = useI18n()
 const photosPublishedCount = ref(null)
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
@@ -191,8 +193,7 @@ function closeMenu() {
 function handleBrandClick() {
   closeMenu()
   if (route.path === '/') {
-    // Signal HomeView to reset map + filters to initial state
-    router.push({ path: '/', query: { map_reset: Date.now() } })
+    triggerReset()
   } else {
     router.push('/')
   }
