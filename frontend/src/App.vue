@@ -530,13 +530,13 @@ onBeforeUnmount(() => {
   <div v-else class="app-shell" :class="{ 'app-shell--home-map': isHomeMap }">
     <header class="site-header notranslate">
       <div class="site-header-inner">
-        <a class="brand" href="/" @click.prevent="handleBrandClick">
+        <button type="button" class="brand" @click="handleBrandClick">
           <img class="brand-logo" :src="siteLogo" alt="HinYerevan" />
           <span class="brand-text">
             <strong>HinYerevan<em>.com</em></strong>
             <small>{{ t('tagline') }}</small>
           </span>
-        </a>
+        </button>
 
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
@@ -963,8 +963,12 @@ $home-sidebar-w: 320px;
   gap: 12px;
   flex-shrink: 0;
   min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: $ink;
   text-decoration: none;
+  cursor: pointer;
   @include interactive((transform, opacity));
 
   &:hover {
