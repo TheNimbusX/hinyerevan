@@ -62,8 +62,9 @@ const DEFAULT_CENTER = [40.179136, 44.511623]
 const DEFAULT_ZOOM = 13
 const earliestAllowedYear = 1500
 const latestAllowedYear = new Date().getFullYear()
-const yearRange = ref([earliestAllowedYear, latestAllowedYear])
-const activeYearRange = ref([earliestAllowedYear, latestAllowedYear])
+const DEFAULT_UPPER_YEAR = 2000
+const yearRange = ref([earliestAllowedYear, DEFAULT_UPPER_YEAR])
+const activeYearRange = ref([earliestAllowedYear, DEFAULT_UPPER_YEAR])
 const rangeTouched = ref(false)
 const loadError = ref('')
 const { t, currentLanguage } = useI18n()
@@ -331,7 +332,7 @@ function applyMarkerYearBounds(forceReset = false) {
 
   if (forceReset || !rangeTouched.value) {
     rangeTouched.value = false
-    setYearRange(nextMin, nextMax, false)
+    setYearRange(nextMin, Math.min(nextMax, DEFAULT_UPPER_YEAR), false)
     applyYearRangeNow()
     return
   }
@@ -591,7 +592,7 @@ async function loadSecondaryContent() {
     // Loaded separately so a failure here never blocks the map markers.
     const [ratingData, photoData] = await Promise.allSettled([
       cachedApi('/ratings'),
-      cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`),
+      cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`, { ttl: 5 * 60 * 1000 }),
     ])
     if (ratingData.status === 'fulfilled') ratings.value = ratingData.value
     if (photoData.status === 'fulfilled') photos.value = photoData.value.data || []
@@ -609,7 +610,7 @@ useLocalizedReady(async ({ path }) => {
     return
   }
   if (path === `/photos?per_page=${LATEST_PHOTOS_LIMIT}`) {
-    const photoData = await cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`)
+    const photoData = await cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`, { ttl: 5 * 60 * 1000 })
     photos.value = photoData?.data || []
   }
 })
@@ -896,7 +897,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <span class="year-filter-values">
-      <strong>{{ yearRange[0] }}</strong>
+      <strong>{{ yearRange[0] <= minYear ? '——' : yearRange[0] }}</strong>
       <em>—</em>
       <strong>{{ yearRange[1] }}</strong>
     </span>

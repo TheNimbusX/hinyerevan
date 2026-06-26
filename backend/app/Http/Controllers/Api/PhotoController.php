@@ -49,6 +49,31 @@ class PhotoController extends Controller
             return $payload;
         }
 
+        $perPage = min((int) $request->integer('per_page', 20), 60);
+        $isSimpleLatest = $perPage <= 10
+            && ! $request->filled('user')
+            && ! $request->filled('year_from')
+            && ! $request->filled('year_to')
+            && ! $request->filled('search')
+            && ! $request->filled('direction')
+            && ! $request->boolean('winter')
+            && ! $request->query('media');
+
+        if ($isSimpleLatest) {
+            $cacheKey = "photos:latest:{$perPage}:{$lang}";
+            $cached = Cache::remember($cacheKey, now()->addMinutes(5), function () use ($perPage, $lang) {
+                return Photo::query()
+                    ->with(['author:id,unique,uid,first_name,last_name,photo,identity', 'viewCounter'])
+                    ->withCount(['comments', 'favorites as likes_count'])
+                    ->published()
+                    ->latest('id')
+                    ->paginate($perPage)
+                    ->through(fn (Photo $photo) => $this->serialize($photo, false, $lang));
+            });
+
+            return $cached;
+        }
+
         $photos = Photo::query()
             ->with(['author:id,unique,uid,first_name,last_name,photo,identity', 'viewCounter'])
             ->withCount(['comments', 'favorites as likes_count'])
@@ -62,7 +87,7 @@ class PhotoController extends Controller
             ->when($request->query('media') === 'video', fn ($query) => $query->whereNotNull('video')->where('video', '!=', ''))
             ->when($request->query('media') === 'photo', fn ($query) => $query->where(fn ($q) => $q->whereNull('video')->orWhere('video', '')))
             ->latest('id')
-            ->paginate(min((int) $request->integer('per_page', 20), 60));
+            ->paginate($perPage);
 
         return $photos->through(fn (Photo $photo) => $this->serialize($photo, false, $lang));
     }

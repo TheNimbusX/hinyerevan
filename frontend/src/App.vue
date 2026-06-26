@@ -587,7 +587,7 @@ onBeforeUnmount(() => {
           </div>
 
           <RecaptchaField
-            v-if="needsCaptcha"
+            v-if="needsCaptcha && authMode !== 'register'"
             ref="recaptchaField"
             v-model:token="recaptchaToken"
             :active="needsCaptcha"
@@ -653,7 +653,9 @@ onBeforeUnmount(() => {
                   required
                 />
               </label>
-              <small class="form-help">{{ t('registerResendHint') }}</small>
+              <button class="link-button auth-resend-btn" type="button" @click="backToRegisterForm">
+                {{ t('registerResendHint') }} {{ t('resendCodeBtn') }}
+              </button>
               <button class="button" type="submit">{{ t('registerConfirm') }}</button>
               <button class="link-button auth-forgot-back" type="button" @click="backToRegisterForm">
                 {{ t('backToLogin') }}
@@ -774,6 +776,13 @@ onBeforeUnmount(() => {
               </label>
               <small class="form-help">{{ t('passwordHelp') }}</small>
             </template>
+            <RecaptchaField
+              v-if="needsCaptcha && authMode === 'register'"
+              ref="recaptchaField"
+              v-model:token="recaptchaToken"
+              :active="needsCaptcha"
+              class="auth-captcha-bottom"
+            />
             <button class="button" type="submit">{{ t('continue') }}</button>
             <p v-if="authError" class="error">{{ authError }}</p>
             </template>

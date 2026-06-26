@@ -287,7 +287,7 @@ onBeforeUnmount(() => {
           </div>
           <label>
             <span>{{ t('year') }}</span>
-            <input v-model="form.year" inputmode="numeric" :placeholder="t('year')" required />
+            <input v-model="form.year" type="number" min="1800" max="2000" :placeholder="t('year')" required />
           </label>
           <div class="media-tabs" role="tablist">
             <button
