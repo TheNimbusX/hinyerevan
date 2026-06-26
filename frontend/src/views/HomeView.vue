@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -8,7 +8,6 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import Slider from '@vueform/slider'
 import '@vueform/slider/themes/default.css'
 import { api, avatarForUser, cachedApi, imageUrl, localizedApi, safeAvatarUrl } from '../api'
-import { useMapReset } from '../composables/useMapReset'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
@@ -66,7 +65,7 @@ const latestAllowedYear = new Date().getFullYear()
 const yearRange = ref([earliestAllowedYear, latestAllowedYear])
 const activeYearRange = ref([earliestAllowedYear, latestAllowedYear])
 const rangeTouched = ref(false)
-const { resetSignal } = useMapReset()
+const mapResetSignal = inject('mapResetSignal', ref(0))
 const loadError = ref('')
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
@@ -756,7 +755,7 @@ watch(yearBounds, () => {
   applyMarkerYearBounds(false)
 })
 
-watch(resetSignal, (val) => {
+watch(mapResetSignal, (val) => {
   if (!val) return // skip initial value 0
   // Clear any active URL filters
   if (Object.keys(route.query).length > 0) {
