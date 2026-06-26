@@ -445,6 +445,7 @@ onBeforeUnmount(() => {
 
   h1 {
     margin-bottom: 6px;
+    font-size: clamp(24px, 3.2vw, 36px);
   }
 
   .muted {
