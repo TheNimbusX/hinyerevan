@@ -191,7 +191,8 @@ function closeMenu() {
 function handleBrandClick() {
   closeMenu()
   if (route.path === '/') {
-    window.location.reload()
+    // Signal HomeView to reset map + filters to initial state
+    router.push({ path: '/', query: { map_reset: Date.now() } })
   } else {
     router.push('/')
   }
@@ -528,13 +529,13 @@ onBeforeUnmount(() => {
   <div v-else class="app-shell" :class="{ 'app-shell--home-map': isHomeMap }">
     <header class="site-header notranslate">
       <div class="site-header-inner">
-        <RouterLink class="brand" to="/" @click.prevent="handleBrandClick">
+        <a class="brand" href="/" @click.prevent="handleBrandClick">
           <img class="brand-logo" :src="siteLogo" alt="HinYerevan" />
           <span class="brand-text">
             <strong>HinYerevan<em>.com</em></strong>
             <small>{{ t('tagline') }}</small>
           </span>
-        </RouterLink>
+        </a>
 
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
@@ -1044,7 +1045,7 @@ $home-sidebar-w: 320px;
   a {
     position: relative;
     flex-shrink: 0;
-    padding: 8px 10px;
+    padding: 8px 12px;
     color: $muted;
     font-size: 11px;
     font-weight: 500;
@@ -1053,10 +1054,6 @@ $home-sidebar-w: 320px;
     white-space: nowrap;
     @include interactive((color, background));
 
-    @media (min-width: #{$bp-md + 1}) and (max-width: 1340px) {
-      padding: 6px 7px;
-      font-size: 10.5px;
-    }
 
     &:hover {
       color: $ink;
@@ -1085,10 +1082,6 @@ $home-sidebar-w: 320px;
 
 .main-nav-link--photos {
   font-size: 13px !important;
-
-  @media (min-width: #{$bp-md + 1}) and (max-width: 1340px) {
-    font-size: 11.5px !important;
-  }
 }
 
 .header-tools {
@@ -1155,7 +1148,7 @@ html.home-map-page,
     }
   }
 
-  @container site-header (max-width: 880px) {
+  @container site-header (max-width: 1380px) {
     .header-tools-primary {
       display: none;
     }
@@ -1163,7 +1156,9 @@ html.home-map-page,
     .header-tools-menu {
       display: block;
     }
+  }
 
+  @container site-header (max-width: 880px) {
     .main-nav {
       gap: 2px;
     }

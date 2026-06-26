@@ -754,6 +754,17 @@ watch(yearBounds, () => {
   applyMarkerYearBounds(false)
 })
 
+watch(() => route.query.map_reset, (val) => {
+  if (!val) return
+  // Clear the reset param without triggering filter watchers
+  router.replace({ path: '/', query: {} })
+  // Reset year range
+  rangeTouched.value = false
+  applyMarkerYearBounds(true)
+  // Reset map view to initial position
+  if (map) map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
+})
+
 watch(activePhotoId, (newId, oldId) => {
   deactivateMarker(oldId)
   activateMarker(newId)
