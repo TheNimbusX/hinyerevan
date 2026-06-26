@@ -244,43 +244,47 @@ onBeforeUnmount(() => {
             <span>{{ t('title') }}</span>
             <input v-model="form.title" :placeholder="t('title')" required />
           </label>
-          <div class="upload-map-shell">
-            <div ref="uploadMapElement" class="upload-map"></div>
-            <button
-              type="button"
-              class="upload-map-recenter"
-              :aria-label="t('mapRecenterYerevan')"
-              :title="t('mapRecenterYerevan')"
-              @click="centerMapOnYerevan"
-            >
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
-                <path
-                  d="M12 2v4M12 18v4M2 12h4M18 12h4"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  stroke-linecap="round"
-                />
-              </svg>
-              <span>{{ t('mapRecenterYerevan') }}</span>
-            </button>
-            <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
+          <div class="upload-map-row">
+            <div class="upload-map-shell">
+              <div ref="uploadMapElement" class="upload-map"></div>
+              <button
+                type="button"
+                class="upload-map-recenter"
+                :aria-label="t('mapRecenterYerevan')"
+                :title="t('mapRecenterYerevan')"
+                @click="centerMapOnYerevan"
+              >
+                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                  <path
+                    d="M12 2v4M12 18v4M2 12h4M18 12h4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                  />
+                </svg>
+                <span>{{ t('mapRecenterYerevan') }}</span>
+              </button>
+              <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
+            </div>
+            <div class="upload-checks">
+              <label class="check-line review-check">
+                <input v-model="form.needs_location_review" type="checkbox" />
+                <span>
+                  {{ t('needsLocationReview') }}
+                  <small>{{ t('needsLocationReviewHelp') }}</small>
+                </span>
+              </label>
+              <label class="check-line review-check">
+                <input v-model="form.is_winter" type="checkbox" />
+                <span>
+                  {{ t('winterPhoto') }}
+                  <small>{{ t('winterPhotoHelp') }}</small>
+                </span>
+              </label>
+            </div>
           </div>
-          <label class="check-line review-check">
-            <input v-model="form.needs_location_review" type="checkbox" />
-            <span>
-              {{ t('needsLocationReview') }}
-              <small>{{ t('needsLocationReviewHelp') }}</small>
-            </span>
-          </label>
-          <label class="check-line review-check">
-            <input v-model="form.is_winter" type="checkbox" />
-            <span>
-              {{ t('winterPhoto') }}
-              <small>{{ t('winterPhotoHelp') }}</small>
-            </span>
-          </label>
           <div class="upload-field">
             <span class="upload-field-label">{{ t('direction') }}</span>
             <DirectionCompassPicker v-model="form.direction" />
@@ -402,12 +406,17 @@ onBeforeUnmount(() => {
 .upload-modal {
   display: flex;
   flex-direction: column;
-  width: min(720px, 100%);
+  width: clamp(480px, 70vw, 900px);
   max-height: calc(100vh - 42px);
   padding: 0;
   overflow: hidden;
 
+  @media (min-width: 1440px) {
+    width: min(720px, 100%);
+  }
+
   @include mq-down($bp-sm) {
+    width: calc(100% - 16px);
     max-height: calc(100vh - 28px);
   }
 }
@@ -471,6 +480,23 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
+.upload-map-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+
+  @include mq-up($bp-sm) {
+    grid-template-columns: 1fr 210px;
+    align-items: start;
+  }
+}
+
+.upload-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .upload-map-shell {
   position: relative;
   overflow: hidden;
@@ -481,6 +507,10 @@ onBeforeUnmount(() => {
 
 .upload-map {
   height: 240px;
+
+  @include mq-up($bp-sm) {
+    height: 280px;
+  }
 }
 
 .upload-map-hint {
@@ -529,27 +559,32 @@ onBeforeUnmount(() => {
 
 .review-check {
   align-items: center;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 10px 12px;
   border: 1px solid rgba($accent, 0.28);
   border-radius: $radius-md;
   background: rgba($accent, 0.06);
 
+  @include mq-up($bp-sm) {
+    padding: 8px 10px;
+  }
+
   input {
     margin-top: 0;
+    flex-shrink: 0;
   }
 
   span {
     display: grid;
-    gap: 3px;
+    gap: 2px;
     color: $ink;
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
   }
 
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 400;
     line-height: 1.35;
   }
