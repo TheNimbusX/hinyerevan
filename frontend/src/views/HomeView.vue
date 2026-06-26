@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -65,7 +65,6 @@ const latestAllowedYear = new Date().getFullYear()
 const yearRange = ref([earliestAllowedYear, latestAllowedYear])
 const activeYearRange = ref([earliestAllowedYear, latestAllowedYear])
 const rangeTouched = ref(false)
-const mapResetSignal = inject('mapResetSignal', ref(0))
 const loadError = ref('')
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
@@ -755,18 +754,6 @@ watch(yearBounds, () => {
   applyMarkerYearBounds(false)
 })
 
-watch(mapResetSignal, (val) => {
-  if (!val) return // skip initial value 0
-  // Clear any active URL filters
-  if (Object.keys(route.query).length > 0) {
-    router.replace({ path: '/', query: {} })
-  }
-  // Reset year range to data bounds
-  rangeTouched.value = false
-  applyMarkerYearBounds(true)
-  // Return map to starting position
-  if (map) map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
-})
 
 watch(activePhotoId, (newId, oldId) => {
   deactivateMarker(oldId)

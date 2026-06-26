@@ -1,10 +1,8 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, provide, ref, watch } from 'vue'
-// map-reset signal is provided to child views via inject; singleton composable
-// alone is unreliable across lazy-loaded chunks (separate module instances)
 import { useRoute, useRouter } from 'vue-router'
 import { removeStuckUiOverlays, isInAppBrowser } from './utils/overlayCleanup'
-import { useMapReset } from './composables/useMapReset'
+import { HOME_MAP_RESTORE_KEY } from './utils/navigationRestore'
 import { api, apiUrl, getToken, safeAvatarUrl, setToken } from './api'
 import { getUiLanguage } from './utils/browserTranslate'
 import { formatAuthError } from './utils/authErrors'
@@ -85,8 +83,6 @@ function providerIcon(id) {
 const router = useRouter()
 const route = useRoute()
 const isHomeMap = computed(() => route.path === '/')
-const mapResetSignal = ref(0)
-provide('mapResetSignal', mapResetSignal)
 const { t, currentLanguage } = useI18n()
 const photosPublishedCount = ref(null)
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
@@ -195,9 +191,11 @@ function closeMenu() {
 
 function handleBrandClick() {
   closeMenu()
-  mapResetSignal.value++
-  if (route.path !== '/') {
-    router.push('/')
+  sessionStorage.removeItem(HOME_MAP_RESTORE_KEY)
+  if (route.path === '/') {
+    window.location.reload()
+  } else {
+    window.location.href = '/'
   }
 }
 
