@@ -569,9 +569,8 @@ class AuthController extends Controller
 
         $user = $request->user();
         $fileId = $storage->storeUserPhoto($request->file('photo'), config('app.key'));
-        $user->forceFill([
-            'photo' => 'http://www.hinyerevan.com/photos/users/' . $fileId,
-        ])->save();
+        // Store just the fileId (normalized format); frontend resolves via /api/photos/file/users/{id}
+        $user->forceFill(['photo' => $fileId])->save();
 
         return $this->serializeUser($user);
     }

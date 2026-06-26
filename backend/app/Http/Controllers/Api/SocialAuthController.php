@@ -261,7 +261,8 @@ class SocialAuthController extends Controller
             $networks = $this->socialAuth->networkCandidates($provider);
 
             if (in_array($net, $networks, true) && (string) $existing->uid === $providerId) {
-                return $this->socialAuth->touchExisting($existing, $email, $avatar, true);
+                // refreshAvatar=false: don't overwrite a user-uploaded photo on every OAuth login
+                return $this->socialAuth->touchExisting($existing, $email, $avatar, false);
             }
 
             if ($net === 'hinyerevan' || $net === '') {

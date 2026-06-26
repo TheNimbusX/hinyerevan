@@ -158,7 +158,8 @@ class SocialAuthService
             $networks = $this->networkCandidates($network);
 
             if (in_array($existingNet, $networks, true) && (string) $user->uid === $uid) {
-                return $this->touchExisting($user, $email ?: null, $photo ? (string) $photo : null, true);
+                // refreshAvatar=false: don't overwrite a user-uploaded photo on every login
+                return $this->touchExisting($user, $email ?: null, $photo ? (string) $photo : null, false);
             }
 
             if ($existingNet === 'hinyerevan' || $existingNet === '') {
@@ -223,6 +224,7 @@ class SocialAuthService
             return true;
         }
 
+        // Only refresh when the user still has the default placeholder
         return str_contains($photo, '/user.png');
     }
 

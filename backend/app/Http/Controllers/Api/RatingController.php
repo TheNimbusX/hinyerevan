@@ -97,7 +97,7 @@ class RatingController extends Controller
                     ->groupBy('users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo')
                     ->orderByDesc('photos_count')
                     ->limit(10)
-                    ->get(['users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo', DB::raw('COUNT(photos.id) as photos_count')])
+                    ->get(['users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo', 'users.network', DB::raw('COUNT(photos.id) as photos_count')])
                 : [],
             'users_by_comments' => LegacySchema::usersReady() && LegacySchema::commentsReady()
                 ? DB::table('users')
@@ -106,10 +106,10 @@ class RatingController extends Controller
                             ->where('comments.id', '>', 0);
                     })
                     ->where('users.id', '>', 0)
-                    ->groupBy('users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo')
+                    ->groupBy('users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo', 'users.network')
                     ->orderByDesc('comments_count')
                     ->limit(10)
-                    ->get(['users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo', DB::raw('COUNT(comments.id) as comments_count')])
+                    ->get(['users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo', 'users.network', DB::raw('COUNT(comments.id) as comments_count')])
                 : [],
         ];
     }

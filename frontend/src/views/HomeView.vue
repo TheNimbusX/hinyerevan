@@ -7,7 +7,7 @@ import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import Slider from '@vueform/slider'
 import '@vueform/slider/themes/default.css'
-import { api, cachedApi, imageUrl, localizedApi, safeAvatarUrl } from '../api'
+import { api, avatarForUser, cachedApi, imageUrl, localizedApi, safeAvatarUrl } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
@@ -329,17 +329,14 @@ function activateMarker(id) {
   const entry = markerRegistry.get(Number(id))
   if (!entry) return
   entry.layer.setIcon(getActiveIconForEntry(entry))
-  // Pan so selected point appears center-right of viewport (leaving room for the sheet on the left)
+  // Pan so selected point appears in the right portion of viewport (sheet occupies the left)
   if (map) {
     const size = map.getSize()
-    const offset = Math.round(size.x * 0.28)
-    map.panTo([entry.data.lat, entry.data.lng], { animate: true })
-    // After pan completes, shift left so marker is in the right portion
-    setTimeout(() => {
-      if (map && activePhotoId.value === Number(id)) {
-        map.panBy([-offset, 0], { animate: true })
-      }
-    }, 350)
+    // On large screens the sheet is ~960px wide shifted left; put marker in center of remaining right area
+    const offsetX = size.x >= 1100 ? Math.round(size.x * 0.38) : 0
+    const targetPx = map.project([entry.data.lat, entry.data.lng], map.getZoom())
+    const newCenterPx = targetPx.subtract([offsetX, 0])
+    map.panTo(map.unproject(newCenterPx, map.getZoom()), { animate: true })
   }
 }
 
@@ -384,7 +381,7 @@ function setYearRange(from, to, markTouched = true) {
 }
 
 function userAvatarUrl(user) {
-  return safeAvatarUrl(user?.photo)
+  return avatarForUser(user)
 }
 
 function createLeafletMarker(data) {
