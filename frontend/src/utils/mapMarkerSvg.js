@@ -66,4 +66,9 @@ export function clusterMarkerHtml(count) {
   return `<div class="map-cluster-pin" style="width:${size}px;height:${size}px;font-size:${fontSize}px;${CLUSTER_STYLE}" aria-label="${label}"><span style="text-shadow:0 1px 1px rgba(0,0,0,0.28)">${label}</span></div>`
 }
 
+export function videoMarkerSvg(size = 28, options = {}) {
+  const { fill = '#ff910f' } = options
+  return `<svg xmlns="http://www.w3.org/2000/svg" class="map-pin-svg" viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="${fill}" stroke="#fff" stroke-width="2.5"/><path fill="#fff" d="M20 15l15 9-15 9z"/></svg>`
+}
+
 export { DIRECTION_ANGLES }

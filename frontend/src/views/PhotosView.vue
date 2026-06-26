@@ -461,7 +461,6 @@ onBeforeUnmount(() => {
             <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
               <WinterBadgeIcon size="sm" />
             </span>
-            <DirectionMarker :direction="photo.direction" :label="directionLabel(photo.direction, t)" size="small" />
           </div>
           <h3>{{ photo.title }}</h3>
           <small>{{ directionLabel(photo.direction, t) }}</small>

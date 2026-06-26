@@ -318,7 +318,8 @@ watch([theme, currentLanguage], () => {
 .photo-mini-map-shell {
   position: relative;
   width: 100%;
-  min-height: 260px;
+  min-height: 200px;
+  height: 100%;
 }
 
 .photo-mini-map-skeleton {
@@ -337,7 +338,8 @@ watch([theme, currentLanguage], () => {
 
 .photo-mini-map {
   width: 100%;
-  min-height: 260px;
+  height: 100%;
+  min-height: 200px;
   border-radius: $radius-xl - 4;
   overflow: hidden;
   background: #e8eef5;
@@ -346,7 +348,7 @@ watch([theme, currentLanguage], () => {
   .leaflet-container {
     width: 100%;
     height: 100%;
-    min-height: 260px;
+    min-height: 200px;
     font-family: inherit;
   }
 

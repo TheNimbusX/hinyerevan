@@ -515,7 +515,6 @@ watch(isAuthenticated, () => {
 
       <article class="panel">
         <h2>{{ t('location') }}</h2>
-        <p class="location-coords">{{ formatCoords(photo.lat, photo.lng) }}</p>
         <PhotoMiniMap
           v-if="hasMapCoords"
           :key="photo.id"
@@ -889,9 +888,21 @@ watch(isAuthenticated, () => {
 
 // ---------- Side column ----------------------------------------
 .detail-side {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: 18px;
-  align-content: start;
+
+  > .panel:last-child {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+
+    .mini-map {
+      flex: 1;
+      min-height: 0;
+    }
+  }
 }
 
 .author-card {

@@ -597,6 +597,11 @@ onBeforeUnmount(() => {
   box-shadow: 0 -24px 60px rgba(8, 18, 45, 0.28);
   overflow: hidden;
 
+  @include mq-up($bp-lg) {
+    // Shift sheet left so selected marker is visible to the right
+    transform: translateX(calc(-50% - 8vw));
+  }
+
   @include mq-down($bp-md) {
     width: 100%;
     height: 84vh;
@@ -837,5 +842,9 @@ onBeforeUnmount(() => {
 .sheet-slide-enter-from,
 .sheet-slide-leave-to {
   transform: translateX(-50%) translateY(100%);
+
+  @include mq-up($bp-lg) {
+    transform: translateX(calc(-50% - 8vw)) translateY(100%);
+  }
 }
 </style>

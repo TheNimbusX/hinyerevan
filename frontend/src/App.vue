@@ -188,6 +188,15 @@ function closeMenu() {
   document.querySelectorAll('.mobile-menu-backdrop').forEach((node) => node.remove())
 }
 
+function handleBrandClick() {
+  closeMenu()
+  if (route.path === '/') {
+    window.location.reload()
+  } else {
+    router.push('/')
+  }
+}
+
 function resetUiOverlays() {
   menuOpen.value = false
   removeStuckUiOverlays()
@@ -519,7 +528,7 @@ onBeforeUnmount(() => {
   <div v-else class="app-shell" :class="{ 'app-shell--home-map': isHomeMap }">
     <header class="site-header notranslate">
       <div class="site-header-inner">
-        <RouterLink class="brand" to="/" @click="closeMenu">
+        <RouterLink class="brand" to="/" @click.prevent="handleBrandClick">
           <img class="brand-logo" :src="siteLogo" alt="HinYerevan" />
           <span class="brand-text">
             <strong>HinYerevan<em>.com</em></strong>
@@ -1035,7 +1044,7 @@ $home-sidebar-w: 320px;
   a {
     position: relative;
     flex-shrink: 0;
-    padding: 8px 12px;
+    padding: 8px 10px;
     color: $muted;
     font-size: 11px;
     font-weight: 500;
@@ -1043,6 +1052,11 @@ $home-sidebar-w: 320px;
     border-radius: $radius-pill;
     white-space: nowrap;
     @include interactive((color, background));
+
+    @media (min-width: #{$bp-md + 1}) and (max-width: 1340px) {
+      padding: 6px 7px;
+      font-size: 10.5px;
+    }
 
     &:hover {
       color: $ink;
@@ -1066,6 +1080,14 @@ $home-sidebar-w: 320px;
     }
 
     @include focus-ring(rgba($primary, 0.4), 2px);
+  }
+}
+
+.main-nav-link--photos {
+  font-size: 13px !important;
+
+  @media (min-width: #{$bp-md + 1}) and (max-width: 1340px) {
+    font-size: 11.5px !important;
   }
 }
 

@@ -1,5 +1,5 @@
 import L from 'leaflet'
-import { clusterMarkerHtml, clusterMarkerMetrics, directionMarkerSvg } from './mapMarkerSvg'
+import { clusterMarkerHtml, clusterMarkerMetrics, directionMarkerSvg, videoMarkerSvg } from './mapMarkerSvg'
 
 const DIRECTIONS = [0, 1, 2, 3, 4, 5, 6, 7, 8]
 const PIN_SIZE = 28
@@ -11,10 +11,17 @@ let directionIcons = {}
 /** @type {Map<number, L.DivIcon>} */
 const clusterIcons = new Map()
 
-/** @type {Record<number, L.Icon>} */
+/** @type {Record<number, L.DivIcon>} */
 let activeDirectionIcons = {}
 
+/** @type {L.Icon|null} */
+let videoIcon = null
+
+/** @type {L.DivIcon|null} */
+let activeVideoIcon = null
+
 const ACTIVE_PIN_FILL = '#e53935'
+const ACTIVE_RING_SIZE = PIN_SIZE + 18
 
 function svgDataUri(direction, options = {}) {
   // Image-based icons (vs inline-SVG divIcons) let the browser decode each of
@@ -30,6 +37,9 @@ function svgDataUri(direction, options = {}) {
 
 export function initMapMarkerIcons() {
   directionIcons = {}
+  activeDirectionIcons = {}
+  videoIcon = null
+  activeVideoIcon = null
   clusterIcons.clear()
   for (const direction of DIRECTIONS) {
     directionIcons[direction] = L.icon({
@@ -51,17 +61,44 @@ export function getDirectionIcon(direction) {
 export function getActiveDirectionIcon(direction) {
   if (!activeDirectionIcons[1]) {
     for (const dir of DIRECTIONS) {
-      activeDirectionIcons[dir] = L.icon({
+      const imgUri = svgDataUri(dir, { fill: ACTIVE_PIN_FILL, centerFill: ACTIVE_PIN_FILL })
+      activeDirectionIcons[dir] = L.divIcon({
         className: 'camera-direction-icon camera-direction-icon--active',
-        iconUrl: svgDataUri(dir, { fill: ACTIVE_PIN_FILL, centerFill: ACTIVE_PIN_FILL }),
-        iconSize: [PIN_SIZE, PIN_SIZE],
-        iconAnchor: [PIN_ANCHOR, PIN_ANCHOR],
+        html: `<span class="marker-active-ring"></span><img src="${imgUri}" width="${PIN_SIZE}" height="${PIN_SIZE}" alt="" style="position:relative;z-index:1">`,
+        iconSize: [ACTIVE_RING_SIZE, ACTIVE_RING_SIZE],
+        iconAnchor: [ACTIVE_RING_SIZE / 2, ACTIVE_RING_SIZE / 2],
       })
     }
   }
   const key = Number(direction)
   if (Number.isFinite(key) && activeDirectionIcons[key]) return activeDirectionIcons[key]
   return activeDirectionIcons[1]
+}
+
+export function getVideoIcon() {
+  if (!videoIcon) {
+    const uri = `data:image/svg+xml,${encodeURIComponent(videoMarkerSvg(PIN_SIZE))}`
+    videoIcon = L.icon({
+      className: 'camera-direction-icon camera-direction-icon--video',
+      iconUrl: uri,
+      iconSize: [PIN_SIZE, PIN_SIZE],
+      iconAnchor: [PIN_ANCHOR, PIN_ANCHOR],
+    })
+  }
+  return videoIcon
+}
+
+export function getActiveVideoIcon() {
+  if (!activeVideoIcon) {
+    const uri = `data:image/svg+xml,${encodeURIComponent(videoMarkerSvg(PIN_SIZE, { fill: ACTIVE_PIN_FILL }))}`
+    activeVideoIcon = L.divIcon({
+      className: 'camera-direction-icon camera-direction-icon--active camera-direction-icon--video',
+      html: `<span class="marker-active-ring"></span><img src="${uri}" width="${PIN_SIZE}" height="${PIN_SIZE}" alt="" style="position:relative;z-index:1">`,
+      iconSize: [ACTIVE_RING_SIZE, ACTIVE_RING_SIZE],
+      iconAnchor: [ACTIVE_RING_SIZE / 2, ACTIVE_RING_SIZE / 2],
+    })
+  }
+  return activeVideoIcon
 }
 
 export function getClusterIcon(count) {

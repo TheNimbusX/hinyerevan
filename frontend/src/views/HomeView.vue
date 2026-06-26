@@ -13,7 +13,7 @@ import { useLanguageReload, useLocalizedReady } from '../composables/useLanguage
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
-import { createClusterIconFactory, getDirectionIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
+import { createClusterIconFactory, getActiveDirectionIcon, getActiveVideoIcon, getDirectionIcon, getVideoIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import googleLogo from '../assets/logos/google-logo.svg'
 import yandexLogo from '../assets/logos/yandex-logo.svg'
@@ -316,6 +316,39 @@ function applySavedMapView(saved) {
   map.setView([saved.lat, saved.lng], saved.zoom ?? DEFAULT_ZOOM, { animate: false })
 }
 
+function getActiveIconForEntry(entry) {
+  return entry.data.has_video ? getActiveVideoIcon() : getActiveDirectionIcon(entry.data.direction)
+}
+
+function getNormalIconForEntry(entry) {
+  return entry.data.has_video ? getVideoIcon() : getDirectionIcon(entry.data.direction)
+}
+
+function activateMarker(id) {
+  if (id == null) return
+  const entry = markerRegistry.get(Number(id))
+  if (!entry) return
+  entry.layer.setIcon(getActiveIconForEntry(entry))
+  // Pan so selected point appears center-right of viewport (leaving room for the sheet on the left)
+  if (map) {
+    const size = map.getSize()
+    const offset = Math.round(size.x * 0.28)
+    map.panTo([entry.data.lat, entry.data.lng], { animate: true })
+    // After pan completes, shift left so marker is in the right portion
+    setTimeout(() => {
+      if (map && activePhotoId.value === Number(id)) {
+        map.panBy([-offset, 0], { animate: true })
+      }
+    }, 350)
+  }
+}
+
+function deactivateMarker(id) {
+  if (id == null) return
+  const entry = markerRegistry.get(Number(id))
+  if (entry) entry.layer.setIcon(getNormalIconForEntry(entry))
+}
+
 function openPhoto(id) {
   persistHomeMapState()
   activePhotoId.value = Number(id)
@@ -356,7 +389,7 @@ function userAvatarUrl(user) {
 
 function createLeafletMarker(data) {
   const layer = L.marker([data.lat, data.lng], {
-    icon: getDirectionIcon(data.direction),
+    icon: data.has_video ? getVideoIcon() : getDirectionIcon(data.direction),
   })
 
   layer.on('click', () => {
@@ -722,6 +755,11 @@ watch(yearRange, ([from, to]) => {
 })
 watch(yearBounds, () => {
   applyMarkerYearBounds(false)
+})
+
+watch(activePhotoId, (newId, oldId) => {
+  deactivateMarker(oldId)
+  activateMarker(newId)
 })
 
 onBeforeUnmount(() => {
@@ -1866,6 +1904,22 @@ onBeforeUnmount(() => {
 .photo-cluster-icon {
   background: transparent !important;
   border: 0 !important;
+}
+
+.camera-direction-icon--active {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  .marker-active-ring {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(229, 57, 53, 0.22);
+    border: 2px solid rgba(229, 57, 53, 0.45);
+    pointer-events: none;
+  }
 }
 
 .map-pin-svg {
