@@ -65,6 +65,8 @@ const recaptchaField = ref(null)
 const registerStep = ref('form')
 const registerCode = ref('')
 const registerMessage = ref('')
+const resendCooldown = ref(0)
+let resendTimer = null
 const showRegisterPassword = ref(false)
 const showRegisterPasswordConfirm = ref(false)
 const socialProviders = ref([])
@@ -356,6 +358,27 @@ function backToRegisterForm() {
   registerCode.value = ''
   registerMessage.value = ''
   authError.value = ''
+  resendCooldown.value = 0
+  clearInterval(resendTimer)
+}
+
+async function resendRegisterCode() {
+  if (resendCooldown.value > 0) return
+  authError.value = ''
+  try {
+    await sendRegisterCode()
+    resendCooldown.value = 60
+    clearInterval(resendTimer)
+    resendTimer = setInterval(() => {
+      resendCooldown.value--
+      if (resendCooldown.value <= 0) {
+        resendCooldown.value = 0
+        clearInterval(resendTimer)
+      }
+    }, 1000)
+  } catch (err) {
+    authError.value = formatAuthError(err)
+  }
 }
 
 function selectAvatar(event) {
@@ -487,6 +510,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('hinyerevan:open-auth', handleOpenAuth)
   window.removeEventListener('hinyerevan:open-facebook', handleOpenFacebook)
   window.removeEventListener('pageshow', resetUiOverlays)
+  clearInterval(resendTimer)
 })
 </script>
 
@@ -653,8 +677,15 @@ onBeforeUnmount(() => {
                   required
                 />
               </label>
-              <button class="link-button auth-resend-btn" type="button" @click="backToRegisterForm">
-                {{ t('registerResendHint') }} {{ t('resendCodeBtn') }}
+              <button
+                class="link-button auth-resend-btn"
+                type="button"
+                :disabled="resendCooldown > 0"
+                @click="resendRegisterCode"
+              >
+                {{ t('registerResendHint') }}
+                <template v-if="resendCooldown > 0"> {{ t('resendCodeBtn') }} ({{ resendCooldown }})</template>
+                <template v-else> {{ t('resendCodeBtn') }}</template>
               </button>
               <button class="button" type="submit">{{ t('registerConfirm') }}</button>
               <button class="link-button auth-forgot-back" type="button" @click="backToRegisterForm">
