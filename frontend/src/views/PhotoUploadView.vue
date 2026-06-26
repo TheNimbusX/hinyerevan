@@ -244,29 +244,33 @@ onBeforeUnmount(() => {
             <span>{{ t('title') }}</span>
             <input v-model="form.title" :placeholder="t('title')" required />
           </label>
-          <div class="upload-map-row">
-            <div class="upload-map-shell">
-              <div ref="uploadMapElement" class="upload-map"></div>
-              <button
-                type="button"
-                class="upload-map-recenter"
-                :aria-label="t('mapRecenterYerevan')"
-                :title="t('mapRecenterYerevan')"
-                @click="centerMapOnYerevan"
-              >
-                <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-                  <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
-                  <path
-                    d="M12 2v4M12 18v4M2 12h4M18 12h4"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                  />
-                </svg>
-                <span>{{ t('mapRecenterYerevan') }}</span>
-              </button>
-              <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
+          <div class="upload-map-shell">
+            <div ref="uploadMapElement" class="upload-map"></div>
+            <button
+              type="button"
+              class="upload-map-recenter"
+              :aria-label="t('mapRecenterYerevan')"
+              :title="t('mapRecenterYerevan')"
+              @click="centerMapOnYerevan"
+            >
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                <path
+                  d="M12 2v4M12 18v4M2 12h4M18 12h4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+              </svg>
+              <span>{{ t('mapRecenterYerevan') }}</span>
+            </button>
+            <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
+          </div>
+          <div class="upload-meta-row">
+            <div class="upload-field upload-field--direction">
+              <span class="upload-field-label">{{ t('direction') }}</span>
+              <DirectionCompassPicker v-model="form.direction" />
             </div>
             <div class="upload-checks">
               <label class="check-line review-check">
@@ -284,10 +288,6 @@ onBeforeUnmount(() => {
                 </span>
               </label>
             </div>
-          </div>
-          <div class="upload-field">
-            <span class="upload-field-label">{{ t('direction') }}</span>
-            <DirectionCompassPicker v-model="form.direction" />
           </div>
           <label>
             <span>{{ t('year') }}</span>
@@ -480,21 +480,27 @@ onBeforeUnmount(() => {
   font-weight: 500;
 }
 
-.upload-map-row {
+.upload-meta-row {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
 
   @include mq-up($bp-sm) {
-    grid-template-columns: 1fr 210px;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     align-items: start;
+    gap: 12px;
   }
+}
+
+.upload-field--direction {
+  min-width: 0;
 }
 
 .upload-checks {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  min-width: 0;
 }
 
 .upload-map-shell {
@@ -509,7 +515,7 @@ onBeforeUnmount(() => {
   height: 240px;
 
   @include mq-up($bp-sm) {
-    height: 280px;
+    height: 320px;
   }
 }
 
