@@ -22,6 +22,7 @@ import {
   GALLERY_RESTORE_KEY,
   saveScrollRestore,
 } from './utils/navigationRestore'
+import { trackYandexMetrikaPage } from './utils/yandexMetrika'
 
 const routes = [
   { path: '/', name: 'home', component: HomeView, meta: { titleKey: 'pageTitleHome' } },
@@ -118,6 +119,7 @@ router.beforeEach(async (to, from) => {
 
 router.afterEach((to) => {
   applyRouteMeta(to)
+  trackYandexMetrikaPage(to.fullPath)
 })
 
 export default router
