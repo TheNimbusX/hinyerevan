@@ -23,6 +23,9 @@ deploy/.hinyerevan-secrets.env
 /Денису/
 /_check_dns.sh
 
+# --- Photo library (lives on server only, synced/backed up separately) ---
+/legacy/
+
 # --- Misc local junk ---
 /test*.png
 *.log

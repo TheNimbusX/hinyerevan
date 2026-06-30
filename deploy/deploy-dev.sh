@@ -1,6 +1,8 @@
 #!/bin/bash
 set -euo pipefail
 cd /var/www/hinyerevan
+# legacy/ holds all photo files — never stage or stash it.
+git reset HEAD -- legacy 2>/dev/null || true
 # Do NOT use git reset --hard — it wipes hotfixes uploaded via _sync-local-to-vps.ps1.
 # Commit and push local changes first, then deploy; or use deploy/_sync-local-to-vps.ps1.
 git fetch origin dev
