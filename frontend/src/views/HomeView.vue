@@ -146,8 +146,48 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
-// margin: 0 lets both handles land on the same year (single-year selection).
-// Side-by-side look when values coincide is handled in CSS (.year-slider--coincident).
+// Two slots per calendar year so both handles stay visible when the range is a single year.
+const SLOTS_PER_YEAR = 2
+const yearRangeSlots = ref([0, 1])
+let suppressNextSlotWatch = false
+
+const yearSliderMax = computed(() => {
+  const span = maxYear.value - minYear.value
+  return Math.max(1, span * SLOTS_PER_YEAR + (SLOTS_PER_YEAR - 1))
+})
+
+function yearsToSlots(from, to) {
+  const [yearFrom, yearTo] = normalizedRange(from, to)
+  const start = (yearFrom - minYear.value) * SLOTS_PER_YEAR
+  const endBase = (yearTo - minYear.value) * SLOTS_PER_YEAR
+
+  if (yearFrom === yearTo) {
+    return [start, start + 1]
+  }
+
+  return [start, endBase + SLOTS_PER_YEAR - 1]
+}
+
+function slotToYear(slot) {
+  return minYear.value + Math.floor(Math.round(Number(slot)) / SLOTS_PER_YEAR)
+}
+
+function slotsToYears(slotFrom, slotTo) {
+  let slotStart = Math.round(Number(slotFrom))
+  let slotEnd = Math.round(Number(slotTo))
+
+  if (slotStart > slotEnd) {
+    ;[slotStart, slotEnd] = [slotEnd, slotStart]
+  }
+
+  return normalizedRange(slotToYear(slotStart), slotToYear(slotEnd))
+}
+
+function syncSlotsFromYears(from, to) {
+  suppressNextSlotWatch = true
+  yearRangeSlots.value = yearsToSlots(from, to)
+}
+
 const yearSliderOptions = computed(() => ({
   margin: 0,
 }))
@@ -155,10 +195,6 @@ const yearSliderOptions = computed(() => ({
 const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
 }))
-
-const isYearRangeCoincident = computed(
-  () => Number(yearRange.value[0]) === Number(yearRange.value[1]),
-)
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -266,8 +302,8 @@ function toggleVideoFilter() {
   router.push({ path: '/', query })
 }
 
-function yearFormat(value) {
-  return Math.round(Number(value) || 0)
+function yearFormat(slot) {
+  return slotToYear(slot)
 }
 
 function clusterRadiusForZoom(zoom) {
@@ -402,6 +438,7 @@ function setYearRange(from, to, markTouched = true) {
     suppressNextRangeWatch = true
   }
   yearRange.value = normalizedRange(from, to)
+  syncSlotsFromYears(yearRange.value[0], yearRange.value[1])
 }
 
 function userAvatarUrl(user) {
@@ -635,12 +672,6 @@ function applyYearRange() {
   scheduleYearApply()
 }
 
-function onYearSliderChange(value) {
-  rangeTouched.value = true
-  yearRange.value = normalizedRange(value[0], value[1])
-  scheduleYearApply()
-}
-
 async function loadSecondaryContent() {
   secondaryLoading.value = true
   try {
@@ -685,6 +716,7 @@ onMounted(async () => {
       suppressNextRangeWatch = true
       yearRange.value = normalizedRange(restore.yearRange[0], restore.yearRange[1])
       activeYearRange.value = [...yearRange.value]
+      syncSlotsFromYears(yearRange.value[0], yearRange.value[1])
     }
   }
 
@@ -761,6 +793,18 @@ watch(currentLanguage, () => {
   rebuildMarkerRegistry()
   syncMarkersToFilter()
 })
+watch(yearRangeSlots, ([from, to]) => {
+  if (suppressNextSlotWatch) {
+    suppressNextSlotWatch = false
+    return
+  }
+
+  rangeTouched.value = true
+  const normalized = slotsToYears(from, to)
+  suppressNextRangeWatch = true
+  yearRange.value = normalized
+  scheduleYearApply()
+})
 watch(yearRange, ([from, to]) => {
   const normalized = normalizedRange(from, to)
 
@@ -773,6 +817,7 @@ watch(yearRange, ([from, to]) => {
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
+    syncSlotsFromYears(normalized[0], normalized[1])
     return
   }
 
@@ -956,23 +1001,17 @@ onBeforeUnmount(() => {
     <span class="year-filter-label">{{ t('yearRange') }}</span>
     <div class="year-filter-track">
       <Slider
-        v-model="yearRange"
-        :min="minYear"
-        :max="maxYear"
+        v-model="yearRangeSlots"
+        :min="0"
+        :max="yearSliderMax"
         :step="1"
         :tooltips="false"
         :format="yearFormat"
         :lazy="false"
         :options="yearSliderOptions"
-        :class="['year-slider', 'year-slider--labelled', yearSliderClass, { 'year-slider--coincident': isYearRangeCoincident }]"
-        @change="onYearSliderChange"
+        :class="['year-slider', 'year-slider--labelled', yearSliderClass]"
       />
     </div>
-    <span class="year-filter-values">
-      <strong>{{ loading ? '——' : yearRange[0] }}</strong>
-      <em>—</em>
-      <strong>{{ loading ? '——' : yearRange[1] }}</strong>
-    </span>
   </section>
 
   <div class="hero-actions under-map">
@@ -1771,7 +1810,7 @@ onBeforeUnmount(() => {
 // ---------- Year filter (lives BELOW the map) --------------------
 .year-filter {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 16px;
   width: 100%;
@@ -1784,7 +1823,7 @@ onBeforeUnmount(() => {
   box-shadow: $shadow-sm;
 
   @include mq-down($bp-md) {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: 1fr;
     gap: 10px;
     padding: 18px;
     border-radius: $radius-md;
@@ -1824,31 +1863,6 @@ onBeforeUnmount(() => {
 
   @include mq-down($bp-md) {
     display: none;
-  }
-}
-
-.year-filter-values {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 12px;
-  border-radius: $radius-pill;
-  background: linear-gradient(135deg, $accent, $accent-dark);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  white-space: nowrap;
-  box-shadow: 0 6px 14px rgba($accent-dark, 0.28);
-
-  strong {
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-
-  em {
-    opacity: 0.7;
-    font-style: normal;
-    font-weight: 400;
   }
 }
 
@@ -2009,38 +2023,6 @@ onBeforeUnmount(() => {
     border-top: 5px solid transparent;
     border-bottom: 5px solid transparent;
     border-right: 6px solid #8a1c14;
-  }
-}
-
-// Same year on both ends: anchor the lower bubble to the left of the point and the
-// upper bubble to the right so both stay visible (as in the design mock).
-.year-slider--coincident.year-slider--labelled {
-  &.slider-target {
-    overflow: visible;
-  }
-
-  .slider-base {
-    overflow: visible;
-  }
-
-  .slider-handle-lower,
-  .slider-handle-upper {
-    visibility: visible;
-    opacity: 1;
-  }
-
-  .slider-handle-lower {
-    right: 0 !important;
-    left: auto;
-    transform: none !important;
-    z-index: 2;
-  }
-
-  .slider-handle-upper {
-    right: auto !important;
-    left: 0;
-    transform: none !important;
-    z-index: 3;
   }
 }
 
