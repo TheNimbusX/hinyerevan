@@ -156,6 +156,10 @@ const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
 }))
 
+const isYearRangeCoincident = computed(
+  () => Number(yearRange.value[0]) === Number(yearRange.value[1]),
+)
+
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
 )
@@ -968,13 +972,9 @@ onBeforeUnmount(() => {
         :format="yearFormat"
         :lazy="false"
         :options="yearSliderOptions"
-        :class="['year-slider', 'year-slider--labelled', yearSliderClass, { 'year-slider--coincident': yearRange[0] === yearRange[1] }]"
+        :class="['year-slider', 'year-slider--labelled', yearSliderClass, { 'year-slider--coincident': isYearRangeCoincident }]"
         @change="onYearSliderChange"
       />
-      <div class="year-ticks">
-        <span>{{ minYear }}</span>
-        <span>{{ maxYear }}</span>
-      </div>
     </div>
   </section>
 
@@ -1780,7 +1780,7 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 100%;
   margin: 14px 0 12px;
-  padding: 10px 18px;
+  padding: 18px;
   border: 1px solid $line;
   border-radius: $radius-pill;
   background: $surface;
@@ -1789,14 +1789,14 @@ onBeforeUnmount(() => {
   @include mq-down($bp-md) {
     grid-template-columns: 1fr auto;
     gap: 10px;
-    padding: 10px 14px;
+    padding: 18px;
     border-radius: $radius-md;
   }
 
   @include mq-down($bp-sm) {
     grid-template-columns: 1fr;
     gap: 6px;
-    padding: 10px 14px 8px;
+    padding: 18px;
     margin-inline: 0;
   }
 }
@@ -1814,8 +1814,6 @@ onBeforeUnmount(() => {
 }
 
 .year-filter-track {
-  display: grid;
-  gap: 2px;
   min-width: 0;
 }
 
@@ -2017,25 +2015,36 @@ onBeforeUnmount(() => {
   }
 }
 
-// Same year on both ends: spread the centred bubbles apart so they touch edge-to-edge.
+// Same year on both ends: anchor the lower bubble to the left of the point and the
+// upper bubble to the right so both stay visible (as in the design mock).
 .year-slider--coincident.year-slider--labelled {
+  &.slider-target {
+    overflow: visible;
+  }
+
+  .slider-base {
+    overflow: visible;
+  }
+
+  .slider-handle-lower,
+  .slider-handle-upper {
+    visibility: visible;
+    opacity: 1;
+  }
+
   .slider-handle-lower {
-    transform: translateX(-50%);
+    right: 0 !important;
+    left: auto;
+    transform: none !important;
+    z-index: 2;
   }
 
   .slider-handle-upper {
-    transform: translateX(50%);
+    right: auto !important;
+    left: 0;
+    transform: none !important;
+    z-index: 3;
   }
-}
-
-.year-ticks {
-  display: flex;
-  justify-content: space-between;
-  padding: 0 26px;
-  color: $muted;
-  font-size: 10px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
 }
 
 .camera-direction-icon,

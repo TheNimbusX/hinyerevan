@@ -405,10 +405,6 @@
     }
   }
 
-  .year-ticks {
-    color: #6a7286;
-  }
-
   .leaflet-container {
     background: #0a0d12;
   }
@@ -656,8 +652,12 @@
 
   // ---------- Marker tooltip ------------------------------------
   .marker-preview-card {
-    border-color: rgba(255, 145, 15, 0.32);
+    border-color: rgba(174, 43, 33, 0.4);
     box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .marker-preview-card .marker-preview-media {
+    background: #1d2530;
   }
 
   .marker-preview-skeleton {
