@@ -146,49 +146,6 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
-// Two slots per calendar year; when start/end year match, both handles share one slot
-// and CSS renders a single tag (see .year-slider--single-value).
-const SLOTS_PER_YEAR = 2
-const yearRangeSlots = ref([0, 1])
-let suppressNextSlotWatch = false
-
-const yearSliderMax = computed(() => {
-  const span = maxYear.value - minYear.value
-  return Math.max(1, span * SLOTS_PER_YEAR + (SLOTS_PER_YEAR - 1))
-})
-
-function yearsToSlots(from, to) {
-  const [yearFrom, yearTo] = normalizedRange(from, to)
-  const start = (yearFrom - minYear.value) * SLOTS_PER_YEAR
-  const endBase = (yearTo - minYear.value) * SLOTS_PER_YEAR
-
-  if (yearFrom === yearTo) {
-    return [start, start]
-  }
-
-  return [start, endBase + SLOTS_PER_YEAR - 1]
-}
-
-function slotToYear(slot) {
-  return minYear.value + Math.floor(Math.round(Number(slot)) / SLOTS_PER_YEAR)
-}
-
-function slotsToYears(slotFrom, slotTo) {
-  let slotStart = Math.round(Number(slotFrom))
-  let slotEnd = Math.round(Number(slotTo))
-
-  if (slotStart > slotEnd) {
-    ;[slotStart, slotEnd] = [slotEnd, slotStart]
-  }
-
-  return normalizedRange(slotToYear(slotStart), slotToYear(slotEnd))
-}
-
-function syncSlotsFromYears(from, to) {
-  suppressNextSlotWatch = true
-  yearRangeSlots.value = yearsToSlots(from, to)
-}
-
 const yearSliderOptions = computed(() => ({
   margin: 0,
 }))
@@ -307,8 +264,8 @@ function toggleVideoFilter() {
   router.push({ path: '/', query })
 }
 
-function yearFormat(slot) {
-  return slotToYear(slot)
+function yearFormat(value) {
+  return Math.round(Number(value) || 0)
 }
 
 function clusterRadiusForZoom(zoom) {
@@ -467,7 +424,6 @@ function setYearRange(from, to, markTouched = true) {
     suppressNextRangeWatch = true
   }
   yearRange.value = normalizedRange(from, to)
-  syncSlotsFromYears(yearRange.value[0], yearRange.value[1])
 }
 
 function userAvatarUrl(user) {
@@ -747,7 +703,6 @@ onMounted(async () => {
       suppressNextRangeWatch = true
       yearRange.value = normalizedRange(restore.yearRange[0], restore.yearRange[1])
       activeYearRange.value = [...yearRange.value]
-      syncSlotsFromYears(yearRange.value[0], yearRange.value[1])
     }
   }
 
@@ -824,18 +779,6 @@ watch(currentLanguage, () => {
   rebuildMarkerRegistry()
   syncMarkersToFilter()
 })
-watch(yearRangeSlots, ([from, to]) => {
-  if (suppressNextSlotWatch) {
-    suppressNextSlotWatch = false
-    return
-  }
-
-  rangeTouched.value = true
-  const normalized = slotsToYears(from, to)
-  suppressNextRangeWatch = true
-  yearRange.value = normalized
-  scheduleYearApply()
-})
 watch(yearRange, ([from, to]) => {
   const normalized = normalizedRange(from, to)
 
@@ -848,7 +791,6 @@ watch(yearRange, ([from, to]) => {
   if (normalized[0] !== from || normalized[1] !== to) {
     yearRange.value = normalized
     activeYearRange.value = normalized
-    syncSlotsFromYears(normalized[0], normalized[1])
     return
   }
 
@@ -1033,9 +975,9 @@ onBeforeUnmount(() => {
     <span class="year-filter-label">{{ t('yearRange') }}</span>
     <div class="year-filter-track">
       <Slider
-        v-model="yearRangeSlots"
-        :min="0"
-        :max="yearSliderMax"
+        v-model="yearRange"
+        :min="minYear"
+        :max="maxYear"
         :step="1"
         :tooltips="false"
         :format="yearFormat"
@@ -1883,6 +1825,7 @@ onBeforeUnmount(() => {
 
 .year-filter-track {
   min-width: 0;
+  overflow: visible;
 }
 
 .year-filter-label {
@@ -2058,28 +2001,45 @@ onBeforeUnmount(() => {
   }
 }
 
-// One calendar year selected: one centred tag with points on both ends (mockup).
+// One calendar year: both handles stack; lower shows a pointed tag, upper stays
+// invisible but draggable so the range can be expanded again.
 .year-slider--single-value.year-slider--labelled {
+  &.slider-target,
+  .slider-base {
+    overflow: visible;
+  }
+
+  .slider-connect {
+    opacity: 0;
+  }
+
   .slider-handle-upper {
-    visibility: hidden;
-    pointer-events: none;
+    opacity: 0;
+    z-index: 4;
+
+    &::before {
+      display: none;
+    }
   }
 
   .slider-handle-lower {
     z-index: 3;
-    min-width: 48px;
-    padding: 0 10px;
-    clip-path: polygon(
-      0 50%,
-      7px 0,
-      calc(100% - 7px) 0,
-      100% 50%,
-      calc(100% - 7px) 100%,
-      7px 100%
-    );
+    width: 56px;
+    min-width: 56px;
+    border-radius: 0;
+    background: transparent !important;
+    box-shadow: 0 3px 10px rgba(138, 28, 20, 0.45);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 18'%3E%3Cpath fill='%23ae2b21' d='M7 0h42l7 9-7 9H7L0 9z'/%3E%3C/svg%3E") !important;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
 
     &::before {
       display: none;
+    }
+
+    &::after {
+      position: relative;
+      z-index: 1;
     }
   }
 }
