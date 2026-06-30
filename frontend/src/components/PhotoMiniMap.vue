@@ -11,7 +11,6 @@ import { useTheme } from '../composables/useTheme'
 import {
   applyMapTileLayer,
   getMapTileLayer,
-  MAP_CLUSTER_MAX_ZOOM,
   MAP_MIN_ZOOM,
 } from '../utils/mapTiles'
 import { createClusterIconFactory, getActiveDirectionIcon, getDirectionIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
@@ -72,7 +71,8 @@ function markerPreview(marker) {
       <span class="marker-preview-media">
         <span class="marker-preview-skeleton" aria-hidden="true"></span>
         <img src="${imageUrl(marker.thumb_url)}" alt="" loading="lazy" decoding="async"
-          onload="this.classList.add('is-loaded')" onerror="this.classList.add('is-loaded')">
+          onload="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()"
+          onerror="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()">
       </span>
       <span class="marker-preview-year">${marker.year}</span>
       ${videoBadge}
@@ -220,7 +220,10 @@ function initMap() {
     chunkDelay: 40,
     removeOutsideVisibleBounds: true,
     maxClusterRadius: clusterRadiusForZoom,
-    disableClusteringAtZoom: MAP_CLUSTER_MAX_ZOOM,
+    // Align the cluster grid's internal max zoom with the map's real max zoom so that
+    // spiderfyOnMaxZoom can trigger. Using MAP_CLUSTER_MAX_ZOOM (22) made the internal
+    // _maxZoom (21) unreachable on this map (maxZoom 19), so cluster clicks did nothing.
+    disableClusteringAtZoom: MINI_MAP_MAX_ZOOM + 1,
     iconCreateFunction: createClusterIconFactory(),
   }).addTo(map)
 

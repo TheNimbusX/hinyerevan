@@ -4,10 +4,11 @@ cd /var/www/hinyerevan
 # Do NOT use git reset --hard — it wipes hotfixes uploaded via _sync-local-to-vps.ps1.
 # Commit and push local changes first, then deploy; or use deploy/_sync-local-to-vps.ps1.
 git fetch origin dev
-if ! git merge --ff-only FETCH_HEAD; then
-  echo "WARN: server working tree dirty — resetting to origin/dev (commit+push changes in git first)."
-  git reset --hard FETCH_HEAD
+if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git status --porcelain)" ]; then
+  echo "WARN: stashing server local changes before deploy (recover with git stash list)."
+  git stash push -u -m "pre-deploy-$(date +%F-%T)" || true
 fi
+git merge --ff-only FETCH_HEAD
 cd backend
 composer install --no-dev --optimize-autoloader 2>/dev/null || composer install --no-dev --optimize-autoloader
 php artisan config:cache

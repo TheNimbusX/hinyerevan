@@ -547,6 +547,33 @@ class LegacyPhotoStorage
      * Store an image that already lives on disk (e.g. a downloaded video thumbnail)
      * and generate the same variants as a normal upload.
      */
+    /** Download an image from a URL and store it as photo variants. Returns the file id or null. */
+    public function storeImageFromUrl(string $url, string $salt): ?string
+    {
+        $url = trim($url);
+        if ($url === '') {
+            return null;
+        }
+
+        try {
+            $response = Http::timeout(20)->get($url);
+            if (! $response->ok() || strlen($response->body()) < 2000) {
+                return null;
+            }
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $tmp = tempnam(sys_get_temp_dir(), 'fbimg_') . '.jpg';
+        file_put_contents($tmp, $response->body());
+
+        try {
+            return $this->storeImageFile($tmp, $salt);
+        } finally {
+            @unlink($tmp);
+        }
+    }
+
     public function storeImageFile(string $sourcePath, string $salt): string
     {
         $fileId = md5(microtime(true) . Str::random(24) . $salt);

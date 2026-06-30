@@ -88,7 +88,7 @@
   gap: 5px;
   width: 178px;
   padding: 8px;
-  border: 1px solid rgba($accent, 0.2);
+  border: 1px solid rgba(174, 43, 33, 0.2);
   border-radius: 18px;
   color: var(--ink);
   background: var(--surface);
@@ -97,7 +97,10 @@
 
   .marker-preview-media {
     position: relative;
-    min-height: 96px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 112px;
     border-radius: 13px;
     overflow: hidden;
     background: var(--primary-light);
@@ -106,7 +109,11 @@
   img {
     position: relative;
     display: block;
-    width: 100%;
+    // Letterbox: a photo shorter/narrower than the box is centered, the rest is
+    // filled with the media background instead of a never-ending skeleton.
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
     height: auto;
     object-fit: contain;
     opacity: 0;
@@ -161,10 +168,10 @@
   padding: 3px 8px;
   border-radius: $radius-pill;
   color: #fff;
-  background: $accent;
+  background: linear-gradient(135deg, #c43d30, #8a1c14);
   font-size: 11px;
   font-weight: 600;
-  box-shadow: 0 8px 18px rgba($accent, 0.26);
+  box-shadow: 0 8px 18px rgba(138, 28, 20, 0.28);
 }
 
 .marker-preview-video {
@@ -239,10 +246,10 @@
   line-height: 1;
   border: 2px solid #fff;
   background:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.38) 0 16%, transparent 17%),
-    linear-gradient(145deg, lighten($accent, 4%), $accent-dark);
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.32) 0 16%, transparent 17%),
+    linear-gradient(145deg, #d6493b, #8a1c14);
   box-shadow:
-    0 6px 16px rgba($accent-dark, 0.35),
+    0 6px 16px rgba(138, 28, 20, 0.35),
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 
   @include mq-down($bp-md) {

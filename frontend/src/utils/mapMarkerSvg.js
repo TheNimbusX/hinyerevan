@@ -13,7 +13,7 @@ const DIRECTION_ANGLES = {
 const ARROW_PATH =
   'M24 6 L31.2 23.2 C31.7 24.2 31 25.4 29.9 25.4 H26.4 V34.8 C26.4 36.1 25.3 37.2 24 37.2 C22.7 37.2 21.6 36.1 21.6 34.8 V25.4 H18.1 C17 25.4 16.3 24.2 16.8 23.2 Z'
 
-function topshotSvg(centerFill = '#ff910f') {
+function topshotSvg(centerFill = '#ae2b21') {
   return `
     <circle cx="24" cy="24" r="12" fill="#fff" />
     <circle cx="24" cy="24" r="12" fill="none" stroke="#294fb3" stroke-width="2.5" />
@@ -21,7 +21,7 @@ function topshotSvg(centerFill = '#ff910f') {
   `
 }
 
-function arrowSvg(angle, fill = '#ff910f') {
+function arrowSvg(angle, fill = '#ae2b21') {
   return `
     <g transform="rotate(${angle} 24 24)">
       <path fill="${fill}" stroke="#ffffff" stroke-width="1.75" stroke-linejoin="round" d="${ARROW_PATH}" />
@@ -33,7 +33,7 @@ function arrowSvg(angle, fill = '#ff910f') {
  * Inline SVG for Leaflet divIcon (directional photo pin).
  */
 export function directionMarkerSvg(direction, size = 28, options = {}) {
-  const { fill = '#ff910f', centerFill = fill } = options
+  const { fill = '#ae2b21', centerFill = fill } = options
   const angle = DIRECTION_ANGLES[direction] ?? 0
   const body = direction === 0 ? topshotSvg(centerFill) : arrowSvg(angle, fill)
 
@@ -55,7 +55,7 @@ export function clusterMarkerMetrics(count) {
 
 /** Inline cluster colors — Telegram WebView may paint before the CSS bundle loads. */
 const CLUSTER_STYLE =
-  'display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;line-height:1;border:2px solid #fff;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,0.38) 0 16%,transparent 17%),linear-gradient(145deg,#ffb347,#d56f00);box-shadow:0 3px 8px rgba(213,111,0,0.28)'
+  'display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;line-height:1;border:2px solid #fff;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,0.32) 0 16%,transparent 17%),linear-gradient(145deg,#d6493b,#8a1c14);box-shadow:0 3px 8px rgba(138,28,20,0.3)'
 
 /**
  * Cluster badge HTML — plain circle + text (reliable in Leaflet divIcon).
@@ -67,7 +67,7 @@ export function clusterMarkerHtml(count) {
 }
 
 export function videoMarkerSvg(size = 28, options = {}) {
-  const { fill = '#ff910f' } = options
+  const { fill = '#ae2b21' } = options
   return `<svg xmlns="http://www.w3.org/2000/svg" class="map-pin-svg" viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true"><circle cx="24" cy="24" r="20" fill="${fill}" stroke="#fff" stroke-width="2.5"/><path fill="#fff" d="M20 15l15 9-15 9z"/></svg>`
 }
 

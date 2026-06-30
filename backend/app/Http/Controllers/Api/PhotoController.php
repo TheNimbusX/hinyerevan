@@ -161,6 +161,12 @@ class PhotoController extends Controller
     {
         $current = (int) Cache::get(self::MARKERS_CACHE_VERSION_KEY, 1);
         Cache::forever(self::MARKERS_CACHE_VERSION_KEY, $current + 1);
+
+        foreach (['ru', 'en', 'hy', null] as $lang) {
+            foreach ([8, 10, 12, 20] as $perPage) {
+                Cache::forget("photos:latest:{$perPage}:{$lang}");
+            }
+        }
     }
 
     public function show(Request $request, int $photo)
@@ -386,8 +392,13 @@ class PhotoController extends Controller
 
         self::flushMarkersCache();
 
+        $facebookPublishError = null;
         if ($publishToFacebook && $isAdmin && $photo->published) {
-            PublishPhotoToFacebookJob::dispatchSync($photo->id);
+            try {
+                PublishPhotoToFacebookJob::dispatchSync($photo->id);
+            } catch (\Throwable $e) {
+                $facebookPublishError = $e->getMessage();
+            }
             $photo->refresh();
         }
 
@@ -397,8 +408,8 @@ class PhotoController extends Controller
         $payload['message'] = $isAdmin
             ? 'Photo published.'
             : 'Photo submitted for moderation.';
-        if ($publishToFacebook && $isAdmin && $photo->published) {
-            $payload['facebook_publish_queued'] = true;
+        if ($facebookPublishError) {
+            $payload['facebook_publish_error'] = $facebookPublishError;
         }
 
         return response()->json($payload, 201);

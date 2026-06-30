@@ -20,7 +20,7 @@ let videoIcon = null
 /** @type {L.DivIcon|null} */
 let activeVideoIcon = null
 
-const ACTIVE_PIN_FILL = '#e53935'
+const ACTIVE_PIN_FILL = '#ff910f'
 const ACTIVE_RING_SIZE = PIN_SIZE + 18
 
 function svgDataUri(direction, options = {}) {

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -26,6 +26,7 @@ import DirectionMarker from '../components/DirectionMarker.vue'
 import WinterBadgeIcon from '../components/WinterBadgeIcon.vue'
 import {
   consumeHomeMapRestore,
+  HOME_MAP_RESTORE_KEY,
   peekHomeMapRestore,
   saveHomeMapRestore,
 } from '../utils/navigationRestore'
@@ -66,7 +67,6 @@ const yearRange = ref([earliestAllowedYear, latestAllowedYear])
 const activeYearRange = ref([earliestAllowedYear, latestAllowedYear])
 const rangeTouched = ref(false)
 const loadError = ref('')
-const homeResetSignal = inject('homeResetSignal', ref(0))
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
 const { requireAuth } = useAuthGate()
@@ -365,12 +365,9 @@ function deactivateMarker(id) {
   if (entry) entry.layer.setIcon(getNormalIconForEntry(entry))
 }
 
-function resetHomeState() {
-  activePhotoId.value = null
-  applyMarkerYearBounds(true)
-  if (map) {
-    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
-  }
+function goHomeFresh() {
+  sessionStorage.removeItem(HOME_MAP_RESTORE_KEY)
+  window.location.reload()
 }
 
 function openPhoto(id) {
@@ -791,11 +788,6 @@ watch(activePhotoId, (newId, oldId) => {
   activateMarker(newId)
 })
 
-watch(homeResetSignal, (val, prev) => {
-  if (val === prev) return
-  resetHomeState()
-})
-
 onBeforeUnmount(() => {
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
@@ -936,11 +928,11 @@ onBeforeUnmount(() => {
 
       <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
         <div class="home-brand">
-          <button type="button" class="home-brand__logo-link" :aria-label="t('backToHome')" @click="resetHomeState">
+          <button type="button" class="home-brand__logo-link" :aria-label="t('backToHome')" @click="goHomeFresh">
             <img class="home-brand__logo" :src="siteLogo" alt="HinYerevan.com" />
           </button>
           <div class="home-brand__text">
-            <strong class="home-brand__name" style="cursor:pointer" @click="resetHomeState">HinYerevan<em>.com</em></strong>
+            <strong class="home-brand__name" style="cursor:pointer" @click="goHomeFresh">HinYerevan<em>.com</em></strong>
             <small class="home-brand__tagline">{{ t('tagline') }}</small>
             <FacebookPageBadge variant="inline" class="home-brand__fb" @open="openFacebookPage" />
           </div>
@@ -976,6 +968,11 @@ onBeforeUnmount(() => {
         @change="onYearSliderChange"
       />
     </div>
+    <span class="year-filter-values">
+      <strong>{{ loading ? '——' : yearRange[0] }}</strong>
+      <em>—</em>
+      <strong>{{ loading ? '——' : yearRange[1] }}</strong>
+    </span>
   </section>
 
   <div class="hero-actions under-map">

@@ -120,6 +120,11 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/pages', [AdminController::class, 'storePage']);
         Route::put('/pages/{page}', [AdminController::class, 'updatePage'])->whereNumber('page');
 
+        Route::get('/facebook-incoming', [AdminController::class, 'facebookIncoming']);
+        Route::post('/facebook-incoming/{post}/import', [AdminController::class, 'importFacebookIncoming'])->whereNumber('post');
+        Route::post('/facebook-incoming/{post}/dismiss', [AdminController::class, 'dismissFacebookIncoming'])->whereNumber('post');
+        Route::post('/facebook-incoming/{post}/restore', [AdminController::class, 'restoreFacebookIncoming'])->whereNumber('post');
+
         Route::get('/feedback', [AdminController::class, 'feedback']);
         Route::put('/feedback/{feedback}', [AdminController::class, 'markFeedbackRead'])->whereNumber('feedback');
         Route::delete('/feedback/{feedback}', [AdminController::class, 'deleteFeedback'])->whereNumber('feedback');

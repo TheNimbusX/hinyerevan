@@ -14,6 +14,11 @@ class Kernel extends ConsoleKernel
     {
         $schedule->job(new \App\Jobs\SyncFacebookPostStatsJob())->everyFiveMinutes();
 
+        // Pull posts made directly on the Facebook Page into the admin import inbox.
+        $schedule->command('facebook:fetch-incoming')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
+
         // Keep the long-lived Page token healthy (data-access window ~90 days).
         $schedule->command('facebook:refresh-token')
             ->weekly()

@@ -51,8 +51,13 @@ const tabs = computed(() => [
   { id: 'photos', label: t('photos'), badge: pendingCount.value },
   { id: 'users', label: t('users'), badge: 0 },
   { id: 'news', label: t('news'), badge: 0 },
+  { id: 'fb_incoming', label: t('fbIncoming'), badge: fbIncomingCount.value },
   { id: 'feedback', label: t('feedback'), badge: feedbackUnreadCount.value },
 ])
+
+const fbIncomingCount = ref(0)
+const fbFilter = ref('pending')
+const fbCounts = ref({ pending: 0, imported: 0, dismissed: 0 })
 
 const tabDescription = computed(
   () =>
@@ -60,6 +65,7 @@ const tabDescription = computed(
       photos: t('adminTabPhotosDesc'),
       users: t('adminTabUsersDesc'),
       news: t('adminTabNewsDesc'),
+      fb_incoming: t('adminTabFbDesc'),
       feedback: t('adminTabFeedbackDesc'),
     })[tab.value] || '',
 )
@@ -118,6 +124,9 @@ function listEndpoint(page = 1) {
   if (tab.value === 'feedback') {
     return `/admin/feedback?per_page=${PER_PAGE}&page=${page}`
   }
+  if (tab.value === 'fb_incoming') {
+    return `/admin/facebook-incoming?status=${fbFilter.value}&refresh=1`
+  }
   return `/admin/photos?per_page=${PER_PAGE}&page=${page}`
 }
 
@@ -142,6 +151,10 @@ async function loadTab(nextTab = tab.value, { append = false, page = 1 } = {}) {
 
     rows.value = append ? [...rows.value, ...(payload.data || [])] : payload.data || []
     meta.value = payload
+    if (tab.value === 'fb_incoming') {
+      if (payload.counts) fbCounts.value = payload.counts
+      fbIncomingCount.value = fbCounts.value.pending
+    }
   } catch (event) {
     if (!append) {
       error.value = event.message
@@ -306,6 +319,65 @@ async function deletePhoto(photo) {
     clearPhotosApiCache(photo.id)
     removeRow(photo.id)
     await loadDashboard()
+  } catch (event) {
+    actionError.value = event.message
+  } finally {
+    busyId.value = null
+  }
+}
+
+function setFbFilter(next) {
+  fbFilter.value = next
+  if (tab.value === 'fb_incoming') loadTab('fb_incoming')
+}
+
+async function importIncoming(row) {
+  busyId.value = row.id
+  actionError.value = ''
+  try {
+    const res = await api(`/admin/facebook-incoming/${row.id}/import`, { method: 'POST' })
+    removeRow(row.id)
+    fbCounts.value.pending = Math.max(0, fbCounts.value.pending - 1)
+    fbCounts.value.imported += 1
+    fbIncomingCount.value = fbCounts.value.pending
+    clearPhotosApiCache()
+    await loadDashboard()
+    // Open the freshly created draft in the editor so the admin can set year/location/direction.
+    if (res?.photo_id) {
+      photoEditorId.value = res.photo_id
+    }
+  } catch (event) {
+    actionError.value = event.message
+  } finally {
+    busyId.value = null
+  }
+}
+
+async function dismissIncoming(row) {
+  busyId.value = row.id
+  actionError.value = ''
+  try {
+    await api(`/admin/facebook-incoming/${row.id}/dismiss`, { method: 'POST' })
+    removeRow(row.id)
+    fbCounts.value[fbFilter.value] = Math.max(0, fbCounts.value[fbFilter.value] - 1)
+    fbCounts.value.dismissed += 1
+    fbIncomingCount.value = fbCounts.value.pending
+  } catch (event) {
+    actionError.value = event.message
+  } finally {
+    busyId.value = null
+  }
+}
+
+async function restoreIncoming(row) {
+  busyId.value = row.id
+  actionError.value = ''
+  try {
+    await api(`/admin/facebook-incoming/${row.id}/restore`, { method: 'POST' })
+    removeRow(row.id)
+    fbCounts.value[fbFilter.value] = Math.max(0, fbCounts.value[fbFilter.value] - 1)
+    fbCounts.value.pending += 1
+    fbIncomingCount.value = fbCounts.value.pending
   } catch (event) {
     actionError.value = event.message
   } finally {
@@ -566,6 +638,18 @@ watch([hasMore, loading], async () => {
       <button type="button" class="admin__btn" @click="openNewsEditor()">{{ t('adminAddNews') }}</button>
     </div>
 
+    <div v-if="tab === 'fb_incoming'" class="admin__subtabs">
+      <button type="button" class="admin__chip" :class="{ on: fbFilter === 'pending' }" @click="setFbFilter('pending')">
+        {{ t('adminFbPending') }} <span v-if="fbCounts.pending" class="admin__chip-count">{{ fbCounts.pending }}</span>
+      </button>
+      <button type="button" class="admin__chip" :class="{ on: fbFilter === 'imported' }" @click="setFbFilter('imported')">
+        {{ t('adminFbImported') }} <span v-if="fbCounts.imported" class="admin__chip-count">{{ fbCounts.imported }}</span>
+      </button>
+      <button type="button" class="admin__chip" :class="{ on: fbFilter === 'dismissed' }" @click="setFbFilter('dismissed')">
+        {{ t('adminFbHidden') }} <span v-if="fbCounts.dismissed" class="admin__chip-count">{{ fbCounts.dismissed }}</span>
+      </button>
+    </div>
+
     <p v-if="error" class="admin__msg admin__msg--err">{{ error }}</p>
     <p v-if="actionError" class="admin__msg admin__msg--err">{{ actionError }}</p>
 
@@ -658,7 +742,7 @@ watch([hasMore, loading], async () => {
           </tbody>
         </table>
 
-        <table v-else class="admin__table">
+        <table v-else-if="['users', 'news', 'feedback'].includes(tab)" class="admin__table">
           <tbody>
           <tr v-for="row in rows" :key="row.id">
             <template v-if="tab === 'users'">
@@ -753,6 +837,39 @@ watch([hasMore, loading], async () => {
           </tbody>
         </table>
 
+        <div v-else-if="tab === 'fb_incoming'" class="admin__fb-grid">
+          <article v-for="row in rows" :key="row.id" class="admin__fb-card">
+            <a v-if="row.permalink_url" :href="row.permalink_url" target="_blank" rel="noopener" class="admin__fb-media">
+              <img :src="row.image_url" :alt="row.message || ''" loading="lazy" />
+            </a>
+            <div class="admin__fb-body">
+              <p class="admin__fb-text">{{ row.message || '—' }}</p>
+              <div class="admin__muted">
+                <template v-if="row.posted_at">{{ formatDate(row.posted_at, currentLanguage) }}</template>
+                <template v-if="row.permalink_url"> · <a :href="row.permalink_url" target="_blank" rel="noopener">{{ t('adminFbOpenPost') }}</a></template>
+              </div>
+              <div class="admin__act-group">
+                <template v-if="fbFilter === 'pending'">
+                  <button type="button" class="admin__act admin__act--ok" :disabled="busyId === row.id" @click="importIncoming(row)">
+                    {{ t('adminFbImport') }}
+                  </button>
+                  <button type="button" class="admin__act admin__act--danger" :disabled="busyId === row.id" @click="dismissIncoming(row)">
+                    {{ t('adminFbDismiss') }}
+                  </button>
+                </template>
+                <template v-else>
+                  <a v-if="row.photo_id" class="admin__act" href="#" @click.prevent="photoEditorId = row.photo_id">
+                    {{ t('adminFbOpenPhoto') }}
+                  </a>
+                  <button type="button" class="admin__act admin__act--ok" :disabled="busyId === row.id" @click="restoreIncoming(row)">
+                    {{ t('adminFbRestore') }}
+                  </button>
+                </template>
+              </div>
+            </div>
+          </article>
+        </div>
+
         <p v-if="isPaginatedTab && hasMore" class="admin__more">
           <button type="button" class="admin__btn admin__btn--plain" :disabled="loadingMore" @click="loadMore">
             {{ loadingMore ? t('loading') : t('adminLoadMore') }}
@@ -780,6 +897,65 @@ watch([hasMore, loading], async () => {
   padding: 0 16px;
   font-size: 14px;
   line-height: 1.45;
+}
+
+.admin__chip-count {
+  display: inline-block;
+  min-width: 16px;
+  padding: 0 5px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.12);
+  font-size: 11px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.admin__chip.on .admin__chip-count {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.admin__fb-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.admin__fb-card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid $line;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--surface, #fff);
+}
+
+.admin__fb-media {
+  display: block;
+  aspect-ratio: 4 / 3;
+  background: #e8eef5;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+}
+
+.admin__fb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+}
+
+.admin__fb-text {
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .admin__head {

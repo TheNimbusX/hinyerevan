@@ -3,12 +3,15 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\FacebookIncomingPost;
 use App\Models\FeedbackMessage;
 use App\Models\NewsItem;
 use App\Models\Page;
 use App\Models\Photo;
+use App\Models\PhotoView;
 use App\Models\User;
 use App\Jobs\PublishPhotoToFacebookJob;
+use App\Services\Facebook\FacebookIncomingService;
 use App\Services\Facebook\FacebookPublishService;
 use App\Services\LegacyPhotoStorage;
 use App\Services\LegacySchema;
@@ -176,7 +179,7 @@ class AdminController extends Controller
         $photo->fill($data)->save();
 
         $facebookPublishError = null;
-        if (! $wasPublished && (bool) $photo->published && $photo->facebook_publish_pending) {
+        if ((bool) $photo->published && $photo->facebook_publish_pending) {
             PublishPhotoToFacebookJob::dispatchSync($photo->id);
             $photo->refresh();
             if ($photo->facebook_publish_pending && ! $photo->facebook_post_id) {
@@ -199,12 +202,180 @@ class AdminController extends Controller
     public function deletePhoto(Photo $photo)
     {
         abort_unless($photo->id > 0, 404);
+        $originalId = $photo->id;
         $photo->id = -abs($photo->id);
         $photo->save();
+
+        // If this photo came from a Facebook import, put that post back in the queue so a
+        // rejected/deleted import can be handled again (low cost of a mistake).
+        if (Schema::hasTable('facebook_incoming_posts')) {
+            FacebookIncomingPost::query()
+                ->where('photo_id', $originalId)
+                ->update([
+                    'status' => FacebookIncomingPost::STATUS_PENDING,
+                    'photo_id' => null,
+                ]);
+        }
 
         PhotoController::flushMarkersCache();
 
         return response()->noContent();
+    }
+
+    /** Inbox of posts made directly on the Facebook Page, awaiting admin import. */
+    public function facebookIncoming(Request $request, FacebookIncomingService $incoming)
+    {
+        if (! Schema::hasTable('facebook_incoming_posts')) {
+            return ['data' => [], 'configured' => false, 'counts' => ['pending' => 0, 'imported' => 0, 'dismissed' => 0]];
+        }
+
+        // Best-effort live refresh so the admin sees fresh posts on open.
+        if ($request->boolean('refresh')) {
+            $incoming->fetchAndStore();
+        }
+
+        $allowed = [
+            FacebookIncomingPost::STATUS_PENDING,
+            FacebookIncomingPost::STATUS_IMPORTED,
+            FacebookIncomingPost::STATUS_DISMISSED,
+        ];
+        $status = (string) $request->query('status', FacebookIncomingPost::STATUS_PENDING);
+        if (! in_array($status, $allowed, true)) {
+            $status = FacebookIncomingPost::STATUS_PENDING;
+        }
+
+        $rows = FacebookIncomingPost::query()
+            ->where('status', $status)
+            ->orderByDesc('posted_at')
+            ->limit(100)
+            ->get();
+
+        $counts = FacebookIncomingPost::query()
+            ->selectRaw('status, COUNT(*) as c')
+            ->groupBy('status')
+            ->pluck('c', 'status');
+
+        return [
+            'configured' => $incoming->isConfigured(),
+            'status' => $status,
+            'counts' => [
+                'pending' => (int) ($counts[FacebookIncomingPost::STATUS_PENDING] ?? 0),
+                'imported' => (int) ($counts[FacebookIncomingPost::STATUS_IMPORTED] ?? 0),
+                'dismissed' => (int) ($counts[FacebookIncomingPost::STATUS_DISMISSED] ?? 0),
+            ],
+            'data' => $rows->map(fn (FacebookIncomingPost $p) => [
+                'id' => $p->id,
+                'facebook_post_id' => $p->facebook_post_id,
+                'message' => $p->message,
+                'image_url' => $p->image_url,
+                'permalink_url' => $p->permalink_url,
+                'posted_at' => optional($p->posted_at)->toISOString(),
+                'photo_id' => $p->photo_id,
+                'status' => $p->status,
+            ])->all(),
+        ];
+    }
+
+    public function dismissFacebookIncoming(FacebookIncomingPost $post)
+    {
+        $post->forceFill(['status' => FacebookIncomingPost::STATUS_DISMISSED])->save();
+
+        return response()->noContent();
+    }
+
+    /** Return an imported/dismissed post back to the pending queue so it can be handled again. */
+    public function restoreFacebookIncoming(FacebookIncomingPost $post)
+    {
+        $post->forceFill([
+            'status' => FacebookIncomingPost::STATUS_PENDING,
+            'photo_id' => null,
+        ])->save();
+
+        return response()->noContent();
+    }
+
+    /**
+     * Turn an incoming Facebook post into an unpublished draft photo. The admin then
+     * fills in year / location / direction in the normal photo editor and publishes.
+     */
+    public function importFacebookIncoming(Request $request, FacebookIncomingPost $post, LegacyPhotoStorage $storage)
+    {
+        abort_unless(LegacySchema::photosReady(), 503, 'Legacy database is not connected yet.');
+
+        if ($post->status === FacebookIncomingPost::STATUS_IMPORTED && $post->photo_id) {
+            return ['photo_id' => $post->photo_id, 'already' => true];
+        }
+
+        $fileId = $storage->storeImageFromUrl((string) $post->image_url, (string) config('app.key'));
+        abort_if($fileId === null, 422, 'Could not download the Facebook image.');
+
+        $title = trim((string) ($post->message ?? ''));
+        $title = $title !== '' ? mb_substr(preg_split('/\r\n|\r|\n/', $title)[0], 0, 255) : 'Импорт из Facebook';
+
+        $photo = Photo::query()->create([
+            'title' => $title,
+            'year' => 0, // admin must set a real year before publishing
+            'lat' => 40.179136,
+            'lng' => 44.511623,
+            'direction' => 0,
+            'datetime' => $post->posted_at ?? now(),
+            'user' => $this->siteAuthorUnique(), // author shows as "HinYerevan.com"
+            'published' => 0, // draft — appears in the pending/unpublished list
+            'file_id' => $fileId,
+            'needs_location_review' => true,
+            // Already lives on Facebook — link it so likes/comments sync and the editor
+            // hides the "publish to Facebook" option for this photo.
+            'facebook_post_id' => $post->facebook_post_id,
+            'facebook_post_url' => $post->permalink_url,
+            'facebook_publish_pending' => 0,
+        ]);
+
+        PhotoView::query()->create(['photo_id' => $photo->id, 'count' => 0]);
+
+        $post->forceFill([
+            'status' => FacebookIncomingPost::STATUS_IMPORTED,
+            'photo_id' => $photo->id,
+        ])->save();
+
+        // Pull the post's likes/comments right away so they show on the site.
+        try {
+            $this->facebookPublish->syncPostStats($photo->fresh());
+        } catch (\Throwable) {
+            // best-effort; the scheduled job will retry
+        }
+
+        return ['photo_id' => $photo->id, 'already' => false];
+    }
+
+    /** A shared "HinYerevan.com" author used for posts imported from the Facebook Page. */
+    private function siteAuthorUnique(): string
+    {
+        $unique = 'hinyerevan-site';
+
+        User::query()->firstOrCreate(
+            ['unique' => $unique],
+            [
+                'uid' => 'hinyerevan-site',
+                'network' => 'hinyerevan',
+                'first_name' => 'HinYerevan.com',
+                'last_name' => '',
+                'email' => '',
+                'identity' => 'HinYerevan.com',
+                'bdate' => '1970-01-01',
+                'sex' => User::SEX_UNSET,
+                'photo' => 'http://www.hinyerevan.com/photos/user.png',
+                'type' => User::TYPE_USER,
+                'password' => md5(uniqid('hin-site', true)),
+                'last_ip' => $this->ipOrNull(),
+            ],
+        );
+
+        return $unique;
+    }
+
+    private function ipOrNull(): ?string
+    {
+        return request()?->ip();
     }
 
     public function users(Request $request)

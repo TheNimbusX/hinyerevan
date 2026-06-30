@@ -94,7 +94,7 @@ class RatingController extends Controller
                             ->where('photos.published', 1);
                     })
                     ->where('users.id', '>', 0)
-                    ->groupBy('users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo')
+                    ->groupBy('users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo', 'users.network')
                     ->orderByDesc('photos_count')
                     ->limit(10)
                     ->get(['users.id', 'users.unique', 'users.uid', 'users.first_name', 'users.last_name', 'users.photo', 'users.network', DB::raw('COUNT(photos.id) as photos_count')])

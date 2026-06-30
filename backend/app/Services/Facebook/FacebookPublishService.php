@@ -44,6 +44,47 @@ class FacebookPublishService
         $message = $this->buildPostMessage($photo);
 
         try {
+            // Preferred path: a real feed post (text + photo) so it lands in the page feed (Публикации).
+            // 1) upload the photo unpublished to get a media id, 2) attach it to a /feed post.
+            $uploadResponse = $this->graph->post($this->pageId() . '/photos', [
+                'url' => $imageUrl,
+                'published' => 'false',
+                'access_token' => $this->pageAccessToken(),
+            ]);
+
+            $mediaId = $uploadResponse->ok() ? (string) ($uploadResponse->json('id') ?? '') : '';
+
+            if ($mediaId !== '') {
+                $feedResponse = $this->graph->post($this->pageId() . '/feed', [
+                    'message' => $message,
+                    // Facebook requires the indexed form attached_media[0]={"media_fbid":"..."}.
+                    // A flat "attached_media" param returns code 1 "An unknown error occurred".
+                    'attached_media[0]' => json_encode(['media_fbid' => $mediaId]),
+                    'access_token' => $this->pageAccessToken(),
+                ]);
+
+                if ($feedResponse->ok()) {
+                    $postId = (string) ($feedResponse->json('id') ?? '');
+                    if ($postId !== '') {
+                        return $this->finishPublish($photo, $postId);
+                    }
+                }
+
+                Log::warning('Facebook feed post failed, falling back to photo post', [
+                    'photo_id' => $photo->id,
+                    'media_id' => $mediaId,
+                    'status' => $feedResponse->status(),
+                    'body' => $feedResponse->body(),
+                ]);
+            } else {
+                Log::warning('Facebook unpublished upload failed, falling back to photo post', [
+                    'photo_id' => $photo->id,
+                    'status' => $uploadResponse->status(),
+                    'body' => $uploadResponse->body(),
+                ]);
+            }
+
+            // Fallback: a direct published photo post. This also appears in the feed as a photo story.
             $response = $this->graph->post($this->pageId() . '/photos', [
                 'url' => $imageUrl,
                 'message' => $message,
@@ -58,28 +99,34 @@ class FacebookPublishService
                 return is_string($error) ? $error : 'Facebook publish failed.';
             }
 
-            $mediaId = (string) ($response->json('id') ?? '');
-            if ($mediaId === '') {
+            // post_id is the feed story id (page_id_story_id); id is the photo id. Prefer the story.
+            $postId = (string) ($response->json('post_id') ?? $response->json('id') ?? '');
+            if ($postId === '') {
                 return 'Facebook returned an empty post id.';
             }
 
-            $permalink = $this->resolvePermalink($mediaId);
-
-            $photo->forceFill([
-                'facebook_post_id' => $mediaId,
-                'facebook_post_url' => $permalink,
-                'facebook_publish_pending' => false,
-                'facebook_synced_at' => now(),
-            ])->save();
-
-            $this->syncPostStats($photo->fresh());
-
-            return null;
+            return $this->finishPublish($photo, $postId);
         } catch (\Throwable $e) {
             Log::error('Facebook publish exception', ['photo_id' => $photo->id, 'message' => $e->getMessage()]);
 
             return 'Facebook publish error: ' . $e->getMessage();
         }
+    }
+
+    private function finishPublish(Photo $photo, string $postId): ?string
+    {
+        $permalink = $this->resolvePermalink($postId);
+
+        $photo->forceFill([
+            'facebook_post_id' => $postId,
+            'facebook_post_url' => $permalink,
+            'facebook_publish_pending' => false,
+            'facebook_synced_at' => now(),
+        ])->save();
+
+        $this->syncPostStats($photo->fresh());
+
+        return null;
     }
 
     public function syncPostStats(Photo $photo): void
@@ -89,8 +136,10 @@ class FacebookPublishService
         }
 
         try {
+            // reactions.summary(total_count) is the supported way to read engagement on a post;
+            // the old likes.summary(true) trips error #12 (deprecate_post_aggregated_fields_for_attachement) on v3.3+.
             $response = $this->graph->get($photo->facebook_post_id, [
-                'fields' => 'link,likes.summary(true)',
+                'fields' => 'permalink_url,reactions.summary(total_count)',
                 'access_token' => $this->pageAccessToken(),
             ]);
 
@@ -105,8 +154,8 @@ class FacebookPublishService
             }
 
             $data = $response->json();
-            $likes = (int) ($data['likes']['summary']['total_count'] ?? 0);
-            $postUrl = (string) ($data['link'] ?? $photo->facebook_post_url ?? '');
+            $likes = (int) ($data['reactions']['summary']['total_count'] ?? 0);
+            $postUrl = (string) ($data['permalink_url'] ?? $photo->facebook_post_url ?? '');
             $fbViews = $this->fetchPostImpressions($photo->facebook_post_id);
 
             $fill = [
@@ -132,7 +181,12 @@ class FacebookPublishService
 
     private function fetchPostImpressions(string $objectId): ?int
     {
-        try {
+        // Facebook removed post-level impression metrics (post_impressions / *_unique / *_organic)
+        // from the current Graph API for this page type — they return "(#100) not a valid insights
+        // metric". There is no working "post views" metric, so skip the call to save rate limits.
+        return null;
+
+        try { // @phpstan-ignore-line (kept for if/when FB restores the metric)
             $response = $this->graph->get($objectId . '/insights', [
                 'metric' => 'post_impressions',
                 'period' => 'lifetime',
@@ -168,18 +222,28 @@ class FacebookPublishService
 
     public function resolvePermalink(string $mediaId): ?string
     {
+        // Feed posts expose permalink_url; photo objects expose link. Request both.
         $response = $this->graph->get($mediaId, [
-            'fields' => 'link,from',
+            'fields' => 'permalink_url,link',
             'access_token' => $this->pageAccessToken(),
         ]);
 
-        if (! $response->ok()) {
-            return null;
+        if ($response->ok()) {
+            $url = $response->json('permalink_url') ?: $response->json('link');
+            if (is_string($url) && $url !== '') {
+                return $url;
+            }
         }
 
-        $url = $response->json('link');
+        // Fallback: build the timeline post URL from a feed post id (pageId_postId).
+        if (str_contains($mediaId, '_')) {
+            [$pageId, $postId] = explode('_', $mediaId, 2);
+            if ($pageId !== '' && $postId !== '') {
+                return 'https://www.facebook.com/' . $pageId . '/posts/' . $postId;
+            }
+        }
 
-        return is_string($url) && $url !== '' ? $url : null;
+        return null;
     }
 
     public function publicPostUrl(Photo $photo): ?string
@@ -233,7 +297,9 @@ class FacebookPublishService
 
         $base = rtrim((string) (config('services.facebook.site_url') ?: config('app.frontend_url', config('app.url'))), '/');
 
-        return $base . '/api/photos/file/large/' . rawurlencode($photo->file_id);
+        // Use the full-size "original" variant (watermark is still burned in) so Facebook
+        // gets the photo in original resolution, not the 800px "large" display variant.
+        return $base . '/api/photos/file/original/' . rawurlencode($photo->file_id);
     }
 
     private function pageId(): string
