@@ -193,9 +193,9 @@ function handleBrandClick() {
   closeMenu()
   sessionStorage.removeItem(HOME_MAP_RESTORE_KEY)
   if (route.path === '/') {
-    window.location.reload()
+    window.dispatchEvent(new CustomEvent('hinyerevan:reset-home-map'))
   } else {
-    window.location.href = '/'
+    router.push({ path: '/', query: {} })
   }
 }
 

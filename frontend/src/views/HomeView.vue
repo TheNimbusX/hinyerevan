@@ -401,9 +401,33 @@ function deactivateMarker(id) {
   if (entry) entry.layer.setIcon(getNormalIconForEntry(entry))
 }
 
-function goHomeFresh() {
+function resetHomeState() {
   sessionStorage.removeItem(HOME_MAP_RESTORE_KEY)
-  window.location.reload()
+
+  if (activePhotoId.value != null) {
+    deactivateMarker(activePhotoId.value)
+    activePhotoId.value = null
+  }
+
+  mapPanelOpen.value = false
+  mapCompassOpen.value = false
+
+  const filterQueryKeys = ['user', 'review', 'direction', 'winter', 'video']
+  const hasQueryFilters = filterQueryKeys.some(
+    (key) => route.query[key] != null && route.query[key] !== '',
+  )
+
+  if (hasQueryFilters) {
+    router.replace({ path: '/', query: {} })
+  } else {
+    rangeTouched.value = false
+    applyMarkerYearBounds(true)
+    syncMarkersToFilter()
+  }
+
+  if (map) {
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
+  }
 }
 
 function openPhoto(id) {
@@ -702,6 +726,8 @@ useLocalizedReady(async ({ path }) => {
 })
 
 onMounted(async () => {
+  window.addEventListener('hinyerevan:reset-home-map', resetHomeState)
+
   const restore = consumeHomeMapRestore()
 
   if (restore?.query !== undefined) {
@@ -834,6 +860,7 @@ watch(activePhotoId, (newId, oldId) => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('hinyerevan:reset-home-map', resetHomeState)
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
@@ -973,11 +1000,11 @@ onBeforeUnmount(() => {
 
       <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
         <div class="home-brand">
-          <button type="button" class="home-brand__logo-link" :aria-label="t('backToHome')" @click="goHomeFresh">
+          <button type="button" class="home-brand__logo-link" :aria-label="t('backToHome')" @click="resetHomeState">
             <img class="home-brand__logo" :src="siteLogo" alt="HinYerevan.com" />
           </button>
           <div class="home-brand__text">
-            <strong class="home-brand__name" style="cursor:pointer" @click="goHomeFresh">HinYerevan<em>.com</em></strong>
+            <strong class="home-brand__name" style="cursor:pointer" @click="resetHomeState">HinYerevan<em>.com</em></strong>
             <small class="home-brand__tagline">{{ t('tagline') }}</small>
             <FacebookPageBadge variant="inline" class="home-brand__fb" @open="openFacebookPage" />
           </div>
