@@ -146,7 +146,8 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
-// Two slots per calendar year so both handles stay visible when the range is a single year.
+// Two slots per calendar year; when start/end year match, both handles share one slot
+// and CSS renders a single tag (see .year-slider--single-value).
 const SLOTS_PER_YEAR = 2
 const yearRangeSlots = ref([0, 1])
 let suppressNextSlotWatch = false
@@ -162,7 +163,7 @@ function yearsToSlots(from, to) {
   const endBase = (yearTo - minYear.value) * SLOTS_PER_YEAR
 
   if (yearFrom === yearTo) {
-    return [start, start + 1]
+    return [start, start]
   }
 
   return [start, endBase + SLOTS_PER_YEAR - 1]
@@ -195,6 +196,10 @@ const yearSliderOptions = computed(() => ({
 const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
 }))
+
+const isYearRangeSingle = computed(
+  () => Number(yearRange.value[0]) === Number(yearRange.value[1]),
+)
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -1036,7 +1041,7 @@ onBeforeUnmount(() => {
         :format="yearFormat"
         :lazy="false"
         :options="yearSliderOptions"
-        :class="['year-slider', 'year-slider--labelled', yearSliderClass]"
+        :class="['year-slider', 'year-slider--labelled', yearSliderClass, { 'year-slider--single-value': isYearRangeSingle }]"
       />
     </div>
   </section>
@@ -2050,6 +2055,32 @@ onBeforeUnmount(() => {
     border-top: 5px solid transparent;
     border-bottom: 5px solid transparent;
     border-right: 6px solid #8a1c14;
+  }
+}
+
+// One calendar year selected: one centred tag with points on both ends (mockup).
+.year-slider--single-value.year-slider--labelled {
+  .slider-handle-upper {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  .slider-handle-lower {
+    z-index: 3;
+    min-width: 48px;
+    padding: 0 10px;
+    clip-path: polygon(
+      0 50%,
+      7px 0,
+      calc(100% - 7px) 0,
+      100% 50%,
+      calc(100% - 7px) 100%,
+      7px 100%
+    );
+
+    &::before {
+      display: none;
+    }
   }
 }
 
