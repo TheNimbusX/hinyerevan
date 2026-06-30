@@ -1,5 +1,5 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
@@ -66,6 +66,7 @@ const yearRange = ref([earliestAllowedYear, latestAllowedYear])
 const activeYearRange = ref([earliestAllowedYear, latestAllowedYear])
 const rangeTouched = ref(false)
 const loadError = ref('')
+const homeResetSignal = inject('homeResetSignal', ref(0))
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
 const { requireAuth } = useAuthGate()
@@ -78,7 +79,8 @@ const directionFilter = computed(() => {
   return raw != null && raw !== '' ? String(raw) : ''
 })
 const winterFilter = computed(() => route.query.winter === '1' || route.query.winter === 'true')
-const mapFiltersActive = computed(() => reviewFilter.value || directionFilter.value !== '' || winterFilter.value)
+const videoFilter = computed(() => route.query.video === '1' || route.query.video === 'true')
+const mapFiltersActive = computed(() => reviewFilter.value || directionFilter.value !== '' || winterFilter.value || videoFilter.value)
 const filteredUserName = ref('')
 let suppressNextRangeWatch = false
 let markerSyncFrame
@@ -145,9 +147,7 @@ const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
 // margin: 0 lets both handles land on the same year (single-year selection).
-// The visual side-by-side look is handled in CSS by nudging each handle
-// outward by half its width, so equal values render as two touching circles
-// instead of stacking on top of each other.
+// Side-by-side look when values coincide is handled in CSS (.year-slider--coincident).
 const yearSliderOptions = computed(() => ({
   margin: 0,
 }))
@@ -252,6 +252,20 @@ function toggleWinterFilter() {
   router.push({ path: '/', query })
 }
 
+function toggleVideoFilter() {
+  const query = { ...route.query }
+  if (videoFilter.value) {
+    delete query.video
+  } else {
+    query.video = '1'
+  }
+  router.push({ path: '/', query })
+}
+
+function yearFormat(value) {
+  return Math.round(Number(value) || 0)
+}
+
 function clusterRadiusForZoom(zoom) {
   if (zoom >= 19) return 26
   if (zoom >= 17) return 42
@@ -283,7 +297,8 @@ function markerPreview(marker) {
       <span class="marker-preview-media">
         <span class="marker-preview-skeleton" aria-hidden="true"></span>
         <img src="${imageUrl(marker.large_url || marker.thumb_url)}" alt="" loading="lazy" decoding="async"
-          onload="this.classList.add('is-loaded')" onerror="this.classList.add('is-loaded')">
+          onload="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()"
+          onerror="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()">
       </span>
       <span class="marker-preview-year">${marker.year}</span>
       ${videoBadge}
@@ -344,6 +359,14 @@ function deactivateMarker(id) {
   if (id == null) return
   const entry = markerRegistry.get(Number(id))
   if (entry) entry.layer.setIcon(getNormalIconForEntry(entry))
+}
+
+function resetHomeState() {
+  activePhotoId.value = null
+  applyMarkerYearBounds(true)
+  if (map) {
+    map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
+  }
 }
 
 function openPhoto(id) {
@@ -450,12 +473,14 @@ function rebuildMarkerRegistry() {
 
 function layersInYearRange(from, to) {
   const layers = []
+  const onlyVideo = videoFilter.value
 
   for (let year = from; year <= to; year += 1) {
     const bucket = markersByYear.get(year)
     if (!bucket) continue
 
     for (const entry of bucket) {
+      if (onlyVideo && !entry.data.has_video) continue
       layers.push(entry.layer)
     }
   }
@@ -621,7 +646,7 @@ async function loadSecondaryContent() {
     // Loaded separately so a failure here never blocks the map markers.
     const [ratingData, photoData] = await Promise.allSettled([
       cachedApi('/ratings'),
-      cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`, { ttl: 5 * 60 * 1000 }),
+      cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`, { ttl: 30 * 1000 }),
     ])
     if (ratingData.status === 'fulfilled') ratings.value = ratingData.value
     if (photoData.status === 'fulfilled') photos.value = photoData.value.data || []
@@ -639,7 +664,7 @@ useLocalizedReady(async ({ path }) => {
     return
   }
   if (path === `/photos?per_page=${LATEST_PHOTOS_LIMIT}`) {
-    const photoData = await cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`, { ttl: 5 * 60 * 1000 })
+    const photoData = await cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`, { ttl: 30 * 1000 })
     photos.value = photoData?.data || []
   }
 })
@@ -728,6 +753,8 @@ async function reloadMarkersForFilter() {
 }
 
 watch([userFilter, reviewFilter, directionFilter, winterFilter], reloadMarkersForFilter)
+// Video filter is applied client-side (markers already carry has_video) — no refetch needed.
+watch(videoFilter, scheduleMarkerSync)
 
 watch(currentLanguage, () => {
   rebuildMarkerRegistry()
@@ -758,6 +785,11 @@ watch(yearBounds, () => {
 watch(activePhotoId, (newId, oldId) => {
   deactivateMarker(oldId)
   activateMarker(newId)
+})
+
+watch(homeResetSignal, (val, prev) => {
+  if (val === prev) return
+  resetHomeState()
 })
 
 onBeforeUnmount(() => {
@@ -848,6 +880,18 @@ onBeforeUnmount(() => {
               </div>
               <button
                 type="button"
+                class="map-filter-chip map-filter-chip--video"
+                :class="{ active: videoFilter }"
+                :aria-pressed="videoFilter"
+                @click="toggleVideoFilter"
+              >
+                <svg class="video-chip-icon" viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+                  <path fill="currentColor" d="M8 5v14l11-7z" />
+                </svg>
+                <span>{{ t('filterVideo') }}</span>
+              </button>
+              <button
+                type="button"
                 class="map-filter-chip map-filter-chip--winter"
                 :class="{ active: winterFilter }"
                 :aria-pressed="winterFilter"
@@ -888,11 +932,11 @@ onBeforeUnmount(() => {
 
       <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
         <div class="home-brand">
-          <RouterLink class="home-brand__logo-link" to="/" :aria-label="t('backToHome')">
+          <button type="button" class="home-brand__logo-link" :aria-label="t('backToHome')" @click="resetHomeState">
             <img class="home-brand__logo" :src="siteLogo" alt="HinYerevan.com" />
-          </RouterLink>
+          </button>
           <div class="home-brand__text">
-            <strong class="home-brand__name">HinYerevan<em>.com</em></strong>
+            <strong class="home-brand__name" style="cursor:pointer" @click="resetHomeState">HinYerevan<em>.com</em></strong>
             <small class="home-brand__tagline">{{ t('tagline') }}</small>
             <FacebookPageBadge variant="inline" class="home-brand__fb" @open="openFacebookPage" />
           </div>
@@ -921,9 +965,10 @@ onBeforeUnmount(() => {
         :max="maxYear"
         :step="1"
         :tooltips="false"
+        :format="yearFormat"
         :lazy="false"
         :options="yearSliderOptions"
-        :class="['year-slider', yearSliderClass]"
+        :class="['year-slider', 'year-slider--labelled', yearSliderClass, { 'year-slider--coincident': yearRange[0] === yearRange[1] }]"
         @change="onYearSliderChange"
       />
       <div class="year-ticks">
@@ -931,11 +976,6 @@ onBeforeUnmount(() => {
         <span>{{ maxYear }}</span>
       </div>
     </div>
-    <span class="year-filter-values">
-      <strong>{{ loading ? '——' : yearRange[0] }}</strong>
-      <em>—</em>
-      <strong>{{ loading ? '——' : yearRange[1] }}</strong>
-    </span>
   </section>
 
   <div class="hero-actions under-map">
@@ -1134,6 +1174,10 @@ onBeforeUnmount(() => {
 
 .home-brand__logo-link {
   display: inline-flex;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
   border-radius: 5px;
   @include interactive((transform));
 
@@ -1426,6 +1470,20 @@ onBeforeUnmount(() => {
   &--winter.active {
     background: linear-gradient(135deg, #5eb8e8, #2d8fc4);
     box-shadow: 0 6px 14px rgba(#2d8fc4, 0.28);
+  }
+
+  &--video .video-chip-icon {
+    flex-shrink: 0;
+    color: #d6493b;
+  }
+
+  &--video.active {
+    background: linear-gradient(135deg, #ff5a4d, #d6493b);
+    box-shadow: 0 6px 14px rgba(#d6493b, 0.28);
+
+    .video-chip-icon {
+      color: #fff;
+    }
   }
 
   &--direction.active .direction-marker {
@@ -1801,10 +1859,10 @@ onBeforeUnmount(() => {
 
 .year-slider {
   --slider-bg: #e4eaf6;
-  --slider-connect-bg: #{$accent};
+  --slider-connect-bg: #ae2b21;
   --slider-handle-bg: #fff;
   --slider-handle-border: 0;
-  --slider-handle-ring-color: rgba(255, 145, 15, 0.22);
+  --slider-handle-ring-color: rgba(174, 43, 33, 0.22);
   --slider-height: 4px;
   --slider-radius: 999px;
   --slider-handle-width: 14px;
@@ -1815,7 +1873,8 @@ onBeforeUnmount(() => {
 
   &.slider-target {
     height: 18px;
-    padding-inline: 8px;
+    // Room for the value bubbles at the very ends so they stay inside the bar.
+    padding-inline: 26px;
     border: 0;
     background: transparent;
     box-shadow: none;
@@ -1833,7 +1892,7 @@ onBeforeUnmount(() => {
   .slider-connect {
     height: 100%;
     border-radius: $radius-pill;
-    background: linear-gradient(90deg, $accent, $accent-dark);
+    background: linear-gradient(90deg, #c43d30, #8a1c14);
   }
 
   .slider-handle {
@@ -1848,19 +1907,6 @@ onBeforeUnmount(() => {
       0 4px 8px rgba($accent-dark, 0.32);
     cursor: grab;
     @include interactive((box-shadow, scale));
-
-    // Nudge each handle outward by half its width so that when both handles
-    // sit on the same year they render as two touching circles (instead of
-    // stacking into one). margin:0 still allows selecting a single year.
-    &-lower {
-      z-index: 2;
-      transform: translateX(-50%);
-    }
-
-    &-upper {
-      z-index: 3;
-      transform: translateX(50%);
-    }
 
     &:hover,
     &:focus {
@@ -1888,10 +1934,104 @@ onBeforeUnmount(() => {
   }
 }
 
+// The handle is a fixed-width bubble on the track, showing its year inside.
+// vueform/noUiSlider centres handles via `right: calc(-width / 2)` — keep
+// --slider-handle-width in sync with the bubble width; do NOT add translateX(-50%)
+// on top or handles shift left. When both ends pick the same year, nudge outward.
+.year-slider--labelled {
+  --slider-handle-width: 44px;
+  --slider-handle-height: 18px;
+
+  .slider-handle {
+    width: var(--slider-handle-width);
+    min-width: var(--slider-handle-width);
+    height: var(--slider-handle-height);
+    // Match default.css vertical centring for the taller bubble.
+    top: calc((var(--slider-handle-height) - var(--slider-height)) / -2 - 1px);
+    padding: 0 4px;
+    border-radius: 6px;
+    border: 0;
+    background: linear-gradient(135deg, #c43d30, #8a1c14);
+    color: #fff;
+    box-shadow: 0 3px 8px rgba(138, 28, 20, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    cursor: grab;
+    transform: none;
+
+    // The year text (format() strips the ".0" that aria-valuenow carries).
+    &::after {
+      content: attr(aria-valuetext);
+    }
+
+    &:hover,
+    &:focus {
+      scale: 1;
+      box-shadow: 0 4px 12px rgba(138, 28, 20, 0.45);
+    }
+
+    &:active {
+      cursor: grabbing;
+      scale: 1;
+    }
+  }
+
+  .slider-handle-lower {
+    z-index: 2;
+  }
+
+  .slider-handle-upper {
+    z-index: 3;
+  }
+
+  // Each bubble points inward at the exact year it marks.
+  .slider-handle-lower::before {
+    content: '';
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-left: 6px solid #8a1c14;
+  }
+
+  .slider-handle-upper::before {
+    content: '';
+    position: absolute;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 5px solid transparent;
+    border-bottom: 5px solid transparent;
+    border-right: 6px solid #8a1c14;
+  }
+}
+
+// Same year on both ends: spread the centred bubbles apart so they touch edge-to-edge.
+.year-slider--coincident.year-slider--labelled {
+  .slider-handle-lower {
+    transform: translateX(-50%);
+  }
+
+  .slider-handle-upper {
+    transform: translateX(50%);
+  }
+}
+
 .year-ticks {
   display: flex;
   justify-content: space-between;
-  padding: 0 8px;
+  padding: 0 26px;
   color: $muted;
   font-size: 10px;
   font-weight: 500;
@@ -1914,8 +2054,8 @@ onBeforeUnmount(() => {
     position: absolute;
     inset: 0;
     border-radius: 50%;
-    background: rgba(229, 57, 53, 0.22);
-    border: 2px solid rgba(229, 57, 53, 0.45);
+    background: rgba(255, 145, 15, 0.22);
+    border: 2px solid rgba(255, 145, 15, 0.5);
     pointer-events: none;
   }
 }
@@ -1942,11 +2082,11 @@ onBeforeUnmount(() => {
   line-height: 1;
   border: 2px solid #fff;
   background:
-    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.38) 0 16%, transparent 17%),
-    linear-gradient(145deg, lighten($accent, 4%), $accent-dark);
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.32) 0 16%, transparent 17%),
+    linear-gradient(145deg, #d6493b, #8a1c14);
   box-shadow:
-    0 0 0 2px rgba($accent, 0.14),
-    0 3px 8px rgba($accent-dark, 0.28);
+    0 0 0 2px rgba(174, 43, 33, 0.16),
+    0 3px 8px rgba(138, 28, 20, 0.3);
   @include interactive((transform, box-shadow));
 
   span {
