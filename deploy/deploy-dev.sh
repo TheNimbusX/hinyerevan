@@ -4,11 +4,17 @@ cd /var/www/hinyerevan
 # Do NOT use git reset --hard — it wipes hotfixes uploaded via _sync-local-to-vps.ps1.
 # Commit and push local changes first, then deploy; or use deploy/_sync-local-to-vps.ps1.
 git fetch origin dev
-if ! git diff --quiet || ! git diff --cached --quiet || [ -n "$(git status --porcelain)" ]; then
-  echo "WARN: stashing server local changes before deploy (recover with git stash list)."
-  git stash push -u -m "pre-deploy-$(date +%F-%T)" || true
+# Only stash *tracked* edits (never -u: untracked legacy/ holds all photo files).
+if ! git diff --quiet || ! git diff --cached --quiet; then
+  echo "WARN: stashing tracked server changes before deploy (recover with git stash list)."
+  git stash push -m "pre-deploy-$(date +%F-%T)" || true
 fi
 git merge --ff-only FETCH_HEAD
+if [ ! -d legacy/photos/x ]; then
+  echo "ERROR: legacy photo library missing at legacy/photos/x — aborting deploy." >&2
+  echo "Restore: git checkout 'stash@{N}^3' -- legacy  OR  rclone sync yadisk:hinyerevan/legacy legacy/" >&2
+  exit 1
+fi
 cd backend
 composer install --no-dev --optimize-autoloader 2>/dev/null || composer install --no-dev --optimize-autoloader
 php artisan config:cache
