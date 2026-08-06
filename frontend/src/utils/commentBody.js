@@ -1,6 +1,3 @@
-/**
- * Display legacy comment text (HTML entities / <br> tags) as plain text with breaks.
- */
 export function formatCommentBody(body) {
   if (!body) return ''
 

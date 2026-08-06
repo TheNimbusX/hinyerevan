@@ -5,10 +5,6 @@ namespace App\Socialite;
 use GuzzleHttp\Exception\ConnectException;
 use SocialiteProviders\Yandex\Provider as BaseProvider;
 
-/**
- * Yandex profile is only available at login.yandex.ru — often blocked from VPS/datacenter IPs.
- * Use OAUTH_PROXY in .env when this host is unreachable from the server.
- */
 class YandexProvider extends BaseProvider
 {
     /** @var array<int, string> */

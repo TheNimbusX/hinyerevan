@@ -3,10 +3,10 @@
 # Set PAGE_TOKEN before running (Page token from GET /me/accounts, not User token).
 set -euo pipefail
 : "${PAGE_TOKEN:?Set PAGE_TOKEN to the Page access_token from /me/accounts}"
+: "${APP_SECRET:?Set APP_SECRET to the Meta app secret}"
 
 ENV=/var/www/hinyerevan/backend/.env
-APP_ID=1502109724726341
-APP_SECRET=a705bf9bef3fc0940366d32517692576
+APP_ID="${APP_ID:-1502109724726341}"
 PAGE_ID=134129376737442
 PAGE_URL=https://www.facebook.com/HinYerevanCom/
 

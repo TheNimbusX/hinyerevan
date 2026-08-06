@@ -1,4 +1,3 @@
-/** In-app browsers (Telegram, Meta, etc.) often break Vue transitions / timers. */
 export function isInAppBrowser() {
   if (typeof document !== 'undefined' && document.documentElement.classList.contains('in-app-browser')) {
     return true
@@ -25,7 +24,6 @@ export function removeSplashOverlay() {
   const splash = document.getElementById('app-splash')
   if (!splash || splash.classList.contains('is-dismissed')) return
   splash.classList.add('app-splash--hide', 'is-dismissed')
-  // Broken WebViews keep a composited layer after opacity transitions.
   splash.style.cssText =
     'display:none!important;opacity:0!important;visibility:hidden!important;pointer-events:none!important'
   window.setTimeout(() => splash.remove(), 60)

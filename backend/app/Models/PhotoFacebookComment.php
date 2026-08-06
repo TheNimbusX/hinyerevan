@@ -16,12 +16,14 @@ class PhotoFacebookComment extends Model
         'author_name',
         'author_picture',
         'body',
+        'like_count',
         'commented_at',
         'synced_at',
     ];
 
     protected $casts = [
         'photo_id' => 'integer',
+        'like_count' => 'integer',
         'commented_at' => 'datetime',
         'synced_at' => 'datetime',
     ];

@@ -14,6 +14,7 @@ import LanguageSwitcher from './components/LanguageSwitcher.vue'
 import SiteFooter from './components/SiteFooter.vue'
 import FacebookPageBadge from './components/FacebookPageBadge.vue'
 import FacebookPageModal from './components/FacebookPageModal.vue'
+import VideoLightbox from './components/VideoLightbox.vue'
 import HeaderUserMenu from './components/HeaderUserMenu.vue'
 import HeaderToolsMenu from './components/HeaderToolsMenu.vue'
 import DevAuthGate from './components/DevAuthGate.vue'
@@ -135,8 +136,6 @@ function syncAuthState() {
 
 let socialCallbackConsumed = false
 
-// OAuth providers redirect back to "/" with a one-time token (or an error)
-// in the query string. Consume it, then strip the params from the URL.
 async function handleSocialCallback() {
   if (socialCallbackConsumed) return false
 
@@ -363,7 +362,6 @@ async function confirmRegister() {
   })
 }
 
-
 function backToRegisterForm() {
   registerStep.value = 'form'
   registerCode.value = ''
@@ -489,8 +487,6 @@ onMounted(async () => {
   await ensureDevAuth()
   if (!devAuthOk.value) return
 
-  // Must run before loadCurrentUser(): a stale token in localStorage can 401 and
-  // call setToken(null), wiping the fresh social_token we just received.
   await handleSocialCallback()
   if (!currentUser.value) {
     await loadCurrentUser()
@@ -597,6 +593,8 @@ onBeforeUnmount(() => {
 
     <FacebookPageBadge @open="openFacebookModal" />
     <FacebookPageModal :open="facebookOpen" @close="closeFacebookModal" />
+
+    <VideoLightbox />
 
     <Teleport to="body">
       <div v-if="authOpen" class="auth-modal-backdrop">
@@ -861,7 +859,6 @@ $home-sidebar-w: 320px;
     top: 10px;
     width: calc(100% - 20px);
     border-radius: $radius-lg;
-    // backdrop-filter in Telegram/iOS in-app browsers can dim the whole page.
     background: rgba($bg, 0.96);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
@@ -1059,7 +1056,6 @@ $home-sidebar-w: 320px;
     white-space: nowrap;
     @include interactive((color, background));
 
-
     &:hover {
       color: $ink;
       background: rgba($ink, 0.04);
@@ -1114,7 +1110,6 @@ $home-sidebar-w: 320px;
   }
 }
 
-// Home map: header is a detached pill over the map, right of the photos column.
 html.home-map-page {
   --home-sidebar-w: #{$home-sidebar-w};
 }
@@ -1131,21 +1126,16 @@ html.home-map-page,
       border-radius: $radius-pill;
     }
 
-    // Branding now lives in the left column, so drop it from the top bar.
     .site-header .brand {
       display: none;
     }
 
-    // Floating FB badge moves into the branding block on home.
     .facebook-page-badge--floating {
       display: none;
     }
   }
 }
 
-// Compact the header by actual header width — works on every page and adapts
-// automatically when the home sidebar narrows the bar. Nav links always stay
-// reachable; only cosmetic bits drop and tools fold into the "More" menu.
 @include mq-up($bp-md) {
   @container site-header (max-width: 1060px) {
     .brand-text small {
@@ -1446,8 +1436,6 @@ html.home-map-page,
   inset: 0;
   z-index: 1000;
   display: flex;
-  // Scroll the backdrop (not the modal) so a tall form stays fully reachable
-  // on mobile; `margin: auto` on the modal still centers it when it fits.
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding: 20px;
@@ -1508,7 +1496,6 @@ html.home-map-page,
   cursor: pointer;
   padding: 0;
 
-  // Cross drawn from two centered bars — always pixel-perfect, regardless of font metrics.
   &::before,
   &::after {
     content: "";

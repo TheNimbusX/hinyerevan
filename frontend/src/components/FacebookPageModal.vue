@@ -53,7 +53,6 @@ const mobilePageUrl = computed(() => followUrl.value.replace('://www.facebook.co
 
 const fbColorScheme = computed(() => (theme.value === 'dark' ? 'dark' : 'light'))
 
-// Skeleton only while API loads — hiding the plugin (opacity 0) breaks XFBML on mobile WebKit.
 const showSkeleton = computed(() => apiLoading.value)
 
 const showEmbed = computed(() => !apiLoading.value && (pluginReady.value || pluginFailed.value))

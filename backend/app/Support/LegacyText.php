@@ -2,9 +2,6 @@
 
 namespace App\Support;
 
-/**
- * Legacy content (photo titles, etc.) was often stored HTML-entity-encoded.
- */
 class LegacyText
 {
     public static function decode(?string $text): string

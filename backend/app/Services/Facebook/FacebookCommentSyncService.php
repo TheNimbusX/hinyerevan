@@ -12,10 +12,8 @@ use Illuminate\Support\Facades\Log;
 
 class FacebookCommentSyncService
 {
-    /** Stream returns flat list; parent must be requested as `parent` (not parent{id}). */
-    private const COMMENT_FIELDS = 'id,message,created_time,from{id,name,picture},parent';
+    private const COMMENT_FIELDS = 'id,message,created_time,from{id,name,picture},parent,like_count';
 
-    /** Avoid hammering Graph when one page view touches several endpoints. */
     private const THROTTLE_SECONDS = 15;
 
     /** @var list<string> FB comment ids already represented by site comments. */
@@ -27,9 +25,6 @@ class FacebookCommentSyncService
     ) {}
 
     /**
-     * Cross-post a site comment to the photo's Facebook post via the Page token.
-     * Appears as the Page; author is attributed in the message text.
-     *
      * @return string|null  The created Facebook comment id, or null on failure.
      */
     public function publishComment(Photo $photo, string $message, ?string $replyToFacebookCommentId = null): ?string
@@ -73,6 +68,37 @@ class FacebookCommentSyncService
         }
     }
 
+    public function setPageLike(string $facebookCommentId, bool $liked, int $localCount): void
+    {
+        $token = trim((string) config('services.facebook.page_access_token', ''));
+        if ($token === '' || $facebookCommentId === '') {
+            return;
+        }
+
+        if (($liked && $localCount !== 1) || (! $liked && $localCount !== 0)) {
+            return;
+        }
+
+        try {
+            $response = $liked
+                ? $this->graph->post($facebookCommentId . '/likes', ['access_token' => $token])
+                : $this->graph->delete($facebookCommentId . '/likes', ['access_token' => $token]);
+
+            if (! $response->ok()) {
+                Log::info('Facebook page like sync skipped', [
+                    'facebook_comment_id' => $facebookCommentId,
+                    'liked' => $liked,
+                    'status' => $response->status(),
+                ]);
+            }
+        } catch (\Throwable $e) {
+            Log::info('Facebook page like sync exception', [
+                'facebook_comment_id' => $facebookCommentId,
+                'message' => $e->getMessage(),
+            ]);
+        }
+    }
+
     public function syncForPhoto(Photo $photo, bool $force = false): void
     {
         $token = trim((string) config('services.facebook.page_access_token', ''));
@@ -88,14 +114,11 @@ class FacebookCommentSyncService
                 }
                 Cache::put($throttleKey, true, now()->addSeconds(self::THROTTLE_SECONDS));
             } catch (\Throwable) {
-                // Cache unavailable — proceed without throttling rather than skip the sync.
             }
         }
 
         $postId = trim((string) $photo->facebook_post_id);
 
-        // FB comment ids that originated from site comments (cross-posted): they are
-        // already shown as the site comment, so don't ingest them as duplicates.
         $this->linkedFacebookIds = Comment::query()
             ->where('post_id', $photo->id)
             ->whereNotNull('facebook_comment_id')
@@ -176,7 +199,6 @@ class FacebookCommentSyncService
             return;
         }
 
-        // Skip comments that we cross-posted from the site; the site comment is the source of truth.
         if (in_array($fbId, $this->linkedFacebookIds, true)) {
             return;
         }
@@ -206,12 +228,12 @@ class FacebookCommentSyncService
                     'author_name' => $authorName !== '' ? $authorName : 'Facebook',
                     'author_picture' => $this->resolveAuthorPicture($row['from'] ?? null),
                     'body' => $message,
+                    'like_count' => max(0, (int) ($row['like_count'] ?? 0)),
                     'commented_at' => isset($row['created_time']) ? $row['created_time'] : null,
                     'synced_at' => now(),
                 ],
             );
         } catch (\Throwable $e) {
-            // One malformed row must never abort the whole batch.
             Log::warning('Facebook comment row ingest failed', [
                 'photo_id' => $photo->id,
                 'facebook_comment_id' => $fbId,
@@ -233,10 +255,6 @@ class FacebookCommentSyncService
     }
 
     /**
-     * Resolve the avatar to persist: prefer a locally cached copy (so it survives
-     * the lookaside URL expiry), falling back to the raw remote URL if the
-     * download fails. Returns null for default silhouettes (frontend shows initials).
-     *
      * @param  array<string, mixed>|null  $from
      */
     private function resolveAuthorPicture(?array $from): ?string
@@ -275,7 +293,6 @@ class FacebookCommentSyncService
             return null;
         }
 
-        // A default silhouette is not worth caching — let the UI render initials.
         if (($picture['data']['is_silhouette'] ?? false) === true) {
             return null;
         }
@@ -334,6 +351,7 @@ class FacebookCommentSyncService
             'user_unique' => null,
             'to' => null,
             'source' => 'facebook',
+            'likes_count' => max(0, (int) $row->like_count),
             'facebook_comment_id' => $row->facebook_comment_id,
             'author' => [
                 'name' => $name,

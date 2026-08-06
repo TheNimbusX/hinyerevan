@@ -5,7 +5,7 @@ $root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 $hostKey = 'SHA256:r8XxZ+kwSpPRRhBYu0TAVUoEYDNqyMUUAX6DhbMuggw'
 $server = 'root@45.138.25.76'
 $pw = $env:HINYEREVAN_DEV_PW
-if (-not $pw) { $pw = 'URIHoJ1hnlJ2N5bX' }
+if (-not $pw) { throw 'Set $env:HINYEREVAN_DEV_PW before running this script.' }
 
 function Scp-Dir($local, $remote) {
   & pscp -batch -hostkey $hostKey -pw $pw -r "$local" "${server}:$remote"

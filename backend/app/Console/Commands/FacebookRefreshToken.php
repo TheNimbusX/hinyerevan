@@ -8,19 +8,6 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
-/**
- * Keeps the long-lived Facebook Page token healthy.
- *
- * The page token never "expires", but Meta enforces a ~90-day data-access
- * window that lapses if the app stays idle. This command:
- *   - inspects the current token (debug_token) and reports its windows;
- *   - re-exchanges it for a fresh long-lived token (which also counts as
- *     activity and resets the data-access window), writing it back to .env;
- *   - raises an alert (log + optional email) when the token is invalid or the
- *     data-access window is about to close and could not be refreshed.
- *
- * Scheduled weekly in Console/Kernel.php.
- */
 class FacebookRefreshToken extends Command
 {
     protected $signature = 'facebook:refresh-token
@@ -43,7 +30,6 @@ class FacebookRefreshToken extends Command
         $appToken = $appId . '|' . $appSecret;
         $dataAccessDays = null;
 
-        // 1) Inspect the current token (best-effort; failures are not fatal yet).
         $debug = $graph->get('debug_token', [
             'input_token' => $current,
             'access_token' => $appToken,
@@ -66,14 +52,12 @@ class FacebookRefreshToken extends Command
             if (! $isValid) {
                 $err = (array) ($data['error'] ?? []);
                 $reason = (string) ($err['message'] ?? 'token reported invalid by debug_token');
-                // Still try to exchange below — but remember the problem.
                 $this->warn('debug_token reports invalid: ' . $reason);
             }
         } else {
             $this->warn('debug_token call failed: HTTP ' . $debug->status() . ' ' . $debug->body());
         }
 
-        // 2) Re-exchange to mint a fresh long-lived token (also keeps data access alive).
         $response = $graph->get('oauth/access_token', [
             'grant_type' => 'fb_exchange_token',
             'client_id' => $appId,
@@ -111,7 +95,6 @@ class FacebookRefreshToken extends Command
             return $this->fail('Got a fresh Facebook token but could not write .env: ' . $e->getMessage() . ' (ensure .env is writable by the scheduler user, e.g. chown www-data .env).');
         }
 
-        // Rebuild the cached config so the new token is used on the next request.
         Artisan::call('config:cache');
 
         $this->info('Facebook Page token refreshed and saved to .env.');

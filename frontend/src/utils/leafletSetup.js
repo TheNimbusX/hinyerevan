@@ -6,7 +6,6 @@ import { initMapMarkerIcons } from './mapMarkerIcons'
 
 let ready = false
 
-/** Fix Vite broken default pin paths; preload direction pin SVGs for maps. */
 export function setupLeaflet() {
   if (ready) return
   ready = true

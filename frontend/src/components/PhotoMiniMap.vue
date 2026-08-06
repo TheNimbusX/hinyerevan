@@ -61,7 +61,7 @@ function markerPreview(marker) {
   const dir = directionLabel(marker.direction, t)
   const added = formatDateTime(marker.datetime, currentLanguage.value)
   const videoBadge = marker.has_video
-    ? '<span class="marker-preview-video" aria-hidden="true">▶</span>'
+    ? '<span class="marker-preview-video" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M8 5v14l11-7z"/></svg></span>'
     : ''
   const dateLine = added
     ? `<time class="marker-preview-date">${escapeHtml(added)}</time>`
@@ -73,9 +73,9 @@ function markerPreview(marker) {
         <img src="${imageUrl(marker.thumb_url)}" alt="" loading="lazy" decoding="async"
           onload="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()"
           onerror="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()">
+        ${videoBadge}
       </span>
       <span class="marker-preview-year">${marker.year}</span>
-      ${videoBadge}
       <strong>${escapeHtml(marker.title)}</strong>
       <small>${escapeHtml(dir)}</small>
       ${dateLine}
@@ -220,9 +220,6 @@ function initMap() {
     chunkDelay: 40,
     removeOutsideVisibleBounds: true,
     maxClusterRadius: clusterRadiusForZoom,
-    // Align the cluster grid's internal max zoom with the map's real max zoom so that
-    // spiderfyOnMaxZoom can trigger. Using MAP_CLUSTER_MAX_ZOOM (22) made the internal
-    // _maxZoom (21) unreachable on this map (maxZoom 19), so cluster clicks did nothing.
     disableClusteringAtZoom: MINI_MAP_MAX_ZOOM + 1,
     iconCreateFunction: createClusterIconFactory(),
   }).addTo(map)

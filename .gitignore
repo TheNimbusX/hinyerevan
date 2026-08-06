@@ -30,3 +30,5 @@ deploy/.hinyerevan-secrets.env
 /test*.png
 *.log
 .DS_Store
+/scratch_*
+.claude/

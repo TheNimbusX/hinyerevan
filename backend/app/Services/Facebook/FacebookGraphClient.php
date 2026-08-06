@@ -28,6 +28,13 @@ class FacebookGraphClient
         return $this->client()->asForm()->post($this->url($path), $form);
     }
 
+    public function delete(string $path, array $query = []): Response
+    {
+        $path = ltrim($path, '/');
+
+        return $this->client()->delete($this->url($path), $query);
+    }
+
     private function url(string $path): string
     {
         return 'https://graph.facebook.com/' . self::API_VERSION . '/' . $path;

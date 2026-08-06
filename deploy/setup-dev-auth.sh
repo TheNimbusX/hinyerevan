@@ -4,7 +4,8 @@
 set -euo pipefail
 
 DEV_USER="${DEV_HTTP_USER:-admin}"
-DEV_PASS="${DEV_HTTP_PASS:-merp2026WEB}"
+: "${DEV_HTTP_PASS:?Set DEV_HTTP_PASS before running}"
+DEV_PASS="$DEV_HTTP_PASS"
 ENV=/var/www/hinyerevan/backend/.env
 
 replace() {

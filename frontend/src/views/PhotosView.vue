@@ -5,6 +5,7 @@ import { imageUrl, localizedApi, api } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload } from '../composables/useLanguageReload'
 import { directionLabel } from '../utils/locale'
+import { playVideo } from '../utils/video'
 import { photoDisplayLikes } from '../utils/photoStats'
 import { saveGalleryRestore, consumeGalleryRestore } from '../utils/navigationRestore'
 import DirectionMarker from '../components/DirectionMarker.vue'
@@ -455,9 +456,16 @@ onBeforeUnmount(() => {
               loading="lazy"
               decoding="async"
             />
-            <span v-if="photo.video" class="photo-video-badge" aria-hidden="true">
-              <svg viewBox="0 0 24 24" width="14" height="14"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
-            </span>
+            <button
+              v-if="photo.video"
+              type="button"
+              class="photo-video-play"
+              :aria-label="t('watchVideo')"
+              :title="t('watchVideo')"
+              @click.prevent.stop="playVideo(photo.video, photo.title)"
+            >
+              <svg viewBox="0 0 24 24" width="26" height="26"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+            </button>
             <span v-if="photo.is_winter" class="photo-winter-badge" :title="t('winterPhoto')">
               <WinterBadgeIcon size="sm" />
             </span>
@@ -923,25 +931,36 @@ onBeforeUnmount(() => {
   }
 }
 
-.photo-video-badge {
+.photo-video-play {
   position: absolute;
-  top: auto;
-  bottom: 10px;
-  left: 10px;
-  z-index: 2;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
   border-radius: 50%;
   color: #fff;
-  background: rgba(0, 0, 0, 0.58);
+  background: rgba(0, 0, 0, 0.55);
   backdrop-filter: blur(2px);
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, background 0.15s ease;
 
   svg {
-    margin-left: 1px;
+    margin-left: 3px;
   }
+
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: #f00;
+  }
+
+  @include focus-ring(rgba(255, 255, 255, 0.7), 2px);
 }
 
 .photo-winter-badge {

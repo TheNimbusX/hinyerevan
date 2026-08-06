@@ -1,7 +1,3 @@
-// =================================================================
-// Design tokens + shared mixins
-// Auto-imported into every SCSS block via vite.config.js.
-// =================================================================
 
 // ---------- Palette ----------------------------------------------
 $primary: #294fb3;
@@ -27,7 +23,6 @@ $success: #1c7a48;
 $danger: #c93b3b;
 $warning: #b45309;
 
-// Third status color — photos that need location clarification
 $review-color: #7c5cdb;
 $review-color-dark: #5b3fc0;
 
@@ -65,7 +60,6 @@ $bp-md: 820px;
 $bp-lg: 1100px;
 
 // ---------- Focus / interaction mixins ---------------------------
-// Visible focus ring that doesn't clash with native outline
 @mixin focus-ring($color: rgba(41, 79, 179, 0.35), $offset: 2px) {
   &:focus-visible {
     outline: 2px solid $color;
@@ -73,7 +67,6 @@ $bp-lg: 1100px;
   }
 }
 
-// Same ring but inset (for buttons that have their own shadow)
 @mixin focus-ring-inset($color: rgba(41, 79, 179, 0.45)) {
   &:focus-visible {
     outline: none;
@@ -81,7 +74,6 @@ $bp-lg: 1100px;
   }
 }
 
-// Smooth lift on hover for cards / tiles
 @mixin hover-lift($amount: -2px, $shadow: $shadow-md) {
   transition: transform $duration $ease, box-shadow $duration $ease;
 

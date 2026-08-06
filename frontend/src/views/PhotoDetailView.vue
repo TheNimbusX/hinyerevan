@@ -6,6 +6,8 @@ import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { appendCommentToThreads, countComments, removeCommentById } from '../utils/commentTree'
+import { buildCommentPostBody } from '../utils/commentPost'
+import { playVideo } from '../utils/video'
 import { userDisplayName, userProfilePath } from '../utils/user'
 import PhotoCommentThread from '../components/PhotoCommentThread.vue'
 import { setPageMeta } from '../utils/seo'
@@ -38,6 +40,17 @@ const { t, currentLanguage } = useI18n()
 const isAuthenticated = computed(() => Boolean(getToken()))
 const currentUser = inject('currentUser', ref(null))
 const currentUserUnique = computed(() => currentUser.value?.unique || '')
+
+const COLLAPSED_COMMENT_THREADS = 5
+const showAllComments = ref(false)
+const commentThreads = computed(() => photo.value?.comments || [])
+const visibleCommentThreads = computed(() =>
+  showAllComments.value ? commentThreads.value : commentThreads.value.slice(0, COLLAPSED_COMMENT_THREADS),
+)
+const hiddenCommentsExist = computed(
+  () => !showAllComments.value && commentThreads.value.length > COLLAPSED_COMMENT_THREADS,
+)
+const totalCommentsCount = computed(() => countComments(commentThreads.value))
 
 const hasMapCoords = computed(() => {
   const la = Number(photo.value?.lat)
@@ -116,7 +129,6 @@ async function loadFreshComments() {
       comments_count: Math.max(photo.value.comments_count || 0, countComments(comments)),
     }
   } catch {
-    // keep embedded comments from photo payload
   }
 }
 
@@ -125,6 +137,7 @@ async function load({ soft = false } = {}) {
     loading.value = true
     error.value = ''
     photo.value = null
+    showAllComments.value = false
   }
 
   try {
@@ -331,6 +344,7 @@ async function postComment({ replyTo, body, postToFacebook = false }) {
       comments: threads,
       comments_count: (photo.value.comments_count || 0) + 1,
     }
+    if (!replyTo) showAllComments.value = true
     clearApiCacheForPath(`/photos/${route.params.id}/comments`)
     replyResetKey.value += 1
     return true
@@ -367,9 +381,37 @@ async function deleteComment(item) {
     clearApiCacheForPath(`/photos/${route.params.id}/comments`)
     clearApiCacheForPath(`/photos/${route.params.id}`)
   } catch (event) {
-    // Roll back optimistic removal on failure.
     photo.value = { ...photo.value, comments: snapshot, comments_count: snapshotCount }
     commentPostError.value = event?.message || 'Failed to delete comment'
+  }
+}
+
+async function toggleCommentLike(item) {
+  if (!item) return
+  if (!isAuthenticated.value) {
+    promptLogin()
+    return
+  }
+
+  const wasLiked = Boolean(item.liked)
+  const prevCount = item.likes_count || 0
+  item.liked = !wasLiked
+  item.likes_count = Math.max(0, prevCount + (wasLiked ? -1 : 1))
+
+  try {
+    const path = item.source === 'facebook'
+      ? `/photos/${route.params.id}/facebook-comments/${item.facebook_comment_id}/like`
+      : `/comments/${item.id}/like`
+    const result = await api(path, { method: 'POST' })
+    if (result) {
+      item.liked = Boolean(result.liked)
+      item.likes_count = result.likes_count ?? item.likes_count
+    }
+    clearApiCacheForPath(`/photos/${route.params.id}/comments`)
+  } catch (event) {
+    item.liked = wasLiked
+    item.likes_count = prevCount
+    if (event?.status === 401) promptLogin()
   }
 }
 
@@ -392,10 +434,15 @@ watch(isAuthenticated, () => {
     <RouterLink class="button" to="/photos">{{ t('photos') }}</RouterLink>
   </div>
 
-  <section v-else-if="photo" class="detail-layout">
+  <div v-else-if="photo" class="photo-detail-page">
+    <section class="detail-layout">
     <article class="photo-detail panel">
       <div class="photo-detail-frame">
+        <div v-if="photo.video" class="photo-detail-video">
+          <YoutubeEmbed :url="photo.video" :title="photo.title" />
+        </div>
         <button
+          v-else
           type="button"
           class="photo-detail-image"
           :aria-label="t('openFullscreen')"
@@ -539,11 +586,6 @@ watch(isAuthenticated, () => {
     :t="t"
   />
 
-  <section v-if="photo?.video" class="panel detail-video-block">
-    <h2>{{ t('watchVideo') }}</h2>
-    <YoutubeEmbed :url="photo.video" :title="photo.title" />
-  </section>
-
   <section v-if="photo?.nearby_photos?.length" class="panel related-block">
     <header class="related-head">
       <h2>{{ t('nearbyPhotos') }}</h2>
@@ -557,6 +599,15 @@ watch(isAuthenticated, () => {
       >
         <img :src="imageUrl(item.images.large || item.images.thumb)" :alt="item.title" />
         <span class="related-year">{{ item.year }}</span>
+        <button
+          v-if="item.video"
+          type="button"
+          class="related-video-play"
+          :aria-label="t('watchVideo')"
+          @click.prevent.stop="playVideo(item.video, item.title)"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+        </button>
         <strong>{{ item.title }}</strong>
       </RouterLink>
     </div>
@@ -582,13 +633,22 @@ watch(isAuthenticated, () => {
       >
         <img :src="imageUrl(item.images.large || item.images.thumb)" :alt="item.title" />
         <span class="related-year">{{ item.year }}</span>
+        <button
+          v-if="item.video"
+          type="button"
+          class="related-video-play"
+          :aria-label="t('watchVideo')"
+          @click.prevent.stop="playVideo(item.video, item.title)"
+        >
+          <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+        </button>
         <strong>{{ item.title }}</strong>
         <small>{{ item.views }} {{ t('views') }}</small>
       </RouterLink>
     </div>
   </section>
 
-  <section v-if="photo" class="panel">
+  <section v-if="photo" class="panel comments-section">
     <h2>{{ t('comments') }}</h2>
     <form v-if="isAuthenticated" class="comment-form comment-form--root" @submit.prevent="submitComment">
       <textarea v-model="comment" :placeholder="t('writeComment')" :disabled="commentSubmitting" required />
@@ -605,7 +665,7 @@ watch(isAuthenticated, () => {
     <p v-if="isAuthenticated && !crosspostFb" class="facebook-comments-note muted-hint">{{ t('facebookReplyOnSiteOnly') }}</p>
     <PhotoCommentThread
       v-if="photo.comments?.length"
-      :threads="photo.comments"
+      :threads="visibleCommentThreads"
       :t="t"
       :lang="currentLanguage"
       :is-authenticated="isAuthenticated"
@@ -616,8 +676,18 @@ watch(isAuthenticated, () => {
       :can-crosspost="Boolean(photo.facebook?.post_id)"
       @submit="postComment"
       @delete="deleteComment"
+      @like="toggleCommentLike"
     />
+    <button
+      v-if="hiddenCommentsExist"
+      type="button"
+      class="link-button comments-show-all"
+      @click="showAllComments = true"
+    >
+      {{ t('showAllComments', { count: totalCommentsCount }) }}
+    </button>
   </section>
+  </div>
 
   <PhotoZoomLightbox
     :open="lightboxOpen"
@@ -633,6 +703,25 @@ watch(isAuthenticated, () => {
 .photo-detail {
   display: grid;
   gap: 18px;
+}
+
+.photo-detail-page {
+  @include mq-down($bp-md) {
+    display: flex;
+    flex-direction: column;
+
+    > * {
+      order: 5;
+    }
+
+    .detail-layout {
+      order: 1;
+    }
+
+    .comments-section {
+      order: 2;
+    }
+  }
 }
 
 .photo-detail-frame {
@@ -825,6 +914,13 @@ watch(isAuthenticated, () => {
 .facebook-comments-note {
   margin: 0 0 12px;
   font-size: 13px;
+}
+
+.comments-show-all {
+  display: block;
+  margin-top: 14px;
+  font-size: 14px;
+  font-weight: 600;
 }
 
 .comment-reply-banner {
@@ -1053,6 +1149,35 @@ watch(isAuthenticated, () => {
     padding: 2px 12px 12px;
     color: $muted;
     font-size: 11px;
+  }
+}
+
+.related-video-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, background 0.15s ease;
+
+  svg {
+    margin-left: 2px;
+  }
+
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: #f00;
   }
 }
 

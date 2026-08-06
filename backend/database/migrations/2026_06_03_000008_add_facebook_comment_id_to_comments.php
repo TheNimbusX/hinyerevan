@@ -13,7 +13,6 @@ return new class extends Migration
         }
 
         Schema::table('comments', function (Blueprint $table) {
-            // FB comment id of a site comment that was also cross-posted to Facebook.
             $table->string('facebook_comment_id', 64)->nullable()->after('reply_to_facebook_comment_id');
             $table->index('facebook_comment_id', 'comments_fb_comment_id_idx');
         });

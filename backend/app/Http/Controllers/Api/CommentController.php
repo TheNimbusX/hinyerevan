@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Comment;
+use App\Models\CommentLike;
 use App\Models\NewsItem;
 use App\Models\Photo;
 use App\Models\PhotoFacebookComment;
@@ -13,6 +14,7 @@ use App\Services\Facebook\FacebookCommentSyncService;
 use App\Services\LegacySchema;
 use App\Services\TranslationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CommentController extends Controller
 {
@@ -42,8 +44,6 @@ class CommentController extends Controller
         abort_unless($photoModel->id > 0 && $photoModel->published, 404);
 
         if ($photoModel->facebook_post_id) {
-            // Defer the Graph API sync until after the response is flushed so the
-            // comments endpoint returns immediately; the throttle keeps calls sane.
             $photoId = $photoModel->id;
             app()->terminating(function () use ($photoId) {
                 try {
@@ -66,12 +66,144 @@ class CommentController extends Controller
 
         $lang = $this->lang($request);
 
-        return CommentPresenter::mergePhotoThreads(
+        $threads = CommentPresenter::mergePhotoThreads(
             $comments,
             fn () => $this->facebookComments->serializedTreeForPhoto($photoModel->id, $this->translator, $lang),
             $this->translator,
             $lang,
         );
+
+        $viewer = $request->user() ?: Auth::guard('sanctum')->user();
+        $this->attachLikes($threads, $photoModel->id, $viewer?->unique);
+
+        return $threads;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $threads
+     */
+    private function attachLikes(array &$threads, int $photoId, ?string $viewerUnique): void
+    {
+        $likes = CommentLike::query()->where('photo_id', $photoId)->get();
+
+        $bySite = [];
+        $byFacebook = [];
+        $mineSite = [];
+        $mineFacebook = [];
+
+        foreach ($likes as $like) {
+            if ($like->comment_id !== null) {
+                $bySite[$like->comment_id] = ($bySite[$like->comment_id] ?? 0) + 1;
+                if ($viewerUnique !== null && $like->user_unique === $viewerUnique) {
+                    $mineSite[$like->comment_id] = true;
+                }
+            } elseif ($like->facebook_comment_id !== null) {
+                $byFacebook[$like->facebook_comment_id] = ($byFacebook[$like->facebook_comment_id] ?? 0) + 1;
+                if ($viewerUnique !== null && $like->user_unique === $viewerUnique) {
+                    $mineFacebook[$like->facebook_comment_id] = true;
+                }
+            }
+        }
+
+        $walk = function (array &$nodes) use (&$walk, $bySite, $byFacebook, $mineSite, $mineFacebook): void {
+            foreach ($nodes as &$node) {
+                if (($node['source'] ?? '') === 'facebook') {
+                    $fbId = (string) ($node['facebook_comment_id'] ?? '');
+                    $node['likes_count'] = (int) ($node['likes_count'] ?? 0) + ($byFacebook[$fbId] ?? 0);
+                    $node['liked'] = isset($mineFacebook[$fbId]);
+                } else {
+                    $id = (int) ($node['id'] ?? 0);
+                    $node['likes_count'] = $bySite[$id] ?? 0;
+                    $node['liked'] = isset($mineSite[$id]);
+                }
+                if (! empty($node['replies'])) {
+                    $walk($node['replies']);
+                }
+            }
+        };
+
+        $walk($threads);
+    }
+
+    public function toggleLike(Request $request, Comment $comment)
+    {
+        abort_unless(LegacySchema::commentsReady(), 503, 'Legacy comments table is not connected yet.');
+        abort_unless($comment->id > 0, 404);
+
+        $photoId = (int) $comment->post_id;
+        $userUnique = (string) $request->user()->unique;
+
+        $existing = CommentLike::query()
+            ->where('comment_id', $comment->id)
+            ->where('user_unique', $userUnique)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+        } else {
+            try {
+                CommentLike::query()->create([
+                    'photo_id' => $photoId,
+                    'comment_id' => $comment->id,
+                    'user_unique' => $userUnique,
+                ]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            }
+        }
+
+        return [
+            'liked' => ! $existing,
+            'likes_count' => CommentLike::query()->where('comment_id', $comment->id)->count(),
+        ];
+    }
+
+    public function toggleFacebookLike(Request $request, int $photo, string $fbComment)
+    {
+        abort_unless(LegacySchema::commentsReady(), 503, 'Legacy comments table is not connected yet.');
+
+        $photoModel = Photo::query()->findOrFail($photo);
+        abort_unless($photoModel->id > 0 && $photoModel->published, 404);
+
+        $row = PhotoFacebookComment::query()
+            ->where('photo_id', $photoModel->id)
+            ->where('facebook_comment_id', $fbComment)
+            ->firstOrFail();
+
+        $userUnique = (string) $request->user()->unique;
+
+        $existing = CommentLike::query()
+            ->where('facebook_comment_id', $fbComment)
+            ->where('user_unique', $userUnique)
+            ->first();
+
+        if ($existing) {
+            $existing->delete();
+        } else {
+            try {
+                CommentLike::query()->create([
+                    'photo_id' => $photoModel->id,
+                    'facebook_comment_id' => $fbComment,
+                    'user_unique' => $userUnique,
+                ]);
+            } catch (\Illuminate\Database\UniqueConstraintViolationException) {
+            }
+        }
+
+        $localCount = CommentLike::query()->where('facebook_comment_id', $fbComment)->count();
+
+        $liked = ! $existing;
+        app()->terminating(function () use ($fbComment, $liked, $localCount) {
+            try {
+                $this->facebookComments->setPageLike($fbComment, $liked, $localCount);
+            } catch (\Throwable) {
+                // best-effort
+            }
+        });
+
+        return [
+            'liked' => $liked,
+            'likes_count' => max(0, (int) $row->like_count) + $localCount,
+        ];
     }
 
     public function store(Request $request, int $photo)
@@ -125,8 +257,6 @@ class CommentController extends Controller
         $comment->load('author:id,unique,uid,first_name,last_name,photo,identity,email');
 
         if ($crosspostToFacebook && $photo->facebook_post_id) {
-            // Post to Facebook AFTER the response is flushed so the site comment
-            // appears instantly; the FB comment id is linked in the background.
             $authorName = trim((string) ($comment->author?->name ?? $request->user()->name ?? ''));
             $message = $authorName !== '' ? $authorName . ': ' . $data['body'] : $data['body'];
             $photoId = $photo->id;
@@ -144,7 +274,6 @@ class CommentController extends Controller
                         Comment::where('id', $commentId)->update(['facebook_comment_id' => $fbId]);
                     }
                 } catch (\Throwable) {
-                    // cross-post failures must not affect the site comment
                 }
             });
         }
@@ -208,7 +337,6 @@ class CommentController extends Controller
         return response()->noContent();
     }
 
-    /** Authenticated users may delete their own comments (admins delete via the admin route). */
     public function destroyOwn(Request $request, Comment $comment)
     {
         abort_unless(LegacySchema::commentsReady(), 503, 'Legacy comments table is not connected yet.');
@@ -224,7 +352,6 @@ class CommentController extends Controller
 
     private function softDelete(Comment $comment): void
     {
-        // Legacy soft-delete convention: negative id rows are treated as removed.
         $comment->id = -abs($comment->id);
         $comment->save();
     }

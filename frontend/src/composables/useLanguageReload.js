@@ -1,7 +1,6 @@
 import { onBeforeUnmount, onMounted, watch } from 'vue'
 import { currentLanguage } from '../i18n'
 
-/** Refetch localized API data when UI language changes (without remounting the page). */
 export function useLanguageReload(reload, { immediate = false } = {}) {
   watch(currentLanguage, () => {
     reload({ soft: true })
@@ -12,7 +11,6 @@ export function useLanguageReload(reload, { immediate = false } = {}) {
   }
 }
 
-/** Apply translated payloads when a background localization fetch completes. */
 export function useLocalizedReady(handler) {
   function onReady(event) {
     handler(event.detail)

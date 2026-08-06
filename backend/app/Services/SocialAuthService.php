@@ -3,15 +3,10 @@
 namespace App\Services;
 
 use App\Models\User;
+use App\Models\UserSocialIdentity;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
-/**
- * Resolves social/OAuth logins against the legacy HinYerevan users table.
- *
- * Legacy uLogin stored unique = md5(provider_uid) without a network prefix.
- * Matching order: network+uid → legacy unique (same provider) → email (hinyerevan only) → create.
- * Never merge different OAuth providers by email alone.
- */
 class SocialAuthService
 {
     public const DEFAULT_PHOTO = 'http://www.hinyerevan.com/photos/user.png';
@@ -35,7 +30,6 @@ class SocialAuthService
         'linkedin' => ['linkedin'],
     ];
 
-    /** Canonical value written to users.network for each OAuth driver id. */
     public const STORAGE_NETWORK = [
         'google' => 'google',
         'facebook' => 'facebook',
@@ -46,9 +40,43 @@ class SocialAuthService
         'mailru' => 'mailru',
     ];
 
+    private static ?bool $identitiesReady = null;
+
+    private function identitiesReady(): bool
+    {
+        return self::$identitiesReady ??= Schema::hasTable('user_social_identities');
+    }
+
+    public function linkedNetworks(User $user): array
+    {
+        $primary = mb_strtolower((string) $user->network);
+        $networks = $primary !== '' && $primary !== 'hinyerevan' ? [$primary] : [];
+
+        if ($this->identitiesReady()) {
+            foreach (UserSocialIdentity::query()->where('user_id', $user->id)->pluck('network') as $network) {
+                $network = mb_strtolower((string) $network);
+                if (! in_array($network, $networks, true)) {
+                    $networks[] = $network;
+                }
+            }
+        }
+
+        return $networks;
+    }
+
     public function findExisting(string $driver, string $providerId, ?string $email): ?User
     {
         $networks = $this->networkCandidates($driver);
+
+        if ($this->identitiesReady()) {
+            $identity = UserSocialIdentity::query()
+                ->whereIn('network', $networks)
+                ->where('uid', $providerId)
+                ->first();
+            if ($identity && ($identityUser = User::query()->find($identity->user_id))) {
+                return $identityUser;
+            }
+        }
 
         $user = User::query()
             ->whereIn('network', $networks)
@@ -65,7 +93,6 @@ class SocialAuthService
             }
         }
 
-        // Email merge only for local (email/password) accounts — never hijack another OAuth row.
         if (! $user && $email !== null && $email !== '') {
             $user = User::query()
                 ->whereRaw('LOWER(email) = ?', [mb_strtolower($email)])
@@ -74,6 +101,19 @@ class SocialAuthService
         }
 
         return $user;
+    }
+
+    public function hasIdentity(User $user, string $driver, string $providerId): bool
+    {
+        if (! $this->identitiesReady()) {
+            return false;
+        }
+
+        return UserSocialIdentity::query()
+            ->where('user_id', $user->id)
+            ->whereIn('network', $this->networkCandidates($driver))
+            ->where('uid', $providerId)
+            ->exists();
     }
 
     public function touchExisting(User $user, ?string $email, ?string $photo, bool $refreshAvatar = false): User
@@ -123,7 +163,6 @@ class SocialAuthService
         ]);
     }
 
-    /** Match uLogin token payload (same rules as OAuth). */
     public function resolveFromUlogin(array $data): User
     {
         $network = mb_strtolower((string) $data['network']);
@@ -158,7 +197,6 @@ class SocialAuthService
             $networks = $this->networkCandidates($network);
 
             if (in_array($existingNet, $networks, true) && (string) $user->uid === $uid) {
-                // refreshAvatar=false: don't overwrite a user-uploaded photo on every login
                 return $this->touchExisting($user, $email ?: null, $photo ? (string) $photo : null, false);
             }
 
@@ -224,14 +262,9 @@ class SocialAuthService
             return true;
         }
 
-        // Only refresh when the user still has the default placeholder
         return str_contains($photo, '/user.png');
     }
 
-    /**
-     * Legacy users.photo is a short varchar — store OAuth avatars locally, not full URLs.
-     */
-    /** Prefer high-resolution OAuth avatar URLs before downloading. */
     public function upgradeAvatarUrl(string $url): string
     {
         $url = trim($url);
@@ -272,10 +305,6 @@ class SocialAuthService
         return $url;
     }
 
-    /**
-     * Attach a social provider to a local (hinyerevan) account. Keeps users.unique
-     * so legacy photo ownership (photos.user) stays valid; email+password login still works.
-     */
     public function linkProviderToUser(
         User $user,
         string $driver,
@@ -283,37 +312,63 @@ class SocialAuthService
         ?string $email,
         ?string $photo,
     ): User {
+        $candidates = $this->networkCandidates($driver);
+
         $conflict = User::query()
             ->where('id', '!=', $user->id)
-            ->whereIn('network', $this->networkCandidates($driver))
+            ->whereIn('network', $candidates)
             ->where('uid', $providerId)
             ->exists();
+
+        if (! $conflict && $this->identitiesReady()) {
+            $conflict = UserSocialIdentity::query()
+                ->where('user_id', '!=', $user->id)
+                ->whereIn('network', $candidates)
+                ->where('uid', $providerId)
+                ->exists();
+        }
 
         if ($conflict) {
             throw new \RuntimeException('This social account is already linked to another user.');
         }
 
-        $fill = [
-            'network' => self::STORAGE_NETWORK[$driver] ?? $driver,
-            'uid' => $providerId,
-        ];
+        $network = self::STORAGE_NETWORK[$driver] ?? $driver;
+        $primary = mb_strtolower((string) $user->network);
 
-        if (! $user->email && $email) {
-            $fill['email'] = $email;
+        if ($primary === 'hinyerevan' || $primary === '') {
+            $fill = [
+                'network' => $network,
+                'uid' => $providerId,
+            ];
+
+            if (! $user->email && $email) {
+                $fill['email'] = $email;
+            }
+
+            if ($photo) {
+                $fill['photo'] = $this->normalizePhoto($photo);
+            }
+
+            $user->forceFill($fill)->save();
+        } elseif ($this->identitiesReady()) {
+            UserSocialIdentity::query()->firstOrCreate(
+                ['network' => $network, 'uid' => $providerId],
+                ['user_id' => $user->id],
+            );
+
+            if (! $user->email && $email) {
+                $user->forceFill(['email' => $email])->save();
+            }
+        } else {
+            throw new \RuntimeException('Linking another provider is not available yet.');
         }
-
-        if ($photo) {
-            $fill['photo'] = $this->normalizePhoto($photo);
-        }
-
-        $user->forceFill($fill)->save();
 
         return $user;
     }
 
     public function canLinkSocialAccount(User $user): bool
     {
-        return mb_strtolower((string) $user->network) === 'hinyerevan';
+        return mb_strtolower((string) $user->network) === 'hinyerevan' || $this->identitiesReady();
     }
 
     private function normalizePhoto(?string $photo): string
@@ -338,7 +393,6 @@ class SocialAuthService
             );
 
             if ($fileId !== null) {
-                // Legacy column is short; store md5 filename only (frontend resolves via /api/photos/file/users/).
                 return $fileId;
             }
 

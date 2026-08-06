@@ -9,16 +9,16 @@ use Illuminate\Support\Str;
 
 class LegacyPhotoStorage
 {
-    /** Legacy site used a fixed ~90px logo in the bottom-right corner. */
     private const WATERMARK_LOGO_WIDTH = 90;
 
-    /** Tight white margin around logo content inside the badge (ratio of content size). */
+    private const WATERMARK_LOGO_WIDTH_RATIO = 0.09;
+
+    private const WATERMARK_LOGO_MAX_WIDTH = 400;
+
     private const WATERMARK_BADGE_PADDING_RATIO = 0.045;
 
-    /** Minimal corner radius on the white badge (ratio of badge size). */
     private const WATERMARK_BADGE_RADIUS_RATIO = 0.035;
 
-    /** Blur zone that fully covers the old burn-in (~90px wide, ~110px tall with www line). */
     private const WATERMARK_BLUR_WIDTH = 108;
 
     private const WATERMARK_BLUR_HEIGHT = 116;
@@ -40,12 +40,6 @@ class LegacyPhotoStorage
         return File::exists($this->absolutePath($variant, $fileId));
     }
 
-    /**
-     * Return a path to a cached copy of $sourcePath with the site watermark
-     * burned into the bottom-right corner. Returns null when the source is not
-     * a raster image or the watermark asset is unavailable, in which case the
-     * caller should serve the original file untouched.
-     */
     public function watermarkedPath(string $sourcePath): ?string
     {
         if (! is_file($sourcePath)) {
@@ -59,14 +53,13 @@ class LegacyPhotoStorage
 
         $info = @getimagesize($sourcePath);
         if ($info === false) {
-            // Not a raster image (e.g. the demo SVG fallback) — leave it alone.
             return null;
         }
 
         $cacheDir = storage_path('app/watermarked');
         File::ensureDirectoryExists($cacheDir);
 
-        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|badge-v8');
+        $key = md5($sourcePath . '|' . filemtime($sourcePath) . '|' . filemtime($watermark) . '|badge-v9');
         $cachePath = $cacheDir . DIRECTORY_SEPARATOR . $key;
 
         if (is_file($cachePath) && filesize($cachePath) > 0) {
@@ -76,11 +69,6 @@ class LegacyPhotoStorage
         return $this->renderWatermark($sourcePath, $watermark, $info, $cachePath);
     }
 
-    /**
-     * Burn the upload watermark (the new site logo) directly into $path.
-     * Used for freshly uploaded photos so they permanently carry the new
-     * watermark, the same way legacy photos already have one baked in.
-     */
     public function burnUploadWatermark(string $path): void
     {
         if (! is_file($path)) {
@@ -108,9 +96,6 @@ class LegacyPhotoStorage
 
     private function watermarkAssetPath(): ?string
     {
-        // Prefer the new brand watermark that ships with the app, so every served
-        // photo carries the current logo. The legacy white.png is often absent on
-        // production, which is why photos used to show no mark at all.
         $upload = config('hinyerevan.watermark_upload');
         if ($upload && is_file($upload)) {
             return $upload;
@@ -148,9 +133,6 @@ class LegacyPhotoStorage
             return null;
         }
 
-        // The watermark asset may not actually be a PNG (e.g. a JPEG saved with a
-        // .png name), so detect its real type instead of assuming PNG — otherwise
-        // imagecreatefrompng() silently fails and no mark is ever stamped.
         $markInfo = @getimagesize($watermarkPath);
         $markCreate = match ($markInfo[2] ?? IMAGETYPE_PNG) {
             IMAGETYPE_PNG => 'imagecreatefrompng',
@@ -177,7 +159,10 @@ class LegacyPhotoStorage
 
         $badgeW = imagesx($badge);
         $badgeH = imagesy($badge);
-        $targetW = self::WATERMARK_LOGO_WIDTH;
+        $targetW = max(
+            self::WATERMARK_LOGO_WIDTH,
+            min(self::WATERMARK_LOGO_MAX_WIDTH, (int) round($width * self::WATERMARK_LOGO_WIDTH_RATIO)),
+        );
         $targetH = max(1, (int) round($badgeH * ($targetW / max(1, $badgeW))));
 
         $resized = imagecreatetruecolor($targetW, $targetH);
@@ -188,8 +173,9 @@ class LegacyPhotoStorage
         imagecopyresampled($resized, $badge, 0, 0, 0, 0, $targetW, $targetH, $badgeW, $badgeH);
         imagedestroy($badge);
 
-        $maskW = min(self::WATERMARK_BLUR_WIDTH, $width);
-        $maskH = min(self::WATERMARK_BLUR_HEIGHT, $height);
+        $blurScale = $targetW / self::WATERMARK_LOGO_WIDTH;
+        $maskW = min((int) round(self::WATERMARK_BLUR_WIDTH * $blurScale), $width);
+        $maskH = min((int) round(self::WATERMARK_BLUR_HEIGHT * $blurScale), $height);
         $maskX = $width - $maskW;
         $maskY = $height - $maskH;
         $dstX = $width - min($targetW, $width);
@@ -224,10 +210,6 @@ class LegacyPhotoStorage
         return is_file($cachePath) ? $cachePath : null;
     }
 
-    /**
-     * Blur the corner patch so legacy burn-in text disappears under the new logo.
-     * Samples extra bleed around the patch, then downscale-blur for a strong smear.
-     */
     private function blurLegacyCornerMark(\GdImage $base, int $x, int $y, int $w, int $h): void
     {
         if ($w <= 0 || $h <= 0) {
@@ -237,7 +219,6 @@ class LegacyPhotoStorage
         $imgW = imagesx($base);
         $imgH = imagesy($base);
 
-        // Extra context lets blur smear high-contrast legacy text edges.
         $bleed = 16;
         $grabX = max(0, $x - $bleed);
         $grabY = max(0, $y - $bleed);
@@ -282,7 +263,6 @@ class LegacyPhotoStorage
         imagedestroy($grab);
     }
 
-    /** Strong blur via downscale-upscale plus stacked Gaussian passes. */
     private function heavyBlurImage(\GdImage $img, int $w, int $h): void
     {
         $smallW = max(1, (int) round($w / 5));
@@ -302,7 +282,6 @@ class LegacyPhotoStorage
         }
     }
 
-    /** Soft radial mask anchored at the bottom-right of the blur patch. */
     private function cornerRadialBlendWeight(int $px, int $py, int $w, int $h, float $core, float $fade): float
     {
         $dx = ($w - 1 - $px) + 0.5;
@@ -319,13 +298,9 @@ class LegacyPhotoStorage
 
         $t = ($dist - $core) / max(1.0, $fade);
 
-        // Smoothstep for a gentler transition than linear fade.
         return 1.0 - ($t * $t * (3 - 2 * $t));
     }
 
-    /**
-     * Build a white rounded-square badge from Logo2026: tight padding, minimal radius.
-     */
     private function buildWatermarkBadge(\GdImage $source, int $srcW, int $srcH): \GdImage
     {
         [$minX, $minY, $maxX, $maxY] = $this->logoContentBounds($source, $srcW, $srcH);
@@ -423,11 +398,6 @@ class LegacyPhotoStorage
         return ($dx * $dx) + ($dy * $dy) <= ($r * $r);
     }
 
-    /**
-     * Composite a transparent PNG ($src) onto $dst at a given opacity while
-     * honouring the source's per-pixel alpha. GD's imagecopymerge() ignores
-     * alpha channels, so we blend through an intermediate buffer.
-     */
     private function copyMergeWithAlpha($dst, $src, int $dstX, int $dstY, int $srcW, int $srcH, int $pct): void
     {
         $cut = imagecreatetruecolor($srcW, $srcH);
@@ -448,7 +418,6 @@ class LegacyPhotoStorage
         return $fileId;
     }
 
-    /** Overwrite original/large/thumb for an existing legacy file id. */
     public function replaceUpload(UploadedFile $file, string $fileId): void
     {
         $source = $file->getRealPath() ?: $file->getPathname();
@@ -457,7 +426,6 @@ class LegacyPhotoStorage
         });
     }
 
-    /** Overwrite variants from an image already on disk (e.g. a fetched YouTube thumbnail). */
     public function replaceImageFile(string $sourcePath, string $fileId): void
     {
         $this->writeUploadVariants($sourcePath, $fileId, moveSource: function (string $original) use ($sourcePath) {
@@ -465,10 +433,6 @@ class LegacyPhotoStorage
         });
     }
 
-    /**
-     * Fetch a YouTube preview and store it as photo variants.
-     * When $existingFileId is set, overwrite that id instead of minting a new one.
-     */
     public function storeYoutubeThumbnail(string $videoUrl, string $salt, ?string $existingFileId = null): string
     {
         $videoId = $this->extractYoutubeId($videoUrl);
@@ -540,14 +504,8 @@ class LegacyPhotoStorage
 
         $this->burnUploadWatermark($original);
         $this->burnUploadWatermark($large);
-        $this->burnUploadWatermark($thumb);
     }
 
-    /**
-     * Store an image that already lives on disk (e.g. a downloaded video thumbnail)
-     * and generate the same variants as a normal upload.
-     */
-    /** Download an image from a URL and store it as photo variants. Returns the file id or null. */
     public function storeImageFromUrl(string $url, string $salt): ?string
     {
         $url = trim($url);
@@ -591,17 +549,12 @@ class LegacyPhotoStorage
 
         $this->burnUploadWatermark($original);
         $this->burnUploadWatermark($large);
-        $this->burnUploadWatermark($thumb);
 
         return $fileId;
     }
 
-    /** Target edge length for legacy user avatars (Retina-safe up to ~256px CSS). */
     public const USER_AVATAR_TARGET = 512;
 
-    /**
-     * Serve path for user avatars: upscale/re-encode tiny legacy files from photos/users.
-     */
     public function userAvatarDisplayPath(string $sourcePath, int $targetSize = self::USER_AVATAR_TARGET): string
     {
         if (! is_file($sourcePath)) {
@@ -645,13 +598,9 @@ class LegacyPhotoStorage
             return true;
         }
 
-        // Heavily compressed legacy JPEGs (common in old DB uploads).
         return $max < 640 && $bytes > 0 && $bytes < 28_000;
     }
 
-    /**
-     * Overwrite a legacy avatar file on disk with an enhanced square JPEG (irreversible).
-     */
     public function persistEnhancedUserAvatar(string $sourcePath, int $targetSize = self::USER_AVATAR_TARGET): bool
     {
         if (! is_file($sourcePath) || ! $this->shouldEnhanceUserAvatar($sourcePath)) {
@@ -777,9 +726,6 @@ class LegacyPhotoStorage
         return $fileId;
     }
 
-    /**
-     * Download a remote OAuth avatar and store it under photos/users (legacy layout).
-     */
     public function storeUserPhotoFromUrl(string $url, string $salt): ?string
     {
         $url = trim($url);
@@ -790,8 +736,6 @@ class LegacyPhotoStorage
         try {
             $client = Http::timeout(12);
             $proxy = trim((string) config('services.oauth.proxy', ''));
-            // The OAuth proxy exists for Yandex; routing Facebook/Graph avatar URLs
-            // through it breaks the download, so fetch those hosts directly.
             $isFacebook = (bool) preg_match('/(facebook\.com|fbcdn\.net|fbsbx\.com)/i', $url);
             if ($proxy !== '' && ! $isFacebook) {
                 $client = $client->withOptions(['proxy' => $proxy]);
@@ -832,15 +776,8 @@ class LegacyPhotoStorage
         }
     }
 
-    /** Re-fetch a Facebook avatar at most this often (their lookaside URLs rotate, pics rarely change). */
     private const FB_AVATAR_TTL_DAYS = 7;
 
-    /**
-     * Download and locally cache a Facebook commenter avatar so it survives the
-     * expiry baked into platform-lookaside URLs. Keyed by the stable FB user id,
-     * so repeated syncs reuse one file. Returns the local file id (served via
-     * /api/photos/file/users/{id}) or null on failure.
-     */
     public function storeFacebookAvatar(string $url, string $facebookUserId): ?string
     {
         $url = trim($url);
@@ -852,14 +789,12 @@ class LegacyPhotoStorage
         $fileId = 'fb' . md5($facebookUserId);
         $target = $this->absolutePath('users', $fileId);
 
-        // Reuse a recent copy instead of re-downloading on every sync.
         if (is_file($target) && filesize($target) > 0
             && (time() - filemtime($target)) < self::FB_AVATAR_TTL_DAYS * 86400) {
             return $fileId;
         }
 
         try {
-            // Direct fetch — the OAuth proxy is for Yandex and must not touch fbsbx.com.
             $response = Http::timeout(12)->get($url);
             if (! $response->ok()) {
                 return null;

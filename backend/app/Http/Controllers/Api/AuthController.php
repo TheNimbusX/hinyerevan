@@ -569,7 +569,6 @@ class AuthController extends Controller
 
         $user = $request->user();
         $fileId = $storage->storeUserPhoto($request->file('photo'), config('app.key'));
-        // Store just the fileId (normalized format); frontend resolves via /api/photos/file/users/{id}
         $user->forceFill(['photo' => $fileId])->save();
 
         return $this->serializeUser($user);
@@ -609,8 +608,6 @@ class AuthController extends Controller
                 'response' => $token,
             ]);
         } catch (\Throwable $e) {
-            // Google unreachable from the backend (e.g. local network blocks it).
-            // Don't punish the user for our connectivity — log and let it pass.
             \Log::warning('reCAPTCHA verify unreachable, skipping check', ['message' => $e->getMessage()]);
 
             return;
@@ -640,6 +637,7 @@ class AuthController extends Controller
             'photo' => $user->photo,
             'type' => $user->type,
             'is_admin' => (bool) $user->isAdmin(),
+            'linked_networks' => app(\App\Services\SocialAuthService::class)->linkedNetworks($user),
         ];
     }
 }

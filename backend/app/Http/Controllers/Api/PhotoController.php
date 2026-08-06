@@ -114,10 +114,8 @@ class PhotoController extends Controller
             return DemoData::markers();
         }
 
-        // The full marker set (~10k rows) is expensive to build, so cache it.
-        // The cache version is bumped whenever a photo is created/updated/removed.
         $version = (int) Cache::get(self::MARKERS_CACHE_VERSION_KEY, 1);
-        $cacheKey = 'photo_markers:v' . $version . ':' . md5(json_encode([
+        $cacheKey = 'photo_markers:s3:v' . $version . ':' . md5(json_encode([
             'user' => (string) $request->query('user', ''),
             'review' => $request->boolean('review') ? 1 : 0,
             'direction' => (string) $request->query('direction', ''),
@@ -137,26 +135,37 @@ class PhotoController extends Controller
                 ->when($request->boolean('winter'), fn ($query) => $query->where('is_winter', 1))
                 ->select(['id', 'title', 'lat', 'lng', 'direction', 'year', 'file_id', 'datetime', 'video', 'needs_location_review', 'is_winter'])
                 ->get()
-                ->map(fn (Photo $photo) => [
-                    'id' => $photo->id,
-                    'title' => LegacyText::decode($photo->title),
-                    'lat' => $photo->lat,
-                    'lng' => $photo->lng,
-                    'year' => $photo->year,
-                    'direction' => $photo->direction,
-                    'direction_label' => $photo->direction_label,
-                    'thumb_url' => $photo->image_urls['thumb'],
-                    'large_url' => $photo->image_urls['large'],
-                    'datetime' => optional($photo->datetime)->toISOString(),
-                    'has_video' => filled($photo->video),
-                    'needs_location_review' => (bool) $photo->needs_location_review,
-                    'is_winter' => (bool) ($photo->is_winter ?? false),
-                ])
+                ->map(function (Photo $photo) {
+                    $row = [
+                        'id' => $photo->id,
+                        'title' => LegacyText::decode($photo->title),
+                        'lat' => $photo->lat,
+                        'lng' => $photo->lng,
+                        'year' => $photo->year,
+                        'direction' => $photo->direction,
+                        'direction_label' => $photo->direction_label,
+                        'thumb_url' => $photo->image_urls['thumb'],
+                        'large_url' => $photo->image_urls['large'],
+                        'datetime' => optional($photo->datetime)->toISOString(),
+                    ];
+
+                    if ($photo->video) {
+                        $row['has_video'] = true;
+                        $row['video'] = $photo->video;
+                    }
+                    if ($photo->needs_location_review) {
+                        $row['needs_location_review'] = true;
+                    }
+                    if ($photo->is_winter) {
+                        $row['is_winter'] = true;
+                    }
+
+                    return $row;
+                })
                 ->all();
         });
     }
 
-    /** Invalidate every cached marker variant (called after photo mutations). */
     public static function flushMarkersCache(): void
     {
         $current = (int) Cache::get(self::MARKERS_CACHE_VERSION_KEY, 1);
@@ -209,9 +218,6 @@ class PhotoController extends Controller
         $commentLang = ($lang && ! $lightTranslate) ? $lang : null;
         $relatedLang = $lightTranslate ? null : $lang;
 
-        // Facebook sync (Graph API calls) is deferred until after the response is
-        // sent so the page never blocks on network I/O. Data refreshes for the
-        // next load; the throttle inside the services keeps the call rate sane.
         $this->scheduleFacebookSync($photo->id);
 
         $data = $this->serialize($photo, true, $lang, $commentLang);
@@ -242,6 +248,7 @@ class PhotoController extends Controller
                 'title' => LegacyText::decode($other->title),
                 'year' => $other->year,
                 'views' => $other->viewCounter?->count ?? 0,
+                'video' => $other->video ?: null,
                 'images' => $other->image_urls,
             ])
             ->all();
@@ -263,7 +270,7 @@ class PhotoController extends Controller
             ->where('id', '!=', $photo->id)
             ->whereBetween('lat', [$lat - $radiusDeg, $lat + $radiusDeg])
             ->whereBetween('lng', [$lng - $radiusDeg, $lng + $radiusDeg])
-            ->select(['id', 'title', 'year', 'file_id', 'lat', 'lng', 'direction'])
+            ->select(['id', 'title', 'year', 'file_id', 'lat', 'lng', 'direction', 'video'])
             ->orderByRaw('POWER(lat - ?, 2) + POWER(lng - ?, 2) ASC', [$lat, $lng])
             ->limit($limit)
             ->get()
@@ -274,6 +281,7 @@ class PhotoController extends Controller
                 'lat' => $near->lat,
                 'lng' => $near->lng,
                 'direction' => $near->direction,
+                'video' => $near->video ?: null,
                 'images' => $near->image_urls,
             ])
             ->all();
@@ -363,11 +371,9 @@ class PhotoController extends Controller
         if ($request->hasFile('file')) {
             $fileId = $storage->storeUpload($request->file('file'), config('app.key'));
         } else {
-            // Video-only submission: derive the cover image from the YouTube preview.
             $fileId = $this->storeYoutubeThumbnail($storage, $video);
         }
 
-        // Admin uploads are published immediately, others go through moderation.
         $isAdmin = (bool) $request->user()?->isAdmin();
         $publishToFacebook = filter_var($request->input('publish_to_facebook', false), FILTER_VALIDATE_BOOLEAN);
 
@@ -468,10 +474,6 @@ class PhotoController extends Controller
     {
         abort_unless(in_array($variant, ['original', 'large', 'thumb', 'users'], true), 404);
 
-        // The legacy backup only shipped 192x192 thumbnails for most photos; the
-        // "original"/"large" directories contain 0-byte placeholder files. So for
-        // a requested variant we serve the first variant that actually has bytes,
-        // preferring the requested one, then falling back to the others.
         $order = match ($variant) {
             'large' => ['large', 'original', 'thumb'],
             'original' => ['original', 'large', 'thumb'],
@@ -493,8 +495,6 @@ class PhotoController extends Controller
                     return Response::file($display, $headers);
                 }
 
-                // Burn the site watermark into the full-size display variants so
-                // every opened photo carries our mark (grid thumbnails stay clean).
                 if (in_array($variant, ['large', 'original'], true)) {
                     $watermarked = $storage->watermarkedPath($path);
                     if ($watermarked !== null) {
@@ -587,10 +587,6 @@ class PhotoController extends Controller
     /**
      * @return list<array<string, mixed>>
      */
-    /**
-     * Run the Facebook sync after the HTTP response is flushed to the client
-     * (php-fpm fastcgi_finish_request), so page loads stay fast without a queue worker.
-     */
     private function scheduleFacebookSync(int $photoId): void
     {
         app()->terminating(function () use ($photoId) {
@@ -600,7 +596,6 @@ class PhotoController extends Controller
                     $this->syncFacebookIfStale($photo);
                 }
             } catch (\Throwable) {
-                // never let background work surface to the client
             }
         });
     }
@@ -613,7 +608,6 @@ class PhotoController extends Controller
 
         try {
             $fresh = $photo->fresh() ?? $photo;
-            // Comments: always sync on page open (user expects near-real-time FB thread).
             $this->facebookComments->syncForPhoto($fresh);
 
             $statsKey = 'facebook_stats_photo_' . $photo->id;

@@ -10,7 +10,6 @@ use Illuminate\Http\Response;
 
 class SharePreviewController extends Controller
 {
-    /** Must match frontend WATERMARK_CACHE_VERSION for consistent CDN cache keys. */
     private const WATERMARK_VERSION = 8;
 
     public function photo(Request $request, int $photo): Response

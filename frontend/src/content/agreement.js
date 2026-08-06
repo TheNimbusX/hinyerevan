@@ -1,10 +1,3 @@
-// Modern, localised User Agreement for HinYerevan.com.
-//
-// The legacy site stored the agreement as a single Armenian HTML blob exported
-// from Microsoft Word. Page bodies are not translated by the backend, so we
-// render the agreement on the client instead, picking the document that matches
-// the visitor's language. Each section is plain structured data so the copy
-// stays easy to maintain.
 
 export const agreementUpdated = '2026'
 

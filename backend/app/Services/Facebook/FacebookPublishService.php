@@ -19,9 +19,6 @@ class FacebookPublishService
         return $this->pages->isConfigured();
     }
 
-    /**
-     * Publish photo to the Facebook Page. Returns error message or null on success.
-     */
     public function publishPhoto(Photo $photo): ?string
     {
         if (! $this->isConfigured()) {
@@ -36,6 +33,11 @@ class FacebookPublishService
             return null;
         }
 
+        $videoUrl = trim((string) $photo->video);
+        if ($videoUrl !== '') {
+            return $this->publishVideoLinkPost($photo, $videoUrl);
+        }
+
         $imageUrl = $this->publicImageUrl($photo);
         if ($imageUrl === null) {
             return 'Could not build a public image URL for Facebook.';
@@ -44,8 +46,6 @@ class FacebookPublishService
         $message = $this->buildPostMessage($photo);
 
         try {
-            // Preferred path: a real feed post (text + photo) so it lands in the page feed (Публикации).
-            // 1) upload the photo unpublished to get a media id, 2) attach it to a /feed post.
             $uploadResponse = $this->graph->post($this->pageId() . '/photos', [
                 'url' => $imageUrl,
                 'published' => 'false',
@@ -57,8 +57,6 @@ class FacebookPublishService
             if ($mediaId !== '') {
                 $feedResponse = $this->graph->post($this->pageId() . '/feed', [
                     'message' => $message,
-                    // Facebook requires the indexed form attached_media[0]={"media_fbid":"..."}.
-                    // A flat "attached_media" param returns code 1 "An unknown error occurred".
                     'attached_media[0]' => json_encode(['media_fbid' => $mediaId]),
                     'access_token' => $this->pageAccessToken(),
                 ]);
@@ -84,7 +82,6 @@ class FacebookPublishService
                 ]);
             }
 
-            // Fallback: a direct published photo post. This also appears in the feed as a photo story.
             $response = $this->graph->post($this->pageId() . '/photos', [
                 'url' => $imageUrl,
                 'message' => $message,
@@ -99,7 +96,6 @@ class FacebookPublishService
                 return is_string($error) ? $error : 'Facebook publish failed.';
             }
 
-            // post_id is the feed story id (page_id_story_id); id is the photo id. Prefer the story.
             $postId = (string) ($response->json('post_id') ?? $response->json('id') ?? '');
             if ($postId === '') {
                 return 'Facebook returned an empty post id.';
@@ -108,6 +104,36 @@ class FacebookPublishService
             return $this->finishPublish($photo, $postId);
         } catch (\Throwable $e) {
             Log::error('Facebook publish exception', ['photo_id' => $photo->id, 'message' => $e->getMessage()]);
+
+            return 'Facebook publish error: ' . $e->getMessage();
+        }
+    }
+
+    private function publishVideoLinkPost(Photo $photo, string $videoUrl): ?string
+    {
+        try {
+            $response = $this->graph->post($this->pageId() . '/feed', [
+                'message' => $this->buildPostMessage($photo, includeVideoLine: false),
+                'link' => $videoUrl,
+                'access_token' => $this->pageAccessToken(),
+            ]);
+
+            if (! $response->ok()) {
+                $body = $response->json();
+                $error = is_array($body) ? ($body['error']['message'] ?? $response->body()) : $response->body();
+                Log::warning('Facebook video link post failed', ['photo_id' => $photo->id, 'error' => $error]);
+
+                return is_string($error) ? $error : 'Facebook publish failed.';
+            }
+
+            $postId = (string) ($response->json('id') ?? '');
+            if ($postId === '') {
+                return 'Facebook returned an empty post id.';
+            }
+
+            return $this->finishPublish($photo, $postId);
+        } catch (\Throwable $e) {
+            Log::error('Facebook video publish exception', ['photo_id' => $photo->id, 'message' => $e->getMessage()]);
 
             return 'Facebook publish error: ' . $e->getMessage();
         }
@@ -136,8 +162,6 @@ class FacebookPublishService
         }
 
         try {
-            // reactions.summary(total_count) is the supported way to read engagement on a post;
-            // the old likes.summary(true) trips error #12 (deprecate_post_aggregated_fields_for_attachement) on v3.3+.
             $response = $this->graph->get($photo->facebook_post_id, [
                 'fields' => 'permalink_url,reactions.summary(total_count)',
                 'access_token' => $this->pageAccessToken(),
@@ -181,9 +205,6 @@ class FacebookPublishService
 
     private function fetchPostImpressions(string $objectId): ?int
     {
-        // Facebook removed post-level impression metrics (post_impressions / *_unique / *_organic)
-        // from the current Graph API for this page type — they return "(#100) not a valid insights
-        // metric". There is no working "post views" metric, so skip the call to save rate limits.
         return null;
 
         try { // @phpstan-ignore-line (kept for if/when FB restores the metric)
@@ -222,7 +243,6 @@ class FacebookPublishService
 
     public function resolvePermalink(string $mediaId): ?string
     {
-        // Feed posts expose permalink_url; photo objects expose link. Request both.
         $response = $this->graph->get($mediaId, [
             'fields' => 'permalink_url,link',
             'access_token' => $this->pageAccessToken(),
@@ -235,7 +255,6 @@ class FacebookPublishService
             }
         }
 
-        // Fallback: build the timeline post URL from a feed post id (pageId_postId).
         if (str_contains($mediaId, '_')) {
             [$pageId, $postId] = explode('_', $mediaId, 2);
             if ($pageId !== '' && $postId !== '') {
@@ -259,7 +278,7 @@ class FacebookPublishService
         return null;
     }
 
-    private function buildPostMessage(Photo $photo): string
+    private function buildPostMessage(Photo $photo, bool $includeVideoLine = true): string
     {
         $siteUrl = rtrim((string) (config('services.facebook.site_url') ?: config('app.frontend_url', config('app.url'))), '/');
         $photoUrl = $siteUrl . '/photos/' . $photo->id;
@@ -269,7 +288,6 @@ class FacebookPublishService
             $headline = trim((string) $photo->title);
         }
 
-        // Strip raw URLs from comment so the photo link is not duplicated.
         $headline = trim(preg_replace('#https?://\S+#u', '', $headline) ?? $headline);
 
         $lines = [$headline];
@@ -281,7 +299,7 @@ class FacebookPublishService
 
         $lines[] = $photoUrl;
 
-        if ($photo->video) {
+        if ($includeVideoLine && $photo->video) {
             $lines[] = '';
             $lines[] = 'YouTube: ' . trim((string) $photo->video);
         }
@@ -297,8 +315,6 @@ class FacebookPublishService
 
         $base = rtrim((string) (config('services.facebook.site_url') ?: config('app.frontend_url', config('app.url'))), '/');
 
-        // Use the full-size "original" variant (watermark is still burned in) so Facebook
-        // gets the photo in original resolution, not the 800px "large" display variant.
         return $base . '/api/photos/file/original/' . rawurlencode($photo->file_id);
     }
 
@@ -312,7 +328,6 @@ class FacebookPublishService
         return trim((string) config('services.facebook.page_access_token', ''));
     }
 
-    /** Page token from /me/accounts → access_token; User token from Explorer top field will not work. */
     public function assertPageAccessToken(): ?string
     {
         $token = $this->pageAccessToken();

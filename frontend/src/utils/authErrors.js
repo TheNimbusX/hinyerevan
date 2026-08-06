@@ -1,4 +1,3 @@
-/** Pick the most relevant validation message from a Laravel 422 payload. */
 const FIELD_PRIORITY = [
   'login',
   'password',
@@ -48,7 +47,6 @@ function pickValidationMessage(errors) {
   return ''
 }
 
-/** Turn API/auth errors into a user-facing string. */
 export function formatAuthError(error, t) {
   if (!error) return t('authRequestFailed')
 

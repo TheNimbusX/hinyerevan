@@ -13,7 +13,6 @@ class LegacyRepairSchema extends Command
 
     protected $description = 'Re-apply additive migrations after a legacy SQL dump overwrote table schemas.';
 
-    /** Migrations that only add columns/tables on top of the legacy dump. */
     private const PATCH_MIGRATIONS = [
         '2026_05_29_000001_add_video_to_photos_table',
         '2026_05_29_000002_add_needs_location_review_to_photos_table',

@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import FacebookMarkIcon from './FacebookMarkIcon.vue'
+import LikeIcon from './LikeIcon.vue'
 import { formatCommentBody } from '../utils/commentBody'
 import { commentAvatarUrl, commentDisplayName, commentInitials } from '../utils/commentDisplay'
 import { formatDateTime } from '../utils/locale'
@@ -58,7 +59,7 @@ const props = defineProps({
   },
 })
 
-const emit = defineEmits(['submit', 'delete'])
+const emit = defineEmits(['submit', 'delete', 'like'])
 
 const activeReplyId = ref(null)
 const replyDraft = ref('')
@@ -222,6 +223,23 @@ watch(
             </div>
           </header>
           <p class="comment-row__body">{{ formatCommentBody(item.body) }}</p>
+          <div class="comment-row__foot">
+            <button
+              v-if="isAuthenticated"
+              type="button"
+              class="comment-row__like-btn"
+              :class="{ on: item.liked }"
+              :title="item.liked ? t('unlikeComment') : t('likeComment')"
+              @click="emit('like', item)"
+            >
+              <LikeIcon :filled="item.liked" />
+              <span v-if="item.likes_count > 0">{{ item.likes_count }}</span>
+            </button>
+            <span v-else-if="item.likes_count > 0" class="comment-row__like-btn comment-row__like-btn--static">
+              <LikeIcon :filled="false" />
+              <span>{{ item.likes_count }}</span>
+            </span>
+          </div>
         </div>
       </article>
 
@@ -266,6 +284,7 @@ watch(
         nested
         @submit="emit('submit', $event)"
         @delete="emit('delete', $event)"
+        @like="emit('like', $event)"
       />
     </li>
   </ul>
@@ -388,7 +407,6 @@ watch(
     opacity: 1;
   }
 
-  // Touch devices can't hover — keep actions reachable.
   @media (hover: none) {
     opacity: 1;
   }
@@ -462,6 +480,46 @@ watch(
   word-break: break-word;
 }
 
+.comment-row__foot {
+  display: flex;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.comment-row__like-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  color: #65676b;
+  cursor: pointer;
+  line-height: 1;
+
+  .like-icon {
+    font-size: 14px;
+  }
+
+  &:hover {
+    color: #1877f2;
+  }
+
+  &.on {
+    color: #1877f2;
+  }
+
+  &--static {
+    cursor: default;
+
+    &:hover {
+      color: #65676b;
+    }
+  }
+}
+
 .comment-inline-reply {
   margin: 6px 0 0 46px;
   display: grid;
@@ -511,6 +569,10 @@ watch(
 
   .comment-inline-reply textarea {
     border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .comment-row__like-btn {
+    color: #9aa0a8;
   }
 }
 </style>

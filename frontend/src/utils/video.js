@@ -1,4 +1,3 @@
-/** Extract the YouTube video id from any common YouTube URL form. */
 export function youtubeId(url) {
   if (!url) return ''
   const value = String(url).trim()
@@ -15,7 +14,6 @@ export function youtubeId(url) {
   return ''
 }
 
-/** Embed URL for a YouTube video link. */
 export function youtubeEmbedUrl(url, { autoplay = false } = {}) {
   const id = youtubeId(url)
   if (!id) return ''
@@ -23,19 +21,21 @@ export function youtubeEmbedUrl(url, { autoplay = false } = {}) {
   return `https://www.youtube.com/embed/${id}${params}`
 }
 
-/** Canonical watch URL (used as a fallback link to open on YouTube). */
 export function youtubeWatchUrl(url) {
   const id = youtubeId(url)
   return id ? `https://www.youtube.com/watch?v=${id}` : ''
 }
 
-/** Preview thumbnail URL for a YouTube video link. */
 export function youtubeThumb(url) {
   const id = youtubeId(url)
   return id ? `https://img.youtube.com/vi/${id}/hqdefault.jpg` : ''
 }
 
-/** Validate that a string looks like a usable YouTube link. */
 export function isYoutubeUrl(url) {
   return Boolean(youtubeId(url))
+}
+
+export function playVideo(url, title = '') {
+  if (!url || typeof window === 'undefined') return
+  window.dispatchEvent(new CustomEvent('hinyerevan:play-video', { detail: { url, title } }))
 }

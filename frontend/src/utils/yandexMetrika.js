@@ -1,6 +1,5 @@
 const METRIKA_ID = 110244608
 
-/** Track SPA navigations after the initial page load. */
 export function trackYandexMetrikaPage(path) {
   try {
     if (typeof window.ym !== 'function') return
@@ -10,6 +9,5 @@ export function trackYandexMetrikaPage(path) {
       referer: document.referrer,
     })
   } catch {
-    // Metrika is optional — never break navigation.
   }
 }

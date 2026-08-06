@@ -109,8 +109,6 @@ class LegacyLikeImportService
     }
 
     /**
-     * Import one row per like into the new favorites table (deduplicated).
-     *
      * @return array{imported: int, skipped: int, message: string}
      */
     public function importRowsIntoFavorites(string $connection, string $table): array

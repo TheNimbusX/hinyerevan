@@ -2,9 +2,8 @@ import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from './views/HomeView.vue'
 import PhotosView from './views/PhotosView.vue'
 import PhotoDetailView from './views/PhotoDetailView.vue'
+import PhotoUploadView from './views/PhotoUploadView.vue'
 
-// Lazy-loaded: keep these out of the initial bundle (most visitors never open them).
-const PhotoUploadView = () => import('./views/PhotoUploadView.vue')
 const NewsView = () => import('./views/NewsView.vue')
 const NewsDetailView = () => import('./views/NewsDetailView.vue')
 const PageView = () => import('./views/PageView.vue')

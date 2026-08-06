@@ -1,7 +1,5 @@
 @use './tokens' as *;
 
-// CSS variables that mirror the SCSS tokens for use from inline styles
-// and third-party CSS that expects custom properties.
 :root {
   --primary: #{$primary};
   --primary-dark: #{$primary-dark};

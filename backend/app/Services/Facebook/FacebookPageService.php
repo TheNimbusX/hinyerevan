@@ -43,7 +43,6 @@ class FacebookPageService
             return $base;
         }
 
-        // Cache layer must never take down the endpoint (e.g. a read-only cache dir).
         try {
             return Cache::remember('facebook:page:stats:v3', now()->addMinutes(45), function () use ($base) {
                 $stats = $this->fetchStats($base);
@@ -144,7 +143,6 @@ class FacebookPageService
 
     public function pluginConfig(): array
     {
-        // Page Plugin works best with the vanity URL from config (e.g. /HinYerevanCom/).
         $pageUrl = $this->pageUrl();
 
         return [

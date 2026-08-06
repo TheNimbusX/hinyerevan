@@ -206,8 +206,6 @@ class AdminController extends Controller
         $photo->id = -abs($photo->id);
         $photo->save();
 
-        // If this photo came from a Facebook import, put that post back in the queue so a
-        // rejected/deleted import can be handled again (low cost of a mistake).
         if (Schema::hasTable('facebook_incoming_posts')) {
             FacebookIncomingPost::query()
                 ->where('photo_id', $originalId)
@@ -222,16 +220,16 @@ class AdminController extends Controller
         return response()->noContent();
     }
 
-    /** Inbox of posts made directly on the Facebook Page, awaiting admin import. */
     public function facebookIncoming(Request $request, FacebookIncomingService $incoming)
     {
         if (! Schema::hasTable('facebook_incoming_posts')) {
             return ['data' => [], 'configured' => false, 'counts' => ['pending' => 0, 'imported' => 0, 'dismissed' => 0]];
         }
 
-        // Best-effort live refresh so the admin sees fresh posts on open.
         if ($request->boolean('refresh')) {
-            $incoming->fetchAndStore();
+            $since = trim((string) $request->query('since', ''));
+            $until = trim((string) $request->query('until', ''));
+            $incoming->fetchAndStore(25, $since !== '' ? $since : null, $until !== '' ? $until : null);
         }
 
         $allowed = [
@@ -255,6 +253,14 @@ class AdminController extends Controller
             ->groupBy('status')
             ->pluck('c', 'status');
 
+        app()->terminating(function () use ($incoming) {
+            try {
+                $incoming->cacheMissingImages(40);
+            } catch (\Throwable) {
+                // best-effort
+            }
+        });
+
         return [
             'configured' => $incoming->isConfigured(),
             'status' => $status,
@@ -267,13 +273,24 @@ class AdminController extends Controller
                 'id' => $p->id,
                 'facebook_post_id' => $p->facebook_post_id,
                 'message' => $p->message,
-                'image_url' => $p->image_url,
+                'image_url' => $incoming->publicImageUrl($p),
                 'permalink_url' => $p->permalink_url,
                 'posted_at' => optional($p->posted_at)->toISOString(),
                 'photo_id' => $p->photo_id,
                 'status' => $p->status,
             ])->all(),
         ];
+    }
+
+    public function facebookIncomingImage(FacebookIncomingPost $post, FacebookIncomingService $incoming)
+    {
+        $path = $incoming->cachedImagePath($post);
+        abort_unless(is_file($path) && filesize($path) > 0, 404);
+
+        return response()->file($path, [
+            'Content-Type' => 'image/jpeg',
+            'Cache-Control' => 'public, max-age=604800',
+        ]);
     }
 
     public function dismissFacebookIncoming(FacebookIncomingPost $post)
@@ -283,7 +300,6 @@ class AdminController extends Controller
         return response()->noContent();
     }
 
-    /** Return an imported/dismissed post back to the pending queue so it can be handled again. */
     public function restoreFacebookIncoming(FacebookIncomingPost $post)
     {
         $post->forceFill([
@@ -294,10 +310,6 @@ class AdminController extends Controller
         return response()->noContent();
     }
 
-    /**
-     * Turn an incoming Facebook post into an unpublished draft photo. The admin then
-     * fills in year / location / direction in the normal photo editor and publishes.
-     */
     public function importFacebookIncoming(Request $request, FacebookIncomingPost $post, LegacyPhotoStorage $storage)
     {
         abort_unless(LegacySchema::photosReady(), 503, 'Legacy database is not connected yet.');
@@ -323,8 +335,6 @@ class AdminController extends Controller
             'published' => 0, // draft — appears in the pending/unpublished list
             'file_id' => $fileId,
             'needs_location_review' => true,
-            // Already lives on Facebook — link it so likes/comments sync and the editor
-            // hides the "publish to Facebook" option for this photo.
             'facebook_post_id' => $post->facebook_post_id,
             'facebook_post_url' => $post->permalink_url,
             'facebook_publish_pending' => 0,
@@ -337,17 +347,14 @@ class AdminController extends Controller
             'photo_id' => $photo->id,
         ])->save();
 
-        // Pull the post's likes/comments right away so they show on the site.
         try {
             $this->facebookPublish->syncPostStats($photo->fresh());
         } catch (\Throwable) {
-            // best-effort; the scheduled job will retry
         }
 
         return ['photo_id' => $photo->id, 'already' => false];
     }
 
-    /** A shared "HinYerevan.com" author used for posts imported from the Facebook Page. */
     private function siteAuthorUnique(): string
     {
         $unique = 'hinyerevan-site';
@@ -468,7 +475,6 @@ class AdminController extends Controller
             DB::table('favorites')->where('user_unique', $user->unique)->delete();
         }
 
-        // Photos and comments stay on the site; ownership is stored by users.unique string.
         $user->delete();
 
         return response()->noContent();

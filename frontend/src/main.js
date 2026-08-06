@@ -41,7 +41,6 @@ router.isReady().then(() => {
   dismissSplash()
 })
 
-// Telegram / in-app WebViews may never fire router.isReady() reliably.
 setTimeout(dismissSplash, isInAppBrowser() ? 2200 : 3500)
 
 window.addEventListener('pageshow', () => {

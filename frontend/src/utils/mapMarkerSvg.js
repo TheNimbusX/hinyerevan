@@ -29,9 +29,6 @@ function arrowSvg(angle, fill = '#ae2b21') {
   `
 }
 
-/**
- * Inline SVG for Leaflet divIcon (directional photo pin).
- */
 export function directionMarkerSvg(direction, size = 28, options = {}) {
   const { fill = '#ae2b21', centerFill = fill } = options
   const angle = DIRECTION_ANGLES[direction] ?? 0
@@ -40,7 +37,6 @@ export function directionMarkerSvg(direction, size = 28, options = {}) {
   return `<svg class="map-pin-svg" viewBox="0 0 48 48" width="${size}" height="${size}" aria-hidden="true">${body}</svg>`
 }
 
-/** Size the cluster circle from digit count (full number, no 99+ cap). */
 export function clusterMarkerMetrics(count) {
   const label = String(Math.max(0, Number(count) || 0))
   const len = label.length
@@ -53,13 +49,9 @@ export function clusterMarkerMetrics(count) {
   return { label, size: 46, fontSize: 7 }
 }
 
-/** Inline cluster colors — Telegram WebView may paint before the CSS bundle loads. */
 const CLUSTER_STYLE =
   'display:flex;align-items:center;justify-content:center;border-radius:50%;color:#fff;font-weight:700;line-height:1;border:2px solid #fff;background:radial-gradient(circle at 32% 28%,rgba(255,255,255,0.32) 0 16%,transparent 17%),linear-gradient(145deg,#d6493b,#8a1c14);box-shadow:0 3px 8px rgba(138,28,20,0.3)'
 
-/**
- * Cluster badge HTML — plain circle + text (reliable in Leaflet divIcon).
- */
 export function clusterMarkerHtml(count) {
   const { label, size, fontSize } = clusterMarkerMetrics(count)
 

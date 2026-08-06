@@ -15,7 +15,6 @@ const thumb = computed(() => youtubeThumb(props.url))
 const watchUrl = computed(() => youtubeWatchUrl(props.url))
 const embedUrl = computed(() => youtubeEmbedUrl(props.url, { autoplay: true }))
 
-// Reset the facade when a different video is shown (e.g. switching photos in the sheet).
 watch(() => props.url, () => {
   activated.value = false
 })

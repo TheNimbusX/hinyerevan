@@ -12,7 +12,6 @@ return new class extends Migration
             return;
         }
 
-        // Legacy rows may contain 0000-00-00 datetimes; relax mode for this DDL only.
         DB::statement('SET @hy_old_sql_mode = @@SESSION.sql_mode');
         DB::statement("SET SESSION sql_mode = 'NO_ENGINE_SUBSTITUTION'");
         DB::statement('ALTER TABLE `photos` ADD `legacy_likes_count` INT UNSIGNED NOT NULL DEFAULT 0');

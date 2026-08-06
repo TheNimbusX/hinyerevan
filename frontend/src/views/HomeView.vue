@@ -15,6 +15,7 @@ import { useTheme } from '../composables/useTheme'
 import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
 import { createClusterIconFactory, getActiveDirectionIcon, getActiveVideoIcon, getDirectionIcon, getVideoIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import { directionLabel, formatDateTime } from '../utils/locale'
+import { playVideo } from '../utils/video'
 import googleLogo from '../assets/logos/google-logo.svg'
 import yandexLogo from '../assets/logos/yandex-logo.svg'
 import PhotoDetailSheet from '../components/PhotoDetailSheet.vue'
@@ -154,9 +155,47 @@ const yearSliderClass = computed(() => ({
   'year-slider--single-year': minYear.value >= maxYear.value,
 }))
 
-const isYearRangeSingle = computed(
-  () => Number(yearRange.value[0]) === Number(yearRange.value[1]),
-)
+function yearToPct(year) {
+  const span = maxYear.value - minYear.value
+  if (span <= 0) return 0
+  const p = ((Number(year) - minYear.value) / span) * 100
+  return Math.min(100, Math.max(0, p))
+}
+const fromPct = computed(() => yearToPct(yearRange.value[0]))
+const toPct = computed(() => yearToPct(yearRange.value[1]))
+
+const yearBubblesEl = ref(null)
+const yearBubbleFromEl = ref(null)
+const yearBubbleToEl = ref(null)
+const yearBubbleShift = ref(0)
+let yearBubbleResizeObserver
+
+function recomputeYearBubbleShift() {
+  const track = yearBubblesEl.value
+  const fromEl = yearBubbleFromEl.value
+  const toEl = yearBubbleToEl.value
+  if (!track || !fromEl || !toEl || !track.clientWidth) {
+    yearBubbleShift.value = 0
+    return
+  }
+  const centerGap = ((toPct.value - fromPct.value) / 100) * track.clientWidth
+  const minGap = (fromEl.offsetWidth + toEl.offsetWidth) / 2
+  const overlap = minGap - centerGap
+  yearBubbleShift.value = overlap > 0 ? overlap / 2 : 0
+}
+
+watch([fromPct, toPct], () => nextTick(recomputeYearBubbleShift))
+
+const yearBubbleStyles = computed(() => ({
+  from: {
+    left: `${fromPct.value}%`,
+    transform: `translate(calc(-50% - ${yearBubbleShift.value}px), -50%)`,
+  },
+  to: {
+    left: `${toPct.value}%`,
+    transform: `translate(calc(-50% + ${yearBubbleShift.value}px), -50%)`,
+  },
+}))
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -288,9 +327,11 @@ function escapeHtml(value = '') {
 function markerPreview(marker) {
   const dir = directionLabel(marker.direction, t)
   const added = formatDateTime(marker.datetime, currentLanguage.value)
-  const videoBadge = marker.has_video
-    ? `<span class="marker-preview-video" aria-hidden="true">▶</span>`
-    : ''
+  const videoBadge = marker.has_video && marker.video
+    ? `<button type="button" class="marker-preview-video" data-play-video="${escapeHtml(marker.video)}" data-play-title="${escapeHtml(marker.title || '')}" aria-label="${escapeHtml(t('watchVideo'))}">
+        <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+      </button>`
+    : (marker.has_video ? `<span class="marker-preview-video" aria-hidden="true">▶</span>` : '')
   const dateLine = added
     ? `<time class="marker-preview-date">${escapeHtml(added)}</time>`
     : ''
@@ -301,9 +342,9 @@ function markerPreview(marker) {
         <img src="${imageUrl(marker.large_url || marker.thumb_url)}" alt="" loading="lazy" decoding="async"
           onload="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()"
           onerror="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()">
+        ${videoBadge}
       </span>
       <span class="marker-preview-year">${marker.year}</span>
-      ${videoBadge}
       <strong>${escapeHtml(marker.title)}</strong>
       <small>${escapeHtml(dir)}</small>
       ${dateLine}
@@ -346,10 +387,8 @@ function activateMarker(id) {
   const entry = markerRegistry.get(Number(id))
   if (!entry) return
   entry.layer.setIcon(getActiveIconForEntry(entry))
-  // Pan so selected point appears in the right portion of viewport (sheet occupies the left)
   if (map) {
     const size = map.getSize()
-    // On large screens the sheet is ~960px wide shifted left; put marker in center of remaining right area
     const offsetX = size.x >= 1100 ? Math.round(size.x * 0.38) : 0
     const targetPx = map.project([entry.data.lat, entry.data.lng], map.getZoom())
     const newCenterPx = targetPx.subtract([offsetX, 0])
@@ -456,6 +495,14 @@ function createLeafletMarker(data) {
 }
 
 function onMapPreviewClick(event) {
+  const playBtn = event.target.closest?.('[data-play-video]')
+  if (playBtn) {
+    event.preventDefault()
+    event.stopPropagation()
+    playVideo(playBtn.getAttribute('data-play-video'), playBtn.getAttribute('data-play-title') || '')
+    return
+  }
+
   const card = event.target.closest?.('.marker-preview-card')
   if (!card) return
   if (event.defaultPrevented || event.button !== 0) return
@@ -660,7 +707,6 @@ function applyYearRange() {
 async function loadSecondaryContent() {
   secondaryLoading.value = true
   try {
-    // Loaded separately so a failure here never blocks the map markers.
     const [ratingData, photoData] = await Promise.allSettled([
       cachedApi('/ratings'),
       cachedApi(`/photos?per_page=${LATEST_PHOTOS_LIMIT}`, { ttl: 30 * 1000 }),
@@ -688,6 +734,12 @@ useLocalizedReady(async ({ path }) => {
 
 onMounted(async () => {
   window.addEventListener('hinyerevan:reset-home-map', resetHomeState)
+
+  if (typeof ResizeObserver !== 'undefined') {
+    yearBubbleResizeObserver = new ResizeObserver(() => recomputeYearBubbleShift())
+    if (yearBubblesEl.value) yearBubbleResizeObserver.observe(yearBubblesEl.value)
+  }
+  nextTick(recomputeYearBubbleShift)
 
   const restore = consumeHomeMapRestore()
 
@@ -757,7 +809,6 @@ async function reloadMarkersForFilter() {
   markersLoading.value = true
   try {
     const markerData = await api(markersEndpoint())
-    // Let the loading indicator paint before the heavy marker rebuild blocks the thread.
     await nextTick()
     markers.value = Array.isArray(markerData) ? markerData : []
     rangeTouched.value = false
@@ -765,14 +816,12 @@ async function reloadMarkersForFilter() {
     applyMarkerYearBounds(true)
     syncMarkersToFilter()
   } catch {
-    // keep current data on transient errors
   } finally {
     markersLoading.value = false
   }
 }
 
 watch([userFilter, reviewFilter, directionFilter, winterFilter], reloadMarkersForFilter)
-// Video filter is applied client-side (markers already carry has_video) — no refetch needed.
 watch(videoFilter, scheduleMarkerSync)
 
 watch(currentLanguage, () => {
@@ -800,7 +849,6 @@ watch(yearBounds, () => {
   applyMarkerYearBounds(false)
 })
 
-
 watch(activePhotoId, (newId, oldId) => {
   deactivateMarker(oldId)
   activateMarker(newId)
@@ -808,6 +856,7 @@ watch(activePhotoId, (newId, oldId) => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('hinyerevan:reset-home-map', resetHomeState)
+  yearBubbleResizeObserver?.disconnect()
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
@@ -983,8 +1032,12 @@ onBeforeUnmount(() => {
         :format="yearFormat"
         :lazy="false"
         :options="yearSliderOptions"
-        :class="['year-slider', 'year-slider--labelled', yearSliderClass, { 'year-slider--single-value': isYearRangeSingle }]"
+        :class="['year-slider', 'year-slider--bare', yearSliderClass]"
       />
+      <div ref="yearBubblesEl" class="year-bubbles" aria-hidden="true">
+        <span ref="yearBubbleFromEl" class="year-bubble year-bubble--from" :style="yearBubbleStyles.from">{{ yearRange[0] }}</span>
+        <span ref="yearBubbleToEl" class="year-bubble year-bubble--to" :style="yearBubbleStyles.to">{{ yearRange[1] }}</span>
+      </div>
     </div>
   </section>
 
@@ -1389,7 +1442,6 @@ onBeforeUnmount(() => {
     box-shadow: 0 10px 24px rgba($primary, 0.32);
   }
 
-  // Subtle dot when the review filter is on but the panel is closed.
   &.active:not(.open)::after {
     content: '';
     width: 8px;
@@ -1824,6 +1876,7 @@ onBeforeUnmount(() => {
 }
 
 .year-filter-track {
+  position: relative;
   min-width: 0;
   overflow: visible;
 }
@@ -1857,7 +1910,6 @@ onBeforeUnmount(() => {
 
   &.slider-target {
     height: 18px;
-    // Room for the value bubbles at the very ends so they stay inside the bar.
     padding-inline: 26px;
     border: 0;
     background: transparent;
@@ -1918,11 +1970,7 @@ onBeforeUnmount(() => {
   }
 }
 
-// The handle is a fixed-width bubble on the track, showing its year inside.
-// vueform/noUiSlider centres handles via `right: calc(-width / 2)` — keep
-// --slider-handle-width in sync with the bubble width; do NOT add translateX(-50%)
-// on top or handles shift left. When both ends pick the same year, nudge outward.
-.year-slider--labelled {
+.year-slider--bare {
   --slider-handle-width: 44px;
   --slider-handle-height: 18px;
 
@@ -1930,118 +1978,69 @@ onBeforeUnmount(() => {
     width: var(--slider-handle-width);
     min-width: var(--slider-handle-width);
     height: var(--slider-handle-height);
-    // Match default.css vertical centring for the taller bubble.
     top: calc((var(--slider-handle-height) - var(--slider-height)) / -2 - 1px);
-    padding: 0 4px;
-    border-radius: 6px;
     border: 0;
-    background: linear-gradient(135deg, #c43d30, #8a1c14);
-    color: #fff;
-    box-shadow: 0 3px 8px rgba(138, 28, 20, 0.35);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 11px;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-    cursor: grab;
+    border-radius: 6px;
+    background: transparent;
+    box-shadow: none;
     transform: none;
+    cursor: grab;
 
-    // The year text (format() strips the ".0" that aria-valuenow carries).
-    &::after {
-      content: attr(aria-valuetext);
+    &::after,
+    &::before {
+      content: none;
     }
 
     &:hover,
-    &:focus {
+    &:focus,
+    &:active {
       scale: 1;
-      box-shadow: 0 4px 12px rgba(138, 28, 20, 0.45);
+      box-shadow: none;
     }
 
     &:active {
       cursor: grabbing;
-      scale: 1;
     }
-  }
-
-  .slider-handle-lower {
-    z-index: 2;
-  }
-
-  .slider-handle-upper {
-    z-index: 3;
-  }
-
-  // Each bubble points inward at the exact year it marks.
-  .slider-handle-lower::before {
-    content: '';
-    position: absolute;
-    left: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0;
-    height: 0;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-left: 6px solid #8a1c14;
-  }
-
-  .slider-handle-upper::before {
-    content: '';
-    position: absolute;
-    right: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 0;
-    height: 0;
-    border-top: 5px solid transparent;
-    border-bottom: 5px solid transparent;
-    border-right: 6px solid #8a1c14;
   }
 }
 
-// One calendar year: both handles stack; lower shows a pointed tag, upper stays
-// invisible but draggable so the range can be expanded again.
-.year-slider--single-value.year-slider--labelled {
-  &.slider-target,
-  .slider-base {
-    overflow: visible;
-  }
+// ---- Decoupled year bubbles --------------------------------------------------
+.year-bubbles {
+  position: absolute;
+  inset: 0;
+  left: 26px;
+  right: 26px;
+  z-index: 10;
+  pointer-events: none;
+}
 
-  .slider-connect {
-    opacity: 0;
-  }
+.year-bubble {
+  position: absolute;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 34px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #c43d30, #8a1c14);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(138, 28, 20, 0.35);
+  transform: translate(-50%, -50%);
+}
 
-  .slider-handle-upper {
-    opacity: 0;
-    z-index: 4;
+.year-bubble--from {
+  z-index: 1;
+}
 
-    &::before {
-      display: none;
-    }
-  }
-
-  .slider-handle-lower {
-    z-index: 3;
-    width: 56px;
-    min-width: 56px;
-    border-radius: 0;
-    background: transparent !important;
-    box-shadow: 0 3px 10px rgba(138, 28, 20, 0.45);
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 18'%3E%3Cpath fill='%23ae2b21' d='M7 0h42l7 9-7 9H7L0 9z'/%3E%3C/svg%3E") !important;
-    background-size: 100% 100%;
-    background-repeat: no-repeat;
-
-    &::before {
-      display: none;
-    }
-
-    &::after {
-      position: relative;
-      z-index: 1;
-    }
-  }
+.year-bubble--to {
+  z-index: 2;
 }
 
 .camera-direction-icon,
@@ -2177,6 +2176,40 @@ onBeforeUnmount(() => {
   background:
     linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(237, 243, 255, 0.92)),
     #fff;
+}
+
+.latest-photo-media {
+  position: relative;
+  display: block;
+}
+
+.latest-photo-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+  transition: transform 0.15s ease, background 0.15s ease;
+
+  svg {
+    margin-left: 2px;
+  }
+
+  &:hover {
+    transform: translate(-50%, -50%) scale(1.08);
+    background: #f00;
+  }
 }
 
 .latest-photo {

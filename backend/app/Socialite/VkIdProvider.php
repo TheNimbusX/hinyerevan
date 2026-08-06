@@ -8,8 +8,6 @@ use SocialiteProviders\Manager\OAuth2\User;
 use SocialiteProviders\VKontakte\Provider as VkontakteProvider;
 
 /**
- * VK ID (id.vk.ru) — OAuth 2.1 + PKCE. Legacy oauth.vk.com without PKCE returns Security Error.
- *
  * @see https://id.vk.com/about/business/go/docs/ru/vkid/latest/vk-id/connection/api-description
  */
 class VkIdProvider extends VkontakteProvider
@@ -18,7 +16,6 @@ class VkIdProvider extends VkontakteProvider
 
     protected $usesPKCE = true;
 
-    /** VK ID scopes are space-separated (not comma like legacy VK OAuth). */
     protected $scopeSeparator = ' ';
 
     protected $scopes = ['vkid.personal_info', 'email'];

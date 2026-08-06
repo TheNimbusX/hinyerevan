@@ -2,6 +2,7 @@
 import { RouterLink } from 'vue-router'
 import { imageUrl, previewPhotoPath } from '../api'
 import { useI18n } from '../i18n'
+import { playVideo } from '../utils/video'
 
 defineProps({
   photos: { type: Array, default: () => [] },
@@ -35,7 +36,18 @@ const { t } = useI18n()
       :class="{ 'latest-photo--compact': compact }"
       :to="`/photos/${photo.id}`"
     >
-      <img :src="imageUrl(previewPhotoPath(photo.images))" :alt="photo.title" loading="lazy" />
+      <span class="latest-photo-media">
+        <img :src="imageUrl(previewPhotoPath(photo.images))" :alt="photo.title" loading="lazy" />
+        <button
+          v-if="photo.video"
+          type="button"
+          class="latest-photo-play"
+          :aria-label="t('watchVideo')"
+          @click.prevent.stop="playVideo(photo.video, photo.title)"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20"><path fill="currentColor" d="M8 5v14l11-7z" /></svg>
+        </button>
+      </span>
       <div class="latest-photo-meta">
         <strong>{{ photo.title }}</strong>
         <small v-if="compact && photo.year">{{ photo.year }}</small>

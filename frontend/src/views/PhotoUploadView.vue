@@ -1,9 +1,10 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, inject, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import { useRouter } from 'vue-router'
 import { api } from '../api'
+import { isAdminUser } from '../utils/user'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { applyMapTileLayer, getMapTileLayer } from '../utils/mapTiles'
@@ -16,6 +17,8 @@ import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 const router = useRouter()
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
+const currentUser = inject('currentUser', ref(null))
+const isAdmin = computed(() => isAdminUser(currentUser.value))
 const error = ref('')
 const success = ref(false)
 const successMessage = ref('')
@@ -141,7 +144,17 @@ function resetForm() {
   uploadMarker = null
 }
 
+function friendlyUploadError(event) {
+  const status = event?.status
+  if (!status) return t('uploadErrorNetwork') // network drop, timeout, aborted request
+  if (status === 413) return `${t('uploadErrorTooLarge')} (max ${Math.floor(MAX_UPLOAD_BYTES / 1024 / 1024)}MB)`
+  if (status === 422) return t('uploadErrorInvalid')
+  return t('uploadErrorServer')
+}
+
 async function submit() {
+  if (submitting.value) return // guards against a fast double-tap outracing the :disabled render
+
   error.value = ''
   success.value = false
 
@@ -204,7 +217,7 @@ async function submit() {
     successMessage.value = msg
     resetForm()
   } catch (event) {
-    error.value = event.message
+    error.value = friendlyUploadError(event)
   } finally {
     submitting.value = false
   }
@@ -362,7 +375,7 @@ onBeforeUnmount(() => {
             class="facebook-comment"
           ></textarea>
           <button class="button" type="submit" :disabled="submitting">
-            {{ submitting ? t('loading') : t('uploadForModeration') }}
+            {{ submitting ? t('loading') : (isAdmin ? t('uploadPublishBtn') : t('uploadForModeration')) }}
           </button>
           <p v-if="success" class="upload-success">{{ successMessage || t('uploadPendingSuccess') }}</p>
           <p v-if="error" class="error">{{ error }}</p>
@@ -417,7 +430,7 @@ onBeforeUnmount(() => {
 
   @include mq-down($bp-sm) {
     width: calc(100% - 16px);
-    max-height: calc(100vh - 28px);
+    max-height: calc(90vh - 28px);
   }
 }
 
@@ -641,6 +654,11 @@ onBeforeUnmount(() => {
   .upload-map-hint {
     background: #161b25;
     color: #e7ebf3;
+  }
+
+  .review-check {
+    background: #9d9d9d14;
+    border-color: #8d8d8d52;
   }
 }
 </style>

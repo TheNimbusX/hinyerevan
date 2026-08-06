@@ -72,7 +72,6 @@ onBeforeUnmount(() => {
 
 <template>
   <div ref="root" class="language-switcher notranslate" :class="{ 'is-segmented': layout === 'segmented' }">
-    <!-- Mobile drawer: fixed-height segmented control, no dropdown -->
     <div class="language-segmented" role="listbox" :aria-label="t('language')">
       <button
         v-for="language in languages"

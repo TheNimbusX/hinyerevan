@@ -182,7 +182,6 @@ function revealGoogleEmbed() {
   iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade')
   iframe.setAttribute('allowfullscreen', '')
   iframe.className = 'ba-google-embed'
-  // Classic svembed URL — works without a Maps JS API key.
   iframe.src = `https://www.google.com/maps?layer=c&cbll=${lat.value},${lng.value}&cbp=11,${heading.value},0,0,0&output=svembed`
   paneEl.value.appendChild(iframe)
 }

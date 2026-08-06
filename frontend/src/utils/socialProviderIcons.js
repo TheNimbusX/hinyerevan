@@ -1,4 +1,3 @@
-/** SVG icons for OAuth providers (auth modal + profile link). */
 export const socialProviderIcons = {
   google:
     '<svg viewBox="0 0 24 24" width="20" height="20"><path fill="#4285F4" d="M22.5 12.2c0-.7-.06-1.4-.18-2.06H12v3.9h5.9a5.04 5.04 0 0 1-2.19 3.31v2.74h3.54c2.07-1.91 3.25-4.72 3.25-7.89z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.54-2.74c-.98.66-2.24 1.05-3.74 1.05-2.87 0-5.3-1.94-6.17-4.55H2.18v2.83A11 11 0 0 0 12 23z"/><path fill="#FBBC05" d="M5.83 14.1a6.6 6.6 0 0 1 0-4.2V7.07H2.18a11 11 0 0 0 0 9.86l3.65-2.83z"/><path fill="#EA4335" d="M12 5.35c1.62 0 3.07.56 4.21 1.65l3.14-3.14C17.45 2.02 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07L5.83 9.9C6.7 7.3 9.13 5.35 12 5.35z"/></svg>',
@@ -47,12 +46,10 @@ export function isSocialNetwork(network) {
   return key !== '' && key !== 'hinyerevan' && Boolean(socialProviderIcons[key])
 }
 
-/** Data URI of a social network brand logo, usable directly as an <img src>. */
 export function socialAvatarUrl(network) {
   const key = normalizeNetworkKey(network)
   if (!isSocialNetwork(key)) return ''
   let svg = socialProviderIcons[key]
-  // The inline icons omit the SVG namespace (fine for v-html, but a standalone
   // <img src="data:image/svg+xml"> document fails to render without it).
   if (!svg.includes('xmlns=')) {
     svg = svg.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" ')

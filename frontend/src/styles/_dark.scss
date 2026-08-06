@@ -1,11 +1,5 @@
 @use './tokens' as *;
 
-// =================================================================
-// Dark theme overrides.
-// Activated by `data-theme="dark"` on <html> (or any parent).
-// Light theme stays the default — these blocks paint over surfaces.
-// =================================================================
-
 [data-theme='dark'] {
   --bg: #0d1018;
   --bg-deep: #080a10;
@@ -937,6 +931,39 @@
     color: #98a0ae;
   }
 
+  .settings-head,
+  .settings-actions {
+    border-color: #2a313d;
+  }
+
+  .settings-login,
+  .settings-social-chip {
+    background: #1c212c;
+    border-color: #2a313d;
+    color: #98a0ae;
+  }
+
+  .settings-login-value,
+  .settings-social-chip {
+    color: #e7ebf3;
+  }
+
+  .settings-handle,
+  .settings-section-label,
+  .settings-login-hint,
+  .profile-facebook-status,
+  .profile-facebook-info small {
+    color: #98a0ae;
+  }
+
+  .profile-facebook-status.is-linked {
+    color: #34c98e;
+  }
+
+  .profile-facebook-icon {
+    background: rgba(24, 119, 242, 0.18);
+  }
+
   // ---------- User public profile -------------------------------
   .user-hero,
   .user-profile-page .panel,
@@ -1107,7 +1134,6 @@
 
   .facebook-comment,
   .check-line {
-    // base `.check-line` sets color with !important, so we must match it here
     color: #c5cad6 !important;
   }
 

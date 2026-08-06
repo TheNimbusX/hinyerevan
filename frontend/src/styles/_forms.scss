@@ -1,6 +1,5 @@
 @use './tokens' as *;
 
-// Generic form controls used across stack-form, comment-form, filter-bar, etc.
 .stack-form,
 .comment-form {
   display: grid;
@@ -17,7 +16,6 @@
   }
 }
 
-// Branded custom checkbox shared across the app (replaces the raw native box).
 .check-line input[type='checkbox'],
 .comment-crosspost input[type='checkbox'] {
   appearance: none;
@@ -80,7 +78,6 @@
   cursor: pointer;
   user-select: none;
 
-  // FB-tinted accent for the "post to Facebook" action.
   input[type='checkbox'] {
     &:checked {
       background: #1877f2;

@@ -20,8 +20,6 @@
     padding: 14px 14px 40px;
   }
 
-  // If the first content block is a full-bleed map, glue it to the top of the
-  // viewport and let it tuck under the glass header.
   &:has(> .legacy-map-shell:first-child) {
     padding-top: 0;
 

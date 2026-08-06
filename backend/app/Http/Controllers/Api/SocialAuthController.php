@@ -14,10 +14,6 @@ use Laravel\Socialite\Facades\Socialite;
 
 class SocialAuthController extends Controller
 {
-    /**
-     * OAuth drivers exposed to the SPA. Only providers with valid .env keys
-     * are returned from providers().
-     */
     private const PROVIDERS = [
         'google' => ['label' => 'Google', 'color' => '#ea4335'],
         'facebook' => ['label' => 'Facebook', 'color' => '#1877f2'],
@@ -70,7 +66,6 @@ class SocialAuthController extends Controller
         $driver = $this->socialiteDriver($provider, $this->usesOAuthSession($provider));
 
         return match ($provider) {
-            // setScopes (not scopes): FacebookProvider defaults to email; we only need public_profile.
             'facebook' => $driver->setScopes(['public_profile'])->redirect(),
             'yandex' => $driver->scopes(['login:email', 'login:info'])->redirect(),
             default => $driver->redirect(),
@@ -142,7 +137,6 @@ class SocialAuthController extends Controller
         return redirect()->away($frontend . '/?social_token=' . urlencode($token));
     }
 
-    /** Begin linking a provider to the logged-in local account (Bearer → one-time redirect key). */
     public function startLink(Request $request, string $provider)
     {
         abort_unless(isset(self::PROVIDERS[$provider]), 404);
@@ -159,9 +153,6 @@ class SocialAuthController extends Controller
         ];
     }
 
-    /**
-     * uLogin fallback — matches legacy users by network+uid / email / md5(uid).
-     */
     public function ulogin(Request $request)
     {
         if (! LegacySchema::usersReady()) {
@@ -261,7 +252,10 @@ class SocialAuthController extends Controller
             $networks = $this->socialAuth->networkCandidates($provider);
 
             if (in_array($net, $networks, true) && (string) $existing->uid === $providerId) {
-                // refreshAvatar=false: don't overwrite a user-uploaded photo on every OAuth login
+                return $this->socialAuth->touchExisting($existing, $email, $avatar, false);
+            }
+
+            if ($this->socialAuth->hasIdentity($existing, $provider, $providerId)) {
                 return $this->socialAuth->touchExisting($existing, $email, $avatar, false);
             }
 
@@ -305,13 +299,11 @@ class SocialAuthController extends Controller
             || ($provider === 'mailru' && $this->usesVkIdForMail());
     }
 
-    /** OK login via VK ID (provider=ok_ru), same app keys and callback as VK. */
     private function usesVkIdForOk(): bool
     {
         return $this->isVkIdConfigured() && ! $this->isLegacyOkConfigured();
     }
 
-    /** Mail.ru login via VK ID (provider=mail_ru). */
     private function usesVkIdForMail(): bool
     {
         return $this->isVkIdConfigured();
@@ -362,7 +354,6 @@ class SocialAuthController extends Controller
             'timeout' => 20,
         ];
         $proxy = trim((string) config('services.oauth.proxy', ''));
-        // Meta Graph works direct from VPS; proxy breaks Facebook/Instagram OAuth token exchange
         if ($proxy !== '' && ! in_array($provider, ['facebook', 'instagram'], true)) {
             $clientOptions['proxy'] = $proxy;
         }
@@ -386,7 +377,6 @@ class SocialAuthController extends Controller
         };
     }
 
-    /** Instagram OAuth needs its own Meta app — not the Facebook Consumer app id. */
     private function isInstagramConfigured(): bool
     {
         $id = trim((string) config('services.instagram.client_id', ''));

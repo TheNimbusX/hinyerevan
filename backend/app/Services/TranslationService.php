@@ -12,7 +12,6 @@ class TranslationService
 
     private const TARGETS = ['ru', 'en'];
 
-    /** MyMemory free tier is ~500 bytes per request; longer strings are split into chunks. */
     private const CHUNK_SIZE = 450;
 
     public function isEnabled(): bool
@@ -138,9 +137,6 @@ class TranslationService
         return $marked;
     }
 
-    /**
-     * Short plain-text excerpt for list previews (news cards).
-     */
     public function translateExcerpt(?string $html, ?string $targetLang, int $maxChars = 220): ?string
     {
         if ($html === null || trim($html) === '' || ! $targetLang) {

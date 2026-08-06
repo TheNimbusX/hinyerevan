@@ -19,7 +19,6 @@ return new class extends Migration
             $table->text('image_url')->nullable();
             $table->text('permalink_url')->nullable();
             $table->timestamp('posted_at')->nullable();
-            // pending = waiting in admin, imported = turned into a draft photo, dismissed = hidden
             $table->string('status', 16)->default('pending');
             $table->unsignedInteger('photo_id')->nullable();
             $table->timestamps();

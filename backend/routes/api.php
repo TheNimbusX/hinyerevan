@@ -76,6 +76,7 @@ Route::post('/feedback', [FeedbackController::class, 'store']);
 Route::get('/ratings', [RatingController::class, 'index']);
 Route::get('/facebook/page', [FacebookController::class, 'page']);
 Route::get('/facebook/plugin-config', [FacebookController::class, 'pluginConfig']);
+Route::get('/facebook-incoming/{post}/image', [AdminController::class, 'facebookIncomingImage'])->whereNumber('post');
 Route::get('/users/search', [UserController::class, 'search']);
 Route::get('/users/{unique}', [UserController::class, 'show']);
 Route::get('/photos/{photo}/comments', [CommentController::class, 'index'])->whereNumber('photo');
@@ -96,6 +97,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/photos', [PhotoController::class, 'store']);
     Route::post('/photos/{photo}/comments', [CommentController::class, 'store'])->whereNumber('photo');
     Route::delete('/comments/{comment}', [CommentController::class, 'destroyOwn'])->whereNumber('comment');
+    Route::post('/comments/{comment}/like', [CommentController::class, 'toggleLike'])->whereNumber('comment');
+    Route::post('/photos/{photo}/facebook-comments/{fbComment}/like', [CommentController::class, 'toggleFacebookLike'])
+        ->whereNumber('photo');
     Route::post('/news/{news}/comments', [CommentController::class, 'newsStore'])->whereNumber('news');
 
     Route::middleware('admin')->prefix('admin')->group(function () {

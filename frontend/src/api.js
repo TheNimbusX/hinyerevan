@@ -6,7 +6,6 @@ const TOKEN_KEY = 'hinyerevan_token'
 const DEV_AUTH_KEY = 'hinyerevan_dev_auth'
 const CACHE_PREFIX = 'hinyerevan:api-cache:'
 
-/** Absolute URL to a backend endpoint — used for full-page OAuth redirects. */
 export function apiUrl(path) {
   return `${API_URL}${path}`
 }
@@ -78,7 +77,6 @@ export function clearApiCacheForLanguage(lang) {
     .forEach((key) => localStorage.removeItem(key))
 }
 
-/** Drop cached GET payloads for one API path (all languages). */
 export function clearApiCacheForPath(path) {
   const base = path.split('?')[0]
   Object.keys(localStorage)
@@ -86,7 +84,6 @@ export function clearApiCacheForPath(path) {
     .forEach((key) => localStorage.removeItem(key))
 }
 
-/** Invalidate gallery, map markers, and optional photo detail caches. */
 export function clearPhotosApiCache(photoId = null) {
   Object.keys(localStorage)
     .filter((key) => {
@@ -133,7 +130,6 @@ function queueLocalizedRefresh(path, lang, cacheKey) {
     .catch(() => {})
 }
 
-/** Fast Armenian payload first, translated version loads in the background when needed. */
 export async function localizedApi(path, options = {}) {
   const basePath = path.split('?')[0]
   if (getToken() && isPhotoDetailPath(basePath)) {
@@ -220,14 +216,12 @@ export async function api(path, options = {}) {
     return null
   }
 
-  // Uploads can be rejected by PHP / proxy before Laravel sees it.
   if (response.status === 413) {
     throw new Error('File is too large')
   }
 
   const payload = await response.json().catch(() => null)
   if (!response.ok) {
-    // Laravel validation: { message, errors: { field: [messages...] } }
     let message = payload?.message || 'Request failed'
     const errors = payload?.errors && typeof payload.errors === 'object' ? payload.errors : null
     if (errors) {
@@ -278,8 +272,7 @@ export async function cachedApi(path, options = {}) {
   return localizedApi(path, options)
 }
 
-/** Bump when serve-time watermark/blur logic changes (cache-busts browser/CDN). */
-const WATERMARK_CACHE_VERSION = 8
+const WATERMARK_CACHE_VERSION = 9
 
 export function imageUrl(path) {
   if (!path) return ''
@@ -295,17 +288,14 @@ export function imageUrl(path) {
   return url
 }
 
-/** Full-size file path for viewing and download (original, then large fallback). */
 export function fullPhotoPath(images) {
   return images?.original || images?.large || images?.thumb || ''
 }
 
-/** Smaller variant for grids, cards and link previews. */
 export function previewPhotoPath(images) {
   return images?.large || images?.thumb || images?.original || ''
 }
 
-/** Watermarked original/large image URL with Content-Disposition download. */
 export function photoDownloadUrl(images, title = 'photo') {
   const variant = fullPhotoPath(images)
   if (!variant) return ''
@@ -347,11 +337,6 @@ export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
   return imageUrl(`/api/photos/file/users/${photo}?w=512&v=2`)
 }
 
-/**
- * Avatar for a user object. If the user has their own photo we show it.
- * Otherwise, for accounts that signed in through a social network we show that
- * network's brand logo; everyone else gets the default fallback avatar.
- */
 export function avatarForUser(user, fallback = '/Logo2026.png') {
   const NO_PHOTO = '\u0000no-photo'
   const own = safeAvatarUrl(user?.photo, NO_PHOTO)

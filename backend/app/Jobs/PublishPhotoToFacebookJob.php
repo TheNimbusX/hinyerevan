@@ -10,7 +10,6 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 
-/** Runs synchronously so publish completes before the admin sees the photo. */
 class PublishPhotoToFacebookJob
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;

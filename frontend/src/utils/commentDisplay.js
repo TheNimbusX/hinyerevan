@@ -18,7 +18,6 @@ export function commentAvatarUrl(item) {
   if (item.source === 'facebook') {
     const picture = item.author?.picture
     if (typeof picture !== 'string' || !picture) return ''
-    // Locally cached avatars are stored as a relative /api path.
     return picture.startsWith('/') ? imageUrl(picture) : picture
   }
   return safeAvatarUrl(item.author?.photo)

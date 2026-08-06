@@ -2,10 +2,6 @@
 
 namespace App\Services;
 
-/**
- * Legacy comments were stored as HTML (often entity-encoded). The SPA must not
- * show raw tags like &lt;br&gt; — decode safely and render line breaks only.
- */
 class CommentBodyFormatter
 {
     public static function display(string $body): string

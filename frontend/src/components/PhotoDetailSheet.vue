@@ -342,6 +342,39 @@ async function deleteComment(item) {
   }
 }
 
+function promptLogin() {
+  window.dispatchEvent(new CustomEvent('hinyerevan:open-auth'))
+}
+
+async function toggleCommentLike(item) {
+  if (!item || !photo.value) return
+  if (!isAuthenticated.value) {
+    promptLogin()
+    return
+  }
+
+  const wasLiked = Boolean(item.liked)
+  const prevCount = item.likes_count || 0
+  item.liked = !wasLiked
+  item.likes_count = Math.max(0, prevCount + (wasLiked ? -1 : 1))
+
+  try {
+    const path = item.source === 'facebook'
+      ? `/photos/${photo.value.id}/facebook-comments/${item.facebook_comment_id}/like`
+      : `/comments/${item.id}/like`
+    const result = await api(path, { method: 'POST' })
+    if (result) {
+      item.liked = Boolean(result.liked)
+      item.likes_count = result.likes_count ?? item.likes_count
+    }
+    clearApiCacheForPath(`/photos/${photo.value.id}/comments`)
+  } catch (e) {
+    item.liked = wasLiked
+    item.likes_count = prevCount
+    if (e?.status === 401) promptLogin()
+  }
+}
+
 function handleKey(event) {
   if (event.key !== 'Escape') return
   if (lightboxOpen.value) {
@@ -399,7 +432,10 @@ onBeforeUnmount(() => {
             <div class="sheet-grid">
               <div class="sheet-main">
                 <div class="photo-detail-frame">
-                  <button type="button" class="photo-detail-image" :aria-label="t('openFullscreen')" @click="openLightbox">
+                  <div v-if="photo.video" class="photo-detail-video">
+                    <YoutubeEmbed :url="photo.video" :title="photo.title" />
+                  </div>
+                  <button v-else type="button" class="photo-detail-image" :aria-label="t('openFullscreen')" @click="openLightbox">
                     <img :src="detailImageSrc" :alt="photo.title" @error="retryDetailImage" />
                     <PhotoDetailZoomTrigger />
                   </button>
@@ -488,8 +524,6 @@ onBeforeUnmount(() => {
                     <span>{{ photo.comments_count }} {{ t('comments') }}</span>
                   </div>
                 </div>
-
-                <YoutubeEmbed v-if="photo.video" :url="photo.video" :title="photo.title" />
               </div>
 
               <div class="sheet-side">
@@ -558,6 +592,7 @@ onBeforeUnmount(() => {
                 :can-crosspost="Boolean(photo.facebook?.post_id)"
                 @submit="postComment"
                 @delete="deleteComment"
+                @like="toggleCommentLike"
               />
             </section>
           </template>
@@ -586,8 +621,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   width: min(960px, 100%);
-  // Fixed height keeps the slide-up smooth: the panel animates at full size and
-  // content loads inside it instead of resizing the panel (which caused the jump).
   height: min(86vh, 880px);
   transform: translateX(-50%);
   border: 1px solid $line;
@@ -598,7 +631,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
 
   @include mq-up($bp-lg) {
-    // Shift sheet left so selected marker is visible to the right
     transform: translateX(calc(-50% - 8vw));
   }
 

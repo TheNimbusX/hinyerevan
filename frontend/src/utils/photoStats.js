@@ -1,4 +1,3 @@
-/** Total likes shown in UI: site favorites + synced Facebook likes. */
 export function photoDisplayLikes(photo) {
   if (!photo) return 0
   if (photo.likes_total != null) return photo.likes_total

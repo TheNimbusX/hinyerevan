@@ -9,7 +9,6 @@ function looksLikeProviderId(value) {
   return /^\d{8,}$/.test(String(value ?? '').trim())
 }
 
-/** Human-readable name; never show long numeric Facebook IDs. */
 export function userDisplayName(user, t) {
   const fallback = typeof t === 'function' ? t('member') : 'Member'
   if (!user) return fallback

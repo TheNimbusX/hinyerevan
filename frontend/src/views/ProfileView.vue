@@ -5,9 +5,11 @@ import { api, apiUrl, avatarForUser, imageUrl, setToken } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useI18n } from '../i18n'
 import { formatCommentBody } from '../utils/commentBody'
+import { dateLocale } from '../utils/locale'
 import { socialNetworkLabel, socialProviderIcon } from '../utils/socialProviderIcons'
 import { isAdminUser, parseBirthdate } from '../utils/user'
 import siteLogo from '../assets/logos/Logo2026.png'
+import FacebookMarkIcon from '../components/FacebookMarkIcon.vue'
 import LikeIcon from '../components/LikeIcon.vue'
 import RecaptchaField from '../components/RecaptchaField.vue'
 
@@ -19,6 +21,11 @@ const { requireAuth } = useAuthGate()
 const days = Array.from({ length: 31 }, (_, index) => index + 1)
 const months = Array.from({ length: 12 }, (_, index) => index + 1)
 const years = Array.from({ length: 127 }, (_, index) => new Date().getFullYear() - index)
+
+const monthNames = computed(() => {
+  const formatter = new Intl.DateTimeFormat(dateLocale(currentLanguage.value), { month: 'long' })
+  return months.map((month) => ({ value: month, label: formatter.format(new Date(2000, month - 1, 1)) }))
+})
 
 const user = ref(null)
 const stats = ref({ photos_total: 0, photos_published: 0, photos_pending: 0, comments_total: 0, views_total: 0 })
@@ -71,6 +78,17 @@ const isLocalAccount = computed(() => {
   const id = (user.value?.network || '').toLowerCase()
   return !id || id === 'hinyerevan'
 })
+
+const linkedNetworks = computed(() =>
+  (user.value?.linked_networks || []).map((network) => String(network).toLowerCase()),
+)
+const isFacebookLinked = computed(
+  () => linkedNetworks.value.includes('facebook') || (user.value?.network || '').toLowerCase() === 'facebook',
+)
+const facebookProvider = computed(() =>
+  socialProviders.value.find((provider) => provider.id === 'facebook') || null,
+)
+const canLinkFacebook = computed(() => !isFacebookLinked.value && Boolean(facebookProvider.value))
 
 const linkedNetworkLabel = computed(() => {
   if (isLocalAccount.value) return ''
@@ -160,6 +178,12 @@ async function removeFavorite(photoId) {
   } catch {
     /* ignore */
   }
+}
+
+function resetProfileForm() {
+  syncForm()
+  profileMessage.value = ''
+  profileError.value = ''
 }
 
 async function saveProfile() {
@@ -356,6 +380,27 @@ onMounted(() => {
     </nav>
 
     <section v-if="activeTab === 'overview'" class="profile-tab-pane overview-pane">
+      <article class="panel profile-block profile-facebook-card">
+        <span class="profile-facebook-icon" aria-hidden="true"><FacebookMarkIcon :size="26" /></span>
+        <div class="profile-facebook-info">
+          <strong>Facebook</strong>
+          <span v-if="isFacebookLinked" class="profile-facebook-status is-linked">{{ t('facebookLinked') }}</span>
+          <span v-else class="profile-facebook-status">{{ t('facebookNotLinked') }}</span>
+          <small v-if="!isFacebookLinked && canLinkFacebook">{{ t('facebookLinkHint') }}</small>
+        </div>
+        <button
+          v-if="!isFacebookLinked && canLinkFacebook"
+          type="button"
+          class="button profile-facebook-btn"
+          :disabled="socialLinkBusy === 'facebook'"
+          @click="startSocialLink('facebook')"
+        >
+          {{ socialLinkBusy === 'facebook' ? t('loading') : t('facebookLinkBtn') }}
+        </button>
+        <p v-if="socialLinkError" class="error-line profile-facebook-error">{{ socialLinkError }}</p>
+        <p v-if="socialLinkMessage" class="success-line profile-facebook-error">{{ socialLinkMessage }}</p>
+      </article>
+
       <article class="panel profile-block">
         <header class="profile-block-head">
           <h2>{{ t('latestPhotos') }}</h2>
@@ -513,9 +558,28 @@ onMounted(() => {
     </section>
 
     <section v-if="activeTab === 'settings'" class="profile-tab-pane">
-      <article class="panel profile-block">
-        <h2>{{ t('editProfile') }}</h2>
-        <form class="profile-form" @submit.prevent="saveProfile">
+      <article class="panel profile-block settings-card">
+        <header class="settings-head">
+          <div class="settings-id">
+            <span class="settings-avatar">
+              <img v-if="!avatarFailed" :src="avatarFor(user)" :alt="user.name" @error="avatarFailed = true" />
+              <span v-else class="settings-avatar-initials" aria-hidden="true">{{ initials }}</span>
+            </span>
+            <div class="settings-id-text">
+              <strong>{{ user.name || user.uid }}</strong>
+              <span class="settings-handle">@{{ user.uid }}</span>
+            </div>
+          </div>
+          <button class="button button-ghost" type="button" :disabled="avatarBusy" @click="pickAvatar">
+            {{ avatarBusy ? t('loading') : t('changeAvatar') }}
+          </button>
+        </header>
+        <p v-if="avatarMessage" class="success-line">{{ avatarMessage }}</p>
+        <p v-if="avatarError" class="error-line">{{ avatarError }}</p>
+
+        <form class="profile-form settings-form" @submit.prevent="saveProfile">
+          <p class="settings-section-label">{{ t('personalData') }}</p>
+
           <div class="profile-form-row">
             <label>
               <span>{{ t('firstName') }}</span>
@@ -526,44 +590,56 @@ onMounted(() => {
               <input v-model="profileForm.last_name" :placeholder="t('lastName')" />
             </label>
           </div>
+
           <label>
             <span>{{ t('email') }}</span>
             <input v-model="profileForm.email" type="email" :placeholder="t('email')" required />
           </label>
-          <label>
-            <span>{{ t('username') }}</span>
-            <input :value="user.uid" disabled />
-          </label>
-          <label>
-            <span>{{ t('sex') }}</span>
-            <select v-model="profileForm.sex">
-              <option value="2">{{ t('sexUnset') }}</option>
-              <option value="1">{{ t('male') }}</option>
-              <option value="0">{{ t('female') }}</option>
-            </select>
-          </label>
-          <label>
-            <span>{{ t('birthDate') }}</span>
-            <div class="profile-birth-grid">
-              <select v-model="profileForm.birth_day" required>
-                <option value="" disabled>{{ t('day') }}</option>
-                <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
+
+          <div class="profile-form-row settings-meta-row">
+            <label>
+              <span>{{ t('sex') }}</span>
+              <select v-model="profileForm.sex">
+                <option value="2">{{ t('sexUnset') }}</option>
+                <option value="1">{{ t('male') }}</option>
+                <option value="0">{{ t('female') }}</option>
               </select>
-              <select v-model="profileForm.birth_month" required>
-                <option value="" disabled>{{ t('month') }}</option>
-                <option v-for="month in months" :key="month" :value="month">{{ month }}</option>
-              </select>
-              <select v-model="profileForm.birth_year" required>
-                <option value="" disabled>{{ t('year') }}</option>
-                <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
-              </select>
-            </div>
-          </label>
-          <label v-if="canLinkSocial">
-            <span>{{ t('profileUrl') }}</span>
-            <input v-model="profileForm.identity" :placeholder="t('profileUrl')" />
-          </label>
-          <p v-else-if="linkedNetworkLabel" class="profile-readonly">{{ t('linkedVia') }}: {{ linkedNetworkLabel }}</p>
+            </label>
+            <label>
+              <span>{{ t('birthDate') }}</span>
+              <div class="profile-birth-grid">
+                <select v-model="profileForm.birth_day" required>
+                  <option value="" disabled>{{ t('day') }}</option>
+                  <option v-for="day in days" :key="day" :value="day">{{ day }}</option>
+                </select>
+                <select v-model="profileForm.birth_month" required>
+                  <option value="" disabled>{{ t('month') }}</option>
+                  <option v-for="month in monthNames" :key="month.value" :value="month.value">{{ month.label }}</option>
+                </select>
+                <select v-model="profileForm.birth_year" required>
+                  <option value="" disabled>{{ t('year') }}</option>
+                  <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
+                </select>
+              </div>
+            </label>
+          </div>
+
+          <div class="settings-login">
+            <svg class="settings-login-lock" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <rect x="5" y="10" width="14" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.8" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" stroke="currentColor" stroke-width="1.8" />
+            </svg>
+            <span class="settings-login-text">
+              <span class="settings-login-label">{{ t('loginField') }}</span>
+              <span class="settings-login-value">{{ user.uid }}</span>
+            </span>
+            <span class="settings-login-hint">{{ t('notEditable') }}</span>
+          </div>
+
+          <div v-if="!isLocalAccount && linkedNetworkLabel" class="settings-social-chip">
+            <span class="settings-social-chip-icon" v-html="providerIcon((user.network || '').toLowerCase())"></span>
+            <span>{{ t('signInVia') }} {{ linkedNetworkLabel }}</span>
+          </div>
 
           <div v-if="canLinkSocial && socialProviders.length" class="profile-social-link">
             <h3>{{ t('linkSocialAccount') }}</h3>
@@ -586,27 +662,13 @@ onMounted(() => {
             <p v-if="socialLinkError" class="error-line">{{ socialLinkError }}</p>
           </div>
 
-          <div class="form-actions">
-            <button class="button" type="submit">{{ t('saveProfile') }}</button>
+          <div class="form-actions settings-actions">
+            <button class="button button-save" type="submit">{{ t('saveChanges') }}</button>
+            <button class="button button-ghost" type="button" @click="resetProfileForm">{{ t('cancel') }}</button>
             <p v-if="profileMessage" class="success-line">{{ profileMessage }}</p>
             <p v-if="profileError" class="error-line">{{ profileError }}</p>
           </div>
         </form>
-      </article>
-
-      <article class="panel profile-block">
-        <h2>{{ t('changeAvatar') }}</h2>
-        <div class="avatar-editor">
-          <img class="avatar-preview" :src="avatarFor(user)" :alt="user.name" />
-          <div>
-            <button class="button" type="button" :disabled="avatarBusy" @click="pickAvatar">
-              {{ avatarBusy ? t('loading') : t('changeAvatar') }}
-            </button>
-            <p class="muted-hint">{{ t('avatarHint') }}</p>
-            <p v-if="avatarMessage" class="success-line">{{ avatarMessage }}</p>
-            <p v-if="avatarError" class="error-line">{{ avatarError }}</p>
-          </div>
-        </div>
       </article>
     </section>
 
@@ -673,13 +735,12 @@ onMounted(() => {
     $surface;
   box-shadow: $shadow-lg;
 
-  // Slim brand accent strip along the top edge.
   &::before {
     content: '';
     position: absolute;
     inset: 0 0 auto 0;
     height: 4px;
-    background: linear-gradient(90deg, $primary, $accent);
+    background: #8a1c14;
     pointer-events: none;
   }
 }
@@ -827,6 +888,10 @@ onMounted(() => {
   border-radius: $radius-pill;
   font-size: 12px;
   font-weight: 500;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .badge-admin {
@@ -858,8 +923,18 @@ onMounted(() => {
     grid-auto-columns: 1fr;
   }
 
+  @include mq-down($bp-sm) {
+    grid-auto-flow: row;
+    width: 100%;
+  }
+
   .button {
     min-width: 168px;
+
+    @include mq-down($bp-sm) {
+      min-width: 0;
+      width: 100%;
+    }
   }
 }
 
@@ -944,17 +1019,6 @@ onMounted(() => {
   border-radius: $radius-md;
   background: $surface;
   box-shadow: $shadow-lg;
-
-  @include mq-down($bp-md) {
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
-
-    &::-webkit-scrollbar {
-      display: none;
-    }
-  }
 }
 
 .profile-tab {
@@ -962,9 +1026,10 @@ onMounted(() => {
   padding: 10px 14px;
 
   @include mq-down($bp-md) {
-    flex: 0 0 auto;
+    flex: 1 1 30%;
     white-space: nowrap;
-    padding: 10px 16px;
+    padding: 10px 8px;
+    font-size: 12px;
   }
   border: 0;
   border-radius: $radius-sm;
@@ -1411,6 +1476,218 @@ onMounted(() => {
   object-fit: cover;
   background: $surface-soft;
   box-shadow: 0 8px 20px rgba(20, 45, 110, 0.12);
+}
+
+// ---------- Facebook link card -----------------------------------
+.profile-facebook-card {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+
+  @include mq-down($bp-sm) {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.profile-facebook-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(24, 119, 242, 0.1);
+  color: #1877f2;
+}
+
+.profile-facebook-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+
+  strong {
+    font-size: 15px;
+  }
+
+  small {
+    color: $muted;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+}
+
+.profile-facebook-status {
+  font-size: 13px;
+  color: $muted;
+
+  &.is-linked {
+    color: #1f9d63;
+    font-weight: 600;
+  }
+}
+
+.profile-facebook-btn {
+  background: #1877f2;
+
+  &:hover {
+    background: #1464c8;
+  }
+
+  @include mq-down($bp-sm) {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+.profile-facebook-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+// ---------- Settings card ----------------------------------------
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-bottom: 16px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid $line;
+}
+
+.settings-id {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settings-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: $surface-soft;
+  flex-shrink: 0;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+}
+
+.settings-avatar-initials {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  background: #ae2b21;
+  color: #fff;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.settings-id-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+
+  strong {
+    font-size: 15px;
+  }
+}
+
+.settings-handle {
+  color: $muted;
+  font-size: 12px;
+  @include truncate;
+}
+
+.settings-section-label {
+  margin: 0 0 2px;
+  color: $muted;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.settings-login {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid $line;
+  border-radius: $radius-sm;
+  background: $surface-soft;
+  color: $muted;
+}
+
+.settings-login-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-login-label {
+  font-size: 11px;
+}
+
+.settings-login-value {
+  color: $ink;
+  font-size: 14px;
+  word-break: break-all;
+}
+
+.settings-login-hint {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.settings-social-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-self: start;
+  padding: 8px 14px;
+  border: 1px solid $line;
+  border-radius: $radius-pill;
+  background: $surface-soft;
+  font-size: 13px;
+  color: $ink;
+}
+
+.settings-social-chip-icon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+}
+
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid $line;
+}
+
+.button-save {
+  background: #ae2b21;
+
+  &:hover {
+    background: #8a1c14;
+  }
 }
 
 // ---------- Favorites / likes tab -------------------------------

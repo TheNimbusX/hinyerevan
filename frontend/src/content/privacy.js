@@ -1,5 +1,3 @@
-// Privacy Policy for HinYerevan.com (hy / ru / en).
-// Public URL: https://hinyerevan.com/pages/privacy
 
 export const privacyUpdated = '2026-06-02'
 

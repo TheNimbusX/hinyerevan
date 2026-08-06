@@ -58,6 +58,10 @@ const tabs = computed(() => [
 const fbIncomingCount = ref(0)
 const fbFilter = ref('pending')
 const fbCounts = ref({ pending: 0, imported: 0, dismissed: 0 })
+const fbSince = ref('')
+const fbUntil = ref('')
+const fbRangeActive = ref(false)
+const fbRangeLoading = ref(false)
 
 const tabDescription = computed(
   () =>
@@ -125,7 +129,12 @@ function listEndpoint(page = 1) {
     return `/admin/feedback?per_page=${PER_PAGE}&page=${page}`
   }
   if (tab.value === 'fb_incoming') {
-    return `/admin/facebook-incoming?status=${fbFilter.value}&refresh=1`
+    const params = new URLSearchParams({ status: fbFilter.value, refresh: '1' })
+    if (fbRangeActive.value) {
+      if (fbSince.value) params.set('since', fbSince.value)
+      if (fbUntil.value) params.set('until', fbUntil.value)
+    }
+    return `/admin/facebook-incoming?${params.toString()}`
   }
   return `/admin/photos?per_page=${PER_PAGE}&page=${page}`
 }
@@ -331,6 +340,19 @@ function setFbFilter(next) {
   if (tab.value === 'fb_incoming') loadTab('fb_incoming')
 }
 
+async function importFbByDateRange() {
+  if (!fbSince.value && !fbUntil.value) return
+  fbRangeLoading.value = true
+  fbRangeActive.value = true
+  fbFilter.value = 'pending'
+  try {
+    await loadTab('fb_incoming')
+  } finally {
+    fbRangeActive.value = false
+    fbRangeLoading.value = false
+  }
+}
+
 async function importIncoming(row) {
   busyId.value = row.id
   actionError.value = ''
@@ -342,7 +364,6 @@ async function importIncoming(row) {
     fbIncomingCount.value = fbCounts.value.pending
     clearPhotosApiCache()
     await loadDashboard()
-    // Open the freshly created draft in the editor so the admin can set year/location/direction.
     if (res?.photo_id) {
       photoEditorId.value = res.photo_id
     }
@@ -650,6 +671,26 @@ watch([hasMore, loading], async () => {
       </button>
     </div>
 
+    <div v-if="tab === 'fb_incoming'" class="admin__bar admin__fb-range">
+      <label class="admin__fb-range-field">
+        <span>{{ t('adminFbRangeFrom') }}</span>
+        <input v-model="fbSince" type="date" class="admin__input" />
+      </label>
+      <label class="admin__fb-range-field">
+        <span>{{ t('adminFbRangeTo') }}</span>
+        <input v-model="fbUntil" type="date" class="admin__input" />
+      </label>
+      <button
+        type="button"
+        class="admin__btn admin__btn--plain"
+        :disabled="fbRangeLoading || (!fbSince && !fbUntil)"
+        @click="importFbByDateRange"
+      >
+        {{ fbRangeLoading ? t('loading') : t('adminFbRangeFetch') }}
+      </button>
+      <p class="admin__fb-range-hint">{{ t('adminFbRangeHint') }}</p>
+    </div>
+
     <p v-if="error" class="admin__msg admin__msg--err">{{ error }}</p>
     <p v-if="actionError" class="admin__msg admin__msg--err">{{ actionError }}</p>
 
@@ -915,6 +956,29 @@ watch([hasMore, loading], async () => {
   background: rgba(255, 255, 255, 0.28);
 }
 
+.admin__fb-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 10px;
+}
+
+.admin__fb-range-field {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  color: $muted;
+}
+
+.admin__fb-range-hint {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+  color: $muted;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .admin__fb-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -1130,7 +1194,6 @@ watch([hasMore, loading], async () => {
   background: $surface-soft;
 }
 
-// Status colours: published / pending / needs-location-review (third colour)
 .admin__photo-row td:first-child {
   border-left: 3px solid transparent;
 }

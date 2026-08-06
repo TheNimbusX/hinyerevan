@@ -18,9 +18,6 @@ function sortByDate(list) {
   return [...list].sort((a, b) => String(a.datetime || '').localeCompare(String(b.datetime || '')))
 }
 
-/**
- * Insert `node` under the matching parent. Returns `{ threads, inserted }`.
- */
 function insertReply(threads, replyTo, node) {
   let inserted = false
 
@@ -45,10 +42,6 @@ function insertReply(threads, replyTo, node) {
 }
 
 /**
- * Append a freshly-created comment into an existing thread tree (immutably).
- * - No reply target → appended at root (sorted by date).
- * - Reply target → nested under the matching comment; falls back to root if not found.
- *
  * @param {Array<object>|undefined} threads
  * @param {object} comment
  * @param {object|null} replyTo
@@ -70,10 +63,6 @@ export function countComments(threads) {
   return threads.reduce((sum, item) => sum + 1 + countComments(item.replies || []), 0)
 }
 
-/**
- * Remove a comment (and its sub-tree) by id. Returns `{ threads, removed }`
- * where `removed` is the count of nodes removed (the node + its replies).
- */
 export function removeCommentById(threads, id) {
   const list = Array.isArray(threads) ? threads : []
   let removed = 0

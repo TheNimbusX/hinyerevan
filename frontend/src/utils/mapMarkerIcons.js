@@ -24,10 +24,6 @@ const ACTIVE_PIN_FILL = '#ff910f'
 const ACTIVE_RING_SIZE = PIN_SIZE + 18
 
 function svgDataUri(direction, options = {}) {
-  // Image-based icons (vs inline-SVG divIcons) let the browser decode each of
-  // the 9 direction pins once and reuse them — dramatically cheaper than
-  // parsing thousands of inline SVG nodes when the cluster expands on zoom.
-  // A standalone SVG used as an <img> source must carry the xmlns attribute.
   const svg = directionMarkerSvg(direction, PIN_SIZE, options).replace(
     '<svg ',
     '<svg xmlns="http://www.w3.org/2000/svg" ',
