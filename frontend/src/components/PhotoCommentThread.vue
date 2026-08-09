@@ -340,7 +340,7 @@ watch(
   place-items: center;
   width: 100%;
   height: 100%;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 700;
   color: #fff;
   background: linear-gradient(145deg, #6b7280, #4b5563);
@@ -375,7 +375,7 @@ watch(
 
 .comment-row__author {
   font-weight: 600;
-  font-size: 13px;
+  font-size: 0.9286rem;
   color: inherit;
   text-decoration: none;
 
@@ -390,7 +390,7 @@ watch(
 }
 
 .comment-row__time {
-  font-size: 11px;
+  font-size: 0.7857rem;
   color: #65676b;
 }
 
@@ -421,7 +421,7 @@ watch(
   border: 0;
   padding: 0;
   background: none;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   color: #1877f2;
   cursor: pointer;
@@ -458,7 +458,7 @@ watch(
     border: 0;
     padding: 0;
     background: none;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 600;
     cursor: pointer;
   }
@@ -474,7 +474,7 @@ watch(
 
 .comment-row__body {
   margin: 0;
-  font-size: 14px;
+  font-size: 1rem;
   line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
@@ -493,14 +493,14 @@ watch(
   border: 0;
   padding: 0;
   background: none;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   color: #65676b;
   cursor: pointer;
   line-height: 1;
 
   .like-icon {
-    font-size: 14px;
+    font-size: 1rem;
   }
 
   &:hover {
@@ -532,7 +532,7 @@ watch(
     border: 1px solid rgba(0, 0, 0, 0.12);
     border-radius: 10px;
     font: inherit;
-    font-size: 14px;
+    font-size: 1rem;
     resize: vertical;
     background: transparent;
     color: inherit;
@@ -548,7 +548,7 @@ watch(
 
 .comment-inline-reply__error {
   margin: 0;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 </style>
 

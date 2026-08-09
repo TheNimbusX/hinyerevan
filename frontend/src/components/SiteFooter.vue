@@ -84,7 +84,7 @@ const year = new Date().getFullYear()
   strong {
     display: block;
     font-family: $font-serif;
-    font-size: 20px;
+    font-size: 1.4286rem;
     font-weight: 500;
     letter-spacing: -0.01em;
     color: $ink;
@@ -99,7 +99,7 @@ const year = new Date().getFullYear()
   p {
     margin: 2px 0 0;
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
   }
 }
 
@@ -135,7 +135,7 @@ const year = new Date().getFullYear()
   h4 {
     margin: 0 0 4px;
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -146,7 +146,7 @@ const year = new Date().getFullYear()
     align-items: center;
     gap: 6px;
     color: $ink;
-    font-size: 13px;
+    font-size: 0.9286rem;
     text-decoration: none;
     @include interactive((color));
 
@@ -177,7 +177,7 @@ const year = new Date().getFullYear()
   padding-top: 16px;
   border-top: 1px solid $line;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
 
   @include mq-down($bp-sm) {
     flex-wrap: wrap;

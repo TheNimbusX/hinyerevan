@@ -189,7 +189,7 @@ onMounted(loadRandom)
   border-radius: $radius-pill;
   background: $accent;
   color: #fff;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 700;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
@@ -205,7 +205,7 @@ onMounted(loadRandom)
   border-radius: $radius-pill;
   background: rgba(15, 18, 26, 0.72);
   color: #fff;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -233,7 +233,7 @@ onMounted(loadRandom)
   border-radius: $radius-pill;
   background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(4px);
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
 }
 
@@ -262,7 +262,7 @@ onMounted(loadRandom)
 
   small {
     display: block;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -281,7 +281,7 @@ onMounted(loadRandom)
   align-items: center;
   gap: 5px;
   color: $muted;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 600;
 
   svg {
@@ -293,7 +293,7 @@ onMounted(loadRandom)
   width: 100%;
   padding-top: 12px;
   border-top: 1px solid $line;
-  font-size: 13px;
+  font-size: 0.9286rem;
   color: $muted;
 }
 

@@ -936,7 +936,7 @@ watch([hasMore, loading], async () => {
   max-width: 960px;
   margin: 0 auto 48px;
   padding: 0 16px;
-  font-size: 14px;
+  font-size: 1rem;
   line-height: 1.45;
 }
 
@@ -947,7 +947,7 @@ watch([hasMore, loading], async () => {
   margin-left: 4px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.12);
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 700;
   text-align: center;
 }
@@ -966,7 +966,7 @@ watch([hasMore, loading], async () => {
 .admin__fb-range-field {
   display: grid;
   gap: 4px;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   color: $muted;
 }
@@ -975,7 +975,7 @@ watch([hasMore, loading], async () => {
   flex-basis: 100%;
   margin: 2px 0 0;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   line-height: 1.4;
 }
 
@@ -1029,7 +1029,7 @@ watch([hasMore, loading], async () => {
 
   h1 {
     margin: 0 0 6px;
-    font-size: 18px;
+    font-size: 1.2857rem;
     font-weight: 600;
   }
 }
@@ -1056,14 +1056,14 @@ watch([hasMore, loading], async () => {
   }
 
   strong {
-    font-size: 17px;
+    font-size: 1.2143rem;
     font-weight: 700;
     line-height: 1.1;
   }
 
   span {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
   }
 
@@ -1091,7 +1091,7 @@ watch([hasMore, loading], async () => {
   background: none;
   color: $muted;
   font: inherit;
-  font-size: 14px;
+  font-size: 1rem;
   cursor: pointer;
   @include interactive((color, border-color));
 
@@ -1107,7 +1107,7 @@ watch([hasMore, loading], async () => {
 }
 
 .admin__tab-badge {
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 700;
   color: $accent-dark;
 }
@@ -1116,7 +1116,7 @@ watch([hasMore, loading], async () => {
   margin: 0 0 14px;
   padding: 8px 0 12px;
   color: $muted;
-  font-size: 13px;
+  font-size: 0.9286rem;
   line-height: 1.5;
 }
 
@@ -1133,7 +1133,7 @@ watch([hasMore, loading], async () => {
   background: $surface;
   color: $muted;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.9286rem;
   cursor: pointer;
   @include interactive((background, color, border-color));
 
@@ -1162,7 +1162,7 @@ watch([hasMore, loading], async () => {
   padding: 8px 12px;
   border-bottom: 1px solid $line;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
 }
 
 .admin__table {
@@ -1179,7 +1179,7 @@ watch([hasMore, loading], async () => {
 
   th {
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 500;
   }
 
@@ -1221,12 +1221,12 @@ watch([hasMore, loading], async () => {
   border-radius: $radius-pill;
   color: #fff;
   background: linear-gradient(135deg, $review-color, $review-color-dark);
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 600;
 }
 
 .admin__actions {
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .admin__act-group {
@@ -1243,7 +1243,7 @@ watch([hasMore, loading], async () => {
   background: $surface;
   color: $ink;
   font: inherit;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
@@ -1290,7 +1290,7 @@ watch([hasMore, loading], async () => {
 .admin__badge {
   display: inline-block;
   padding: 2px 8px;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 600;
 
   &--ok {
@@ -1307,7 +1307,7 @@ watch([hasMore, loading], async () => {
 .admin__muted {
   margin-top: 2px;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
 }
 
 .admin__cell--unread .admin__link--title {
@@ -1317,7 +1317,7 @@ watch([hasMore, loading], async () => {
 .admin__feedback-preview {
   margin: 8px 0 0;
   color: $muted;
-  font-size: 13px;
+  font-size: 0.9286rem;
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -1370,7 +1370,7 @@ a.admin__link {
   background: $surface;
   color: $ink;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.9286rem;
   cursor: pointer;
 
   &--plain {
@@ -1397,7 +1397,7 @@ a.admin__link {
   background: $surface;
   color: $ink;
   font: inherit;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .admin__input--search {
@@ -1423,7 +1423,7 @@ a.admin__link {
   padding: 10px 12px;
   border: 1px solid $line;
   background: $surface-soft;
-  font-size: 13px;
+  font-size: 0.9286rem;
 
   p {
     margin: 0 0 6px;
@@ -1442,7 +1442,7 @@ a.admin__link {
 
   &--end {
     padding: 12px;
-    font-size: 12px;
+    font-size: 0.8571rem;
   }
 }
 
@@ -1461,7 +1461,7 @@ a.admin__link {
 .admin__msg {
   margin: 0 0 12px;
   padding: 8px 12px;
-  font-size: 13px;
+  font-size: 0.9286rem;
 
   &--err {
     border: 1px solid #e0c0c0;
@@ -1479,7 +1479,7 @@ a.admin__link {
 
   h2 {
     margin: 0;
-    font-size: 15px;
+    font-size: 1.0714rem;
     font-weight: 600;
   }
 }
@@ -1489,7 +1489,7 @@ a.admin__link {
   gap: 4px;
 
   span {
-    font-size: 12px;
+    font-size: 0.8571rem;
     color: $muted;
   }
 

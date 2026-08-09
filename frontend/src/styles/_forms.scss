@@ -72,7 +72,7 @@
   align-items: center;
   gap: 9px;
   justify-self: start;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 500;
   color: $muted;
   cursor: pointer;
@@ -175,7 +175,7 @@
   background: transparent;
   color: $primary;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 500;
   @include interactive((background, color));
 

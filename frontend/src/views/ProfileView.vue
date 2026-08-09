@@ -811,7 +811,7 @@ onMounted(() => {
     padding: 6px 10px;
     background: rgba(8, 22, 60, 0.65);
     color: #fff;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
     letter-spacing: 0.02em;
     text-align: center;
@@ -834,7 +834,7 @@ onMounted(() => {
   height: 100%;
   background: linear-gradient(135deg, $primary, $primary-dark);
   color: #fff;
-  font-size: 40px;
+  font-size: 2.8571rem;
   font-weight: 600;
   letter-spacing: 0.01em;
   user-select: none;
@@ -849,7 +849,7 @@ onMounted(() => {
     color: $primary;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 600;
   }
 
@@ -866,7 +866,7 @@ onMounted(() => {
 .profile-handle {
   margin: 0;
   color: $muted;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .profile-badges {
@@ -886,7 +886,7 @@ onMounted(() => {
   gap: 6px;
   padding: 5px 11px;
   border-radius: $radius-pill;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   max-width: 100%;
   overflow: hidden;
@@ -990,14 +990,14 @@ onMounted(() => {
 
 .stat-label {
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
 .stat-value {
-  font-size: 26px;
+  font-size: 1.8571rem;
   font-weight: 600;
   color: $ink;
   line-height: 1.1;
@@ -1007,7 +1007,7 @@ onMounted(() => {
 
 .stat-meta {
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
 }
 
 // ---------- Tabs -------------------------------------------------
@@ -1029,13 +1029,13 @@ onMounted(() => {
     flex: 1 1 30%;
     white-space: nowrap;
     padding: 10px 8px;
-    font-size: 12px;
+    font-size: 0.8571rem;
   }
   border: 0;
   border-radius: $radius-sm;
   background: transparent;
   color: $muted;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 500;
   cursor: pointer;
   @include interactive((background, color, box-shadow));
@@ -1084,7 +1084,7 @@ onMounted(() => {
 
   h2 {
     margin: 0;
-    font-size: 17px;
+    font-size: 1.2143rem;
   }
 }
 
@@ -1123,7 +1123,7 @@ onMounted(() => {
   strong {
     display: block;
     padding: 8px 10px 0;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 500;
     line-height: 1.3;
     @include truncate;
@@ -1133,7 +1133,7 @@ onMounted(() => {
     display: block;
     padding: 2px 10px 10px;
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
   }
 
   &-year {
@@ -1144,7 +1144,7 @@ onMounted(() => {
     border-radius: $radius-pill;
     background: rgba(8, 22, 60, 0.6);
     color: #fff;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
     backdrop-filter: blur(4px);
   }
@@ -1157,7 +1157,7 @@ onMounted(() => {
     border-radius: $radius-pill;
     background: rgba($accent, 0.95);
     color: #261301;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
   }
 }
@@ -1201,7 +1201,7 @@ onMounted(() => {
   p,
   .comment-body {
     margin: 4px 0 4px;
-    font-size: 13px;
+    font-size: 0.9286rem;
     line-height: 1.45;
     color: $ink;
     white-space: pre-line;
@@ -1210,7 +1210,7 @@ onMounted(() => {
 
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
   }
 }
 
@@ -1224,7 +1224,7 @@ onMounted(() => {
 .profile-comment-title {
   display: block;
   color: $primary;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 600;
   text-decoration: none;
   @include interactive((color));
@@ -1278,13 +1278,13 @@ onMounted(() => {
   }
 
   strong {
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
   }
 
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
   }
 }
 
@@ -1335,7 +1335,7 @@ onMounted(() => {
     display: grid;
     gap: 6px;
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 500;
   }
 
@@ -1346,7 +1346,7 @@ onMounted(() => {
     border-radius: $radius-sm;
     background-color: $surface-soft;
     color: $ink;
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 400;
     @include interactive((border-color, background-color, box-shadow));
 
@@ -1389,7 +1389,7 @@ onMounted(() => {
 .profile-readonly {
   margin: 0;
   color: $muted;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .profile-social-link {
@@ -1400,7 +1400,7 @@ onMounted(() => {
 
   h3 {
     margin: 0;
-    font-size: 15px;
+    font-size: 1.0714rem;
   }
 }
 
@@ -1507,18 +1507,18 @@ onMounted(() => {
   min-width: 0;
 
   strong {
-    font-size: 15px;
+    font-size: 1.0714rem;
   }
 
   small {
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
     line-height: 1.4;
   }
 }
 
 .profile-facebook-status {
-  font-size: 13px;
+  font-size: 0.9286rem;
   color: $muted;
 
   &.is-linked {
@@ -1587,7 +1587,7 @@ onMounted(() => {
   height: 100%;
   background: #ae2b21;
   color: #fff;
-  font-size: 20px;
+  font-size: 1.4286rem;
   font-weight: 600;
 }
 
@@ -1597,20 +1597,20 @@ onMounted(() => {
   min-width: 0;
 
   strong {
-    font-size: 15px;
+    font-size: 1.0714rem;
   }
 }
 
 .settings-handle {
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   @include truncate;
 }
 
 .settings-section-label {
   margin: 0 0 2px;
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -1635,17 +1635,17 @@ onMounted(() => {
 }
 
 .settings-login-label {
-  font-size: 11px;
+  font-size: 0.7857rem;
 }
 
 .settings-login-value {
   color: $ink;
-  font-size: 14px;
+  font-size: 1rem;
   word-break: break-all;
 }
 
 .settings-login-hint {
-  font-size: 12px;
+  font-size: 0.8571rem;
   white-space: nowrap;
 }
 
@@ -1658,7 +1658,7 @@ onMounted(() => {
   border: 1px solid $line;
   border-radius: $radius-pill;
   background: $surface-soft;
-  font-size: 13px;
+  font-size: 0.9286rem;
   color: $ink;
 }
 
@@ -1699,12 +1699,12 @@ onMounted(() => {
   border-radius: $radius-pill;
   background: linear-gradient(135deg, #2374e1, #1457b3);
   color: #fff;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   box-shadow: 0 6px 14px rgba(35, 116, 225, 0.3);
 
   .like-icon {
-    font-size: 14px;
+    font-size: 1rem;
     color: #fff;
   }
 }
@@ -1736,7 +1736,7 @@ onMounted(() => {
   @include interactive((background, color, transform));
 
   .like-icon {
-    font-size: 16px;
+    font-size: 1.1429rem;
     color: #fff;
   }
 

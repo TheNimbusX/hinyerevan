@@ -778,7 +778,7 @@ watch(isAuthenticated, () => {
   background: rgba(255, 255, 255, 0.94);
   color: $primary-dark;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   box-shadow: 0 8px 22px rgba(7, 21, 60, 0.16);
   backdrop-filter: blur(8px);
@@ -810,7 +810,7 @@ watch(isAuthenticated, () => {
 }
 
 .action-icon {
-  font-size: 16px;
+  font-size: 1.1429rem;
   line-height: 1;
 }
 
@@ -828,7 +828,7 @@ watch(isAuthenticated, () => {
   border-radius: $radius-pill;
   background: rgba(8, 22, 60, 0.78);
   color: #fff;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
 }
 
@@ -856,7 +856,7 @@ watch(isAuthenticated, () => {
   gap: 6px;
   margin: 0;
   color: $muted;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 500;
 
   svg {
@@ -871,7 +871,7 @@ watch(isAuthenticated, () => {
 
   h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 1.2857rem;
   }
 }
 
@@ -881,12 +881,12 @@ watch(isAuthenticated, () => {
   align-items: center;
   gap: 14px;
   color: $muted;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 500;
 
   @include mq-down($bp-sm) {
     gap: 8px 12px;
-    font-size: 12px;
+    font-size: 0.8571rem;
   }
 
   .like-pill {
@@ -894,11 +894,11 @@ watch(isAuthenticated, () => {
     align-items: center;
     gap: 6px;
     color: #2374e1;
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 600;
 
     .like-icon {
-      font-size: 16px;
+      font-size: 1.1429rem;
     }
   }
 }
@@ -906,20 +906,20 @@ watch(isAuthenticated, () => {
 .like-pill__fb,
 .views-pill__fb {
   margin-left: 4px;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 500;
   color: $muted;
 }
 
 .facebook-comments-note {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .comments-show-all {
   display: block;
   margin-top: 14px;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 600;
 }
 
@@ -932,7 +932,7 @@ watch(isAuthenticated, () => {
   padding: 8px 10px;
   border-radius: $radius-sm;
   background: rgba(24, 119, 242, 0.08);
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .comment-reply-banner__cancel {
@@ -940,7 +940,7 @@ watch(isAuthenticated, () => {
   padding: 0;
   background: none;
   color: #1877f2;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -954,7 +954,7 @@ watch(isAuthenticated, () => {
 
   &__label {
     margin: 0 0 4px;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
@@ -964,7 +964,7 @@ watch(isAuthenticated, () => {
   &__counts {
     margin: 0;
     color: $ink;
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 500;
   }
 
@@ -972,7 +972,7 @@ watch(isAuthenticated, () => {
     display: inline-block;
     margin-top: 8px;
     color: #1877f2;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
     text-decoration: none;
 
@@ -1038,11 +1038,11 @@ watch(isAuthenticated, () => {
 
     .eyebrow {
       margin: 0;
-      font-size: 10px;
+      font-size: 0.7143rem;
     }
 
     strong {
-      font-size: 15px;
+      font-size: 1.0714rem;
       font-weight: 600;
       color: $ink;
       @include truncate;
@@ -1050,13 +1050,13 @@ watch(isAuthenticated, () => {
 
     small {
       color: $muted;
-      font-size: 11px;
+      font-size: 0.7857rem;
     }
   }
 
   &-arrow {
     color: $primary;
-    font-size: 22px;
+    font-size: 1.5714rem;
     transition: transform $duration $ease;
   }
 
@@ -1071,7 +1071,7 @@ watch(isAuthenticated, () => {
   margin: 0 0 10px;
   color: $muted;
   font-family: ui-monospace, SFMono-Regular, monospace;
-  font-size: 12px;
+  font-size: 0.8571rem;
 }
 
 .mini-map {
@@ -1092,7 +1092,7 @@ watch(isAuthenticated, () => {
 
   h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 1.2857rem;
   }
 }
 
@@ -1138,7 +1138,7 @@ watch(isAuthenticated, () => {
   strong {
     display: block;
     padding: 8px 12px 0;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 500;
     line-height: 1.3;
     @include truncate;
@@ -1148,7 +1148,7 @@ watch(isAuthenticated, () => {
     display: block;
     padding: 2px 12px 12px;
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
   }
 }
 
@@ -1189,7 +1189,7 @@ watch(isAuthenticated, () => {
   border-radius: $radius-pill;
   background: rgba(8, 22, 60, 0.62);
   color: #fff;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 600;
   backdrop-filter: blur(4px);
 }
@@ -1219,7 +1219,7 @@ watch(isAuthenticated, () => {
   display: inline-block;
   color: $primary;
   font-weight: 600;
-  font-size: 13px;
+  font-size: 0.9286rem;
   text-decoration: none;
   @include interactive((color));
 
@@ -1234,7 +1234,7 @@ watch(isAuthenticated, () => {
 .comment p,
 .comment-body {
   margin: 4px 0 0;
-  font-size: 14px;
+  font-size: 1rem;
   line-height: 1.55;
   white-space: pre-line;
 }
@@ -1248,7 +1248,7 @@ watch(isAuthenticated, () => {
   border-radius: $radius-pill;
   background: rgba(255, 255, 255, 0.35);
   color: inherit;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-variant-numeric: tabular-nums;
 }
 

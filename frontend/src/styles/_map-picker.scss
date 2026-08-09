@@ -23,7 +23,7 @@
   border-radius: $radius-pill;
   color: $primary;
   background: #fff;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   box-shadow: 0 10px 24px rgba(23, 52, 126, 0.16);
   pointer-events: none;
@@ -45,7 +45,7 @@
   background: #fff;
   cursor: pointer;
   font: inherit;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   line-height: 1;
   box-shadow: 0 10px 24px rgba(23, 52, 126, 0.16);
@@ -83,7 +83,7 @@
     display: grid;
     gap: 6px;
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 500;
   }
 
@@ -95,13 +95,13 @@
     background: $surface;
     color: $ink;
     font: inherit;
-    font-size: 14px;
+    font-size: 1rem;
   }
 }
 
 .map-picker-hint {
   margin: 0;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   line-height: 1.4;
 }

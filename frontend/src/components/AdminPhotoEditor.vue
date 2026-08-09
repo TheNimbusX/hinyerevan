@@ -499,13 +499,13 @@ onBeforeUnmount(() => {
 
   h2 {
     margin: 4px 0 0;
-    font-size: 22px;
+    font-size: 1.5714rem;
   }
 }
 
 .admin-photo-editor__author {
   margin: 8px 0 0;
-  font-size: 13px;
+  font-size: 0.9286rem;
 
   .muted {
     color: $muted;
@@ -521,7 +521,7 @@ onBeforeUnmount(() => {
   background: $surface-soft;
   color: $muted;
   cursor: pointer;
-  font-size: 22px;
+  font-size: 1.5714rem;
   line-height: 1;
 }
 
@@ -540,7 +540,7 @@ onBeforeUnmount(() => {
     display: grid;
     gap: 6px;
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 500;
   }
 
@@ -553,7 +553,7 @@ onBeforeUnmount(() => {
     background: $surface;
     color: $ink;
     font: inherit;
-    font-size: 14px;
+    font-size: 1rem;
   }
 }
 
@@ -573,7 +573,7 @@ onBeforeUnmount(() => {
   color: $muted;
   cursor: pointer;
   font: inherit;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 600;
 }
 

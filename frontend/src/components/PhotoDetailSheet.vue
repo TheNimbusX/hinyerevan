@@ -674,7 +674,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-pill;
   color: $primary;
   background: $primary-light;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   text-decoration: none;
   @include interactive((background, color));
@@ -695,7 +695,7 @@ onBeforeUnmount(() => {
   color: #fff;
   background: linear-gradient(135deg, $primary, $primary-dark);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   @include interactive((box-shadow, transform));
 
@@ -728,7 +728,7 @@ onBeforeUnmount(() => {
   gap: 12px;
   min-height: 55vh;
   color: $muted;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 500;
   text-align: center;
 
@@ -781,7 +781,7 @@ onBeforeUnmount(() => {
   gap: 6px;
   margin: 0;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
 
   svg {
@@ -814,14 +814,14 @@ onBeforeUnmount(() => {
 .like-pill__fb,
 .views-pill__fb {
   margin-left: 4px;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 500;
   color: $muted;
 }
 
 .facebook-comments-note {
   margin: 0 0 12px;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .comment-reply-banner {
@@ -833,7 +833,7 @@ onBeforeUnmount(() => {
   padding: 8px 10px;
   border-radius: $radius-sm;
   background: rgba(24, 119, 242, 0.08);
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .comment-reply-banner__cancel {
@@ -841,7 +841,7 @@ onBeforeUnmount(() => {
   padding: 0;
   background: none;
   color: #1877f2;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -852,7 +852,7 @@ onBeforeUnmount(() => {
 
   h3 {
     margin: 0 0 12px;
-    font-size: 16px;
+    font-size: 1.1429rem;
   }
 }
 

@@ -50,7 +50,7 @@ const href = computed(() => props.facebook?.post_url || null)
   margin-top: 10px;
   padding: 8px 12px;
   border-radius: $radius-pill;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 600;
   color: #1877f2;
   background: rgba(24, 119, 242, 0.1);

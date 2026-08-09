@@ -27,6 +27,14 @@
   -webkit-font-smoothing: antialiased;
 }
 
+// Larger base type on phones-landscape through laptops. Font sizes are in rem,
+// so every label and number scales with this.
+@media (min-width: 501px) and (max-width: 1439px) {
+  :root {
+    font-size: 16px;
+  }
+}
+
 *,
 *::before,
 *::after {

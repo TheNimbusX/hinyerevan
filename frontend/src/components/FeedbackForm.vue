@@ -95,7 +95,7 @@ async function submit() {
   gap: 6px;
 
   span {
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
     color: $ink;
   }

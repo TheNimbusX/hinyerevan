@@ -1269,7 +1269,7 @@ onBeforeUnmount(() => {
 
 .home-brand__name {
   font-family: $font-serif;
-  font-size: 18px;
+  font-size: 1.2857rem;
   font-weight: 500;
   line-height: 1.1;
   letter-spacing: -0.01em;
@@ -1285,7 +1285,7 @@ onBeforeUnmount(() => {
 
 .home-brand__tagline {
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
   line-height: 1.3;
 }
 
@@ -1301,7 +1301,7 @@ onBeforeUnmount(() => {
 
   h2 {
     margin: 0;
-    font-size: 15px;
+    font-size: 1.0714rem;
     line-height: 1.25;
   }
 }
@@ -1344,7 +1344,7 @@ onBeforeUnmount(() => {
   strong {
     display: -webkit-box;
     overflow: hidden;
-    font-size: 12px;
+    font-size: 0.8571rem;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
   }
@@ -1353,7 +1353,7 @@ onBeforeUnmount(() => {
     display: block;
     margin-top: 4px;
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
   }
 }
 
@@ -1422,7 +1422,7 @@ onBeforeUnmount(() => {
   backdrop-filter: blur(10px);
   box-shadow: $shadow-md;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   @include interactive((background, color, box-shadow, transform));
 
@@ -1503,7 +1503,7 @@ onBeforeUnmount(() => {
   color: $ink;
   background: rgba($ink, 0.02);
   cursor: pointer;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 600;
   line-height: 1.2;
   text-align: left;
@@ -1525,7 +1525,7 @@ onBeforeUnmount(() => {
     min-width: 34px;
     justify-content: center;
     padding-inline: 0;
-    font-size: 16px;
+    font-size: 1.1429rem;
     font-weight: 500;
   }
 
@@ -1563,7 +1563,7 @@ onBeforeUnmount(() => {
 .map-tools-label {
   padding-left: 2px;
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1616,7 +1616,7 @@ onBeforeUnmount(() => {
     color: $primary;
     background: $primary-light;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 500;
     @include interactive((background, color, box-shadow, transform));
 
@@ -1655,7 +1655,7 @@ onBeforeUnmount(() => {
     color: $muted;
     background: rgba($ink, 0.02);
     cursor: pointer;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
     white-space: nowrap;
     @include interactive((background, color, border-color));
@@ -1713,7 +1713,7 @@ onBeforeUnmount(() => {
   color: $ink;
   background: rgba($ink, 0.02);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   line-height: 1.2;
   text-align: left;
@@ -1766,7 +1766,7 @@ onBeforeUnmount(() => {
 
   .map-user-filter-label {
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 500;
     @include truncate;
 
@@ -1783,7 +1783,7 @@ onBeforeUnmount(() => {
     border-radius: $radius-pill;
     color: #fff;
     background: linear-gradient(135deg, $primary, $primary-dark);
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 500;
     cursor: pointer;
     @include interactive((box-shadow, transform));
@@ -1809,7 +1809,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-pill;
   color: $primary;
   background: #fff;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 600;
   box-shadow: 0 14px 34px rgba(23, 52, 126, 0.18);
 
@@ -1883,7 +1883,7 @@ onBeforeUnmount(() => {
 
 .year-filter-label {
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 500;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -2026,7 +2026,7 @@ onBeforeUnmount(() => {
   border-radius: 5px;
   background: linear-gradient(135deg, #c43d30, #8a1c14);
   color: #fff;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -2102,7 +2102,7 @@ onBeforeUnmount(() => {
   }
 
   @include mq-down($bp-md) {
-    font-size: 10px !important;
+    font-size: 0.7143rem !important;
   }
 }
 
@@ -2123,7 +2123,7 @@ onBeforeUnmount(() => {
 
   h2 {
     margin-bottom: 8px;
-    font-size: 16px;
+    font-size: 1.1429rem;
     line-height: 1.25;
   }
 
@@ -2151,7 +2151,7 @@ onBeforeUnmount(() => {
 
       strong,
       .rating-skeleton-block--line:first-child {
-        font-size: 13px;
+        font-size: 0.9286rem;
         line-height: 1.35;
         white-space: normal;
         display: -webkit-box;
@@ -2161,7 +2161,7 @@ onBeforeUnmount(() => {
       }
 
       small {
-        font-size: 12px;
+        font-size: 0.8571rem;
       }
     }
   }
@@ -2243,7 +2243,7 @@ onBeforeUnmount(() => {
 
   strong {
     display: block;
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 500;
     line-height: 1.35;
   }
@@ -2294,7 +2294,7 @@ onBeforeUnmount(() => {
 
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 400;
   }
 }
@@ -2315,7 +2315,7 @@ onBeforeUnmount(() => {
 .rating-panel-loading {
   margin: 8px 0 0;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   text-align: center;
 }

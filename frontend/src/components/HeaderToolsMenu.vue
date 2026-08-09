@@ -154,7 +154,7 @@ onBeforeUnmount(() => {
 
 .header-tools-menu__label {
   color: $muted;
-  font-size: 10px;
+  font-size: 0.7143rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -169,7 +169,7 @@ onBeforeUnmount(() => {
   background: $ink;
   color: #fff;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 600;
   text-align: center;
   @include interactive((background, transform, box-shadow));

@@ -996,7 +996,7 @@ $home-sidebar-w: 320px;
 
   strong {
     font-family: $font-serif;
-    font-size: 18px;
+    font-size: 1.2857rem;
     font-weight: 500;
     line-height: 1;
     letter-spacing: -0.01em;
@@ -1012,7 +1012,7 @@ $home-sidebar-w: 320px;
 
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 400;
     letter-spacing: 0.005em;
     line-height: 1;
@@ -1049,7 +1049,7 @@ $home-sidebar-w: 320px;
     flex-shrink: 0;
     padding: 8px 12px;
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
     text-decoration: none;
     border-radius: $radius-pill;
@@ -1082,7 +1082,7 @@ $home-sidebar-w: 320px;
 }
 
 .main-nav-link--photos {
-  font-size: 13px !important;
+  font-size: 0.9286rem !important;
 }
 
 .header-tools {
@@ -1178,7 +1178,7 @@ html.home-map-page,
 
     .main-nav a {
       padding: 8px 7px;
-      font-size: 10.5px;
+      font-size: 0.75rem;
     }
   }
 }
@@ -1218,7 +1218,7 @@ html.home-map-page,
   background: $surface;
   color: $ink;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   @include interactive((background, color, border-color, transform));
 
@@ -1251,7 +1251,7 @@ html.home-map-page,
     background: transparent;
     color: $muted;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
     @include interactive((color, background));
 
@@ -1285,7 +1285,7 @@ html.home-map-page,
   border-radius: $radius-pill;
   background: $surface;
   color: $ink;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 500;
   text-decoration: none;
   @include interactive((background, transform, border-color));
@@ -1471,14 +1471,14 @@ html.home-map-page,
 
   h2 {
     margin: 0 0 4px;
-    font-size: 20px;
+    font-size: 1.4286rem;
     font-weight: 600;
   }
 
   p {
     margin: 0;
     color: $muted;
-    font-size: 13px;
+    font-size: 0.9286rem;
     line-height: 1.45;
   }
 }
@@ -1537,7 +1537,7 @@ html.home-map-page,
     background: none;
     color: $muted;
     font: inherit;
-    font-size: 14px;
+    font-size: 1rem;
     cursor: pointer;
 
     &.on {
@@ -1559,7 +1559,7 @@ html.home-map-page,
 .auth-social-empty {
   margin: 0 0 14px;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   line-height: 1.45;
   text-align: center;
 }
@@ -1571,7 +1571,7 @@ html.home-map-page,
 .auth-social-hint {
   margin: -4px 0 14px;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   line-height: 1.4;
   text-align: center;
 }
@@ -1630,7 +1630,7 @@ html.home-map-page,
 .auth-divider {
   margin: 0 0 14px;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   text-align: center;
 
   span {
@@ -1660,7 +1660,7 @@ html.home-map-page,
     border-radius: $radius-sm;
     background: $surface;
     font: inherit;
-    font-size: 14px;
+    font-size: 1rem;
   }
 
   .password-field {
@@ -1702,13 +1702,13 @@ html.home-map-page,
   .error {
     margin: 0;
     color: #b42318;
-    font-size: 13px;
+    font-size: 0.9286rem;
   }
 
   .success {
     margin: 0;
     color: $success;
-    font-size: 13px;
+    font-size: 0.9286rem;
   }
 }
 
@@ -1717,7 +1717,7 @@ html.home-map-page,
   justify-self: start;
   margin: -2px 0 0;
   padding: 0;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .register-field {
@@ -1726,13 +1726,13 @@ html.home-map-page,
 
   span {
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 500;
   }
 
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 400;
     line-height: 1.3;
   }
@@ -1740,14 +1740,14 @@ html.home-map-page,
 
 .form-help {
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
 }
 
 .register-avatar {
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 400;
   }
 }
@@ -1776,7 +1776,7 @@ html.home-map-page,
   background: $primary-light;
   cursor: pointer;
   text-align: center;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   @include interactive((border-color, background, color));
 

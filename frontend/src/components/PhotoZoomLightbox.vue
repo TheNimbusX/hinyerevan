@@ -225,7 +225,7 @@ onBeforeUnmount(() => {
   background: rgba(255, 255, 255, 0.1);
   color: #fff;
   cursor: pointer;
-  font-size: 28px;
+  font-size: 2rem;
   line-height: 0;
   @include interactive((background, transform));
 
@@ -340,12 +340,12 @@ onBeforeUnmount(() => {
   strong {
     font-family: $font-serif;
     font-weight: 500;
-    font-size: 18px;
+    font-size: 1.2857rem;
   }
 
   span {
     color: rgba(255, 255, 255, 0.6);
-    font-size: 13px;
+    font-size: 0.9286rem;
   }
 }
 

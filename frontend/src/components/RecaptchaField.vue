@@ -82,7 +82,7 @@ defineExpose({ reset, render })
   border-radius: $radius-sm;
   background: $surface-soft;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
 }
 
 .recaptcha-field__spinner {

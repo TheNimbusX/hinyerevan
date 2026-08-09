@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
   margin: 0 0 10px;
   padding-right: 44px;
   color: #fff;
-  font-size: 16px;
+  font-size: 1.1429rem;
   font-weight: 600;
   line-height: 1.3;
 }
@@ -89,7 +89,7 @@ onBeforeUnmount(() => {
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.14);
   color: #fff;
-  font-size: 26px;
+  font-size: 1.8571rem;
   line-height: 1;
   cursor: pointer;
   transition: background 0.15s ease;

@@ -125,7 +125,7 @@ watch(() => route.params.alias, load)
 .static-page {
   min-height: auto;
   padding: clamp(24px, 4vw, 52px);
-  font-size: 16px;
+  font-size: 1.1429rem;
   line-height: 1.72;
 
   h1 {
@@ -173,7 +173,7 @@ watch(() => route.params.alias, load)
     border-radius: $radius-pill;
     background: $primary-light;
     color: $primary-dark;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
   }
 }
@@ -185,7 +185,7 @@ watch(() => route.params.alias, load)
 }
 
 .agreement-lead {
-  font-size: 17px;
+  font-size: 1.2143rem;
   line-height: 1.75;
   color: $ink;
 
@@ -199,7 +199,7 @@ watch(() => route.params.alias, load)
   gap: 10px;
 
   h2 {
-    font-size: 19px;
+    font-size: 1.3571rem;
     font-weight: 700;
     line-height: 1.4;
     color: $ink;

@@ -215,7 +215,7 @@ onBeforeUnmount(() => {
   min-width: 0;
 
   strong {
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
     color: $ink;
     @include truncate;
@@ -223,7 +223,7 @@ onBeforeUnmount(() => {
 
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 500;
   }
 }
@@ -297,7 +297,7 @@ onBeforeUnmount(() => {
   background: #fff;
   color: $primary;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 0.7143rem;
   font-weight: 600;
   transition:
     background 0.15s ease,
@@ -397,7 +397,7 @@ onBeforeUnmount(() => {
 .compass-hint {
   margin: 0;
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 500;
   text-align: center;
 }
@@ -415,7 +415,7 @@ onBeforeUnmount(() => {
   background: $surface-soft;
   color: $primary;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 500;
   transition:
     background 0.15s ease,

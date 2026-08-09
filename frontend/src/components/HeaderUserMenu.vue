@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
   background: $surface;
   color: $ink;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 0.9286rem;
   font-weight: 500;
   @include interactive((background, border-color, transform));
 
@@ -182,7 +182,7 @@ onBeforeUnmount(() => {
     background: transparent;
     color: $ink;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 500;
     text-align: left;
     @include interactive((background, color));

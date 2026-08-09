@@ -60,7 +60,7 @@ function openPage() {
   @include interactive((transform, box-shadow));
 
   &__count {
-    font-size: 14px;
+    font-size: 1rem;
     font-weight: 700;
     font-variant-numeric: tabular-nums;
   }
@@ -96,7 +96,7 @@ function openPage() {
   }
 
   .facebook-page-badge__count {
-    font-size: 13px;
+    font-size: 0.9286rem;
   }
 }
 

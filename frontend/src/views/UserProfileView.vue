@@ -222,7 +222,7 @@ watch(() => route.params.unique, () => load())
   .eyebrow {
     margin: 0;
     color: rgba(255, 255, 255, 0.78);
-    font-size: 11px;
+    font-size: 0.7857rem;
     letter-spacing: 0.16em;
   }
 
@@ -238,14 +238,14 @@ watch(() => route.params.unique, () => load())
 .user-handle {
   margin: 0;
   color: rgba(255, 255, 255, 0.74);
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .user-link {
   display: inline-block;
   margin-top: 4px;
   color: #ffd9b0;
-  font-size: 12px;
+  font-size: 0.8571rem;
   word-break: break-all;
   @include interactive((color));
 
@@ -276,7 +276,7 @@ watch(() => route.params.unique, () => load())
   }
 
   strong {
-    font-size: 20px;
+    font-size: 1.4286rem;
     font-weight: 600;
     color: #fff;
     font-variant-numeric: tabular-nums;
@@ -284,7 +284,7 @@ watch(() => route.params.unique, () => load())
 
   span {
     color: rgba(255, 255, 255, 0.72);
-    font-size: 11px;
+    font-size: 0.7857rem;
     letter-spacing: 0.06em;
     text-transform: uppercase;
   }
@@ -307,7 +307,7 @@ watch(() => route.params.unique, () => load())
 
   h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 1.2857rem;
   }
 }
 
@@ -348,7 +348,7 @@ watch(() => route.params.unique, () => load())
   border-radius: $radius-pill;
   background: rgba(8, 22, 60, 0.62);
   color: #fff;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 600;
   backdrop-filter: blur(4px);
 }
@@ -363,13 +363,13 @@ watch(() => route.params.unique, () => load())
   color: #fff;
 
   strong {
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
     @include truncate;
   }
 
   small {
-    font-size: 11px;
+    font-size: 0.7857rem;
     opacity: 0.78;
   }
 }

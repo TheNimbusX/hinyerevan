@@ -470,7 +470,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-pill;
   background: $surface;
   color: $primary-dark;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
   box-shadow: $shadow-md;
@@ -500,7 +500,7 @@ onBeforeUnmount(() => {
 
   h2 {
     margin: 0;
-    font-size: 18px;
+    font-size: 1.2857rem;
   }
 
   @include mq-down($bp-sm) {
@@ -512,7 +512,7 @@ onBeforeUnmount(() => {
 .before-after__sub {
   margin: 0;
   color: $muted;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .before-after__actions {
@@ -529,7 +529,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-pill;
   background: $surface;
   color: $primary-dark;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   cursor: pointer;
   @include interactive((background, border-color));
@@ -539,7 +539,7 @@ onBeforeUnmount(() => {
 .before-after__hint {
   margin: 0;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   text-align: center;
 }
 
@@ -558,7 +558,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-pill;
   background: transparent;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   cursor: pointer;
   @include interactive((background, color));
@@ -624,7 +624,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-pill;
   background: rgba(255, 255, 255, 0.96);
   color: $primary-dark;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 600;
   line-height: 1.2;
   text-align: left;
@@ -648,7 +648,7 @@ onBeforeUnmount(() => {
     bottom: 10px;
     gap: 6px;
     padding: 7px 12px;
-    font-size: 12px;
+    font-size: 0.8571rem;
 
     svg {
       width: 15px;
@@ -681,7 +681,7 @@ onBeforeUnmount(() => {
   background: none;
   padding: 0;
   color: #fff;
-  font-size: 14px;
+  font-size: 1rem;
   font-weight: 600;
   text-decoration: underline;
   cursor: pointer;
@@ -749,7 +749,7 @@ onBeforeUnmount(() => {
   z-index: 4;
   padding: 4px 11px;
   border-radius: $radius-pill;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;

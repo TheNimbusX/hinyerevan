@@ -96,13 +96,13 @@ async function submit() {
 
   h2 {
     margin: 0 0 8px;
-    font-size: 24px;
+    font-size: 1.7143rem;
   }
 }
 
 .dev-auth-modal__eyebrow {
   margin: 0 0 6px;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -113,7 +113,7 @@ async function submit() {
   margin: 0;
   color: $muted;
   line-height: 1.5;
-  font-size: 14px;
+  font-size: 1rem;
 }
 
 .dev-auth-modal__form {
@@ -123,7 +123,7 @@ async function submit() {
   label {
     display: grid;
     gap: 6px;
-    font-size: 13px;
+    font-size: 0.9286rem;
   }
 
   input {

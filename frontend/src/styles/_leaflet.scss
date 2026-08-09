@@ -42,7 +42,7 @@
       width: 36px;
       height: 36px;
       line-height: 36px;
-      font-size: 18px;
+      font-size: 1.2857rem;
     }
   }
 }
@@ -116,7 +116,7 @@
 
   strong {
     @include truncate;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
     line-height: 1.2;
   }
@@ -159,7 +159,7 @@
   border-radius: $radius-pill;
   color: #fff;
   background: linear-gradient(135deg, #c43d30, #8a1c14);
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 600;
   box-shadow: 0 8px 18px rgba(138, 28, 20, 0.28);
 }
@@ -198,7 +198,7 @@
 .marker-preview-date {
   display: block;
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.7143rem;
   font-weight: 500;
   letter-spacing: 0.01em;
   opacity: 0.85;
@@ -254,6 +254,6 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.35);
 
   @include mq-down($bp-md) {
-    font-size: 10px !important;
+    font-size: 0.7143rem !important;
   }
 }

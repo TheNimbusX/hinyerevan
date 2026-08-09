@@ -540,7 +540,7 @@ onBeforeUnmount(() => {
   background: $surface-soft;
   color: $ink;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   transition: border-color 0.15s ease, background 0.15s ease;
 
@@ -568,7 +568,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-pill;
   background: $accent;
   color: #fff;
-  font-size: 10px;
+  font-size: 0.7143rem;
   font-weight: 700;
 }
 
@@ -601,7 +601,7 @@ onBeforeUnmount(() => {
     border-radius: $radius-sm;
     background: $surface;
     color: $ink;
-    font-size: 13px;
+    font-size: 0.9286rem;
 
     &:focus {
       outline: none;
@@ -618,7 +618,7 @@ onBeforeUnmount(() => {
   .button {
     min-height: 36px;
     padding-inline: 14px;
-    font-size: 13px;
+    font-size: 0.9286rem;
   }
 }
 
@@ -637,7 +637,7 @@ onBeforeUnmount(() => {
   display: block;
   margin-bottom: 6px;
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -657,7 +657,7 @@ onBeforeUnmount(() => {
   background: $surface-soft;
   color: $muted;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 600;
   white-space: nowrap;
   transition:
@@ -770,7 +770,7 @@ onBeforeUnmount(() => {
   border: 0;
   background: transparent;
   color: $ink;
-  font-size: 13px;
+  font-size: 0.9286rem;
 
   &:focus {
     outline: none;
@@ -794,7 +794,7 @@ onBeforeUnmount(() => {
   background: rgba($primary, 0.1);
   color: $primary;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 1.1429rem;
   line-height: 1;
   transform: translateY(-50%);
 }
@@ -823,7 +823,7 @@ onBeforeUnmount(() => {
     color: $ink;
     cursor: pointer;
     text-align: left;
-    font-size: 13px;
+    font-size: 0.9286rem;
 
     &:hover {
       background: $surface-soft;
@@ -836,7 +836,7 @@ onBeforeUnmount(() => {
   top: calc(100% + 4px);
   left: 0;
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
 }
 
 .photo-card {
@@ -914,7 +914,7 @@ onBeforeUnmount(() => {
 
   h3 {
     margin: 8px 0 2px;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
     line-height: 1.3;
     display: -webkit-box;
@@ -925,7 +925,7 @@ onBeforeUnmount(() => {
 
   small {
     color: $muted;
-    font-size: 11px;
+    font-size: 0.7857rem;
     font-weight: 400;
     @include truncate;
   }
@@ -988,7 +988,7 @@ onBeforeUnmount(() => {
   gap: 8px;
   margin-top: 8px;
   color: $muted;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 500;
 }
 

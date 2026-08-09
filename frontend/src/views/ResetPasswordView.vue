@@ -127,13 +127,13 @@ async function submit() {
   gap: 6px;
 
   span {
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 500;
   }
 
   small {
     color: $muted;
-    font-size: 12px;
+    font-size: 0.8571rem;
   }
 }
 

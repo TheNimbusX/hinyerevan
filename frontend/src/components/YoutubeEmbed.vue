@@ -143,13 +143,13 @@ function activate() {
   align-items: center;
   gap: 5px;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   text-decoration: none;
 
   &::before {
     content: '▶';
-    font-size: 10px;
+    font-size: 0.7143rem;
     color: #f00;
   }
 

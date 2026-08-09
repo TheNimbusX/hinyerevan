@@ -493,7 +493,7 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 6px;
   margin: 0;
-  font-size: 11px;
+  font-size: 0.7857rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -527,7 +527,7 @@ onBeforeUnmount(() => {
   margin: 0;
   color: $muted;
   line-height: 1.5;
-  font-size: 13px;
+  font-size: 0.9286rem;
 }
 
 .facebook-modal__follow {
@@ -700,12 +700,12 @@ onBeforeUnmount(() => {
 
 .facebook-mobile-post__date {
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
 }
 
 .facebook-mobile-post__text {
   margin: 0;
-  font-size: 14px;
+  font-size: 1rem;
   line-height: 1.45;
 }
 
@@ -714,7 +714,7 @@ onBeforeUnmount(() => {
   padding: 16px 8px;
   text-align: center;
   color: $muted;
-  font-size: 14px;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -760,7 +760,7 @@ onBeforeUnmount(() => {
     margin: 0;
     max-width: 32ch;
     line-height: 1.5;
-    font-size: 14px;
+    font-size: 1rem;
   }
 }
 

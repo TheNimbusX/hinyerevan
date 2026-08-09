@@ -146,7 +146,7 @@ onBeforeUnmount(() => {
 .language-browser-hint {
   display: none;
   margin: 8px 0 0;
-  font-size: 11px;
+  font-size: 0.7857rem;
   line-height: 1.45;
   color: $muted;
 
@@ -183,7 +183,7 @@ onBeforeUnmount(() => {
   background: $surface-soft;
   color: $ink;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   @include interactive((background, border-color, color, transform));
 
@@ -223,7 +223,7 @@ onBeforeUnmount(() => {
   background: $surface;
   color: $ink;
   cursor: pointer;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   @include interactive((background, border-color, transform));
 
@@ -270,7 +270,7 @@ onBeforeUnmount(() => {
     background: transparent;
     color: $ink;
     cursor: pointer;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 500;
     text-align: left;
     @include interactive((background, color));

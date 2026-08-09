@@ -398,7 +398,7 @@ onBeforeUnmount(() => {
 
 .facebook-publish-hint {
   margin: -4px 0 10px;
-  font-size: 13px;
+  font-size: 0.9286rem;
   line-height: 1.5;
 }
 
@@ -408,7 +408,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-sm;
   color: darken($accent, 10%);
   background: rgba($accent, 0.1);
-  font-size: 13px;
+  font-size: 0.9286rem;
   line-height: 1.5;
 }
 
@@ -473,7 +473,7 @@ onBeforeUnmount(() => {
   .muted {
     margin: 0 0 4px;
     color: $muted;
-    font-size: 13px;
+    font-size: 0.9286rem;
     line-height: 1.45;
   }
 }
@@ -483,13 +483,13 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 6px;
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
 }
 
 .upload-field-label {
   color: $muted;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
 }
 
@@ -541,7 +541,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-pill;
   color: $primary;
   background: #fff;
-  font-size: 12px;
+  font-size: 0.8571rem;
   font-weight: 500;
   box-shadow: 0 10px 24px rgba(23, 52, 126, 0.16);
 }
@@ -597,13 +597,13 @@ onBeforeUnmount(() => {
     display: grid;
     gap: 2px;
     color: $ink;
-    font-size: 12px;
+    font-size: 0.8571rem;
     font-weight: 600;
   }
 
   small {
     color: $muted;
-    font-size: 10px;
+    font-size: 0.7143rem;
     font-weight: 400;
     line-height: 1.35;
   }
@@ -626,7 +626,7 @@ onBeforeUnmount(() => {
     color: $muted;
     cursor: pointer;
     font: inherit;
-    font-size: 13px;
+    font-size: 0.9286rem;
     font-weight: 600;
     @include interactive((background, color, box-shadow));
 
