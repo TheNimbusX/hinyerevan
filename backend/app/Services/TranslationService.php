@@ -201,6 +201,51 @@ class TranslationService
      * @param  list<string>  $sources
      * @return array<string, string>
      */
+    /**
+     * Hide proper nouns behind neutral tokens so the engine cannot translate
+     * them. Armenian case endings (Գառզուն, Գառզուին) are matched too.
+     *
+     * @return array{0: string, 1: array<string, string>}
+     */
+    private function shieldTerms(string $text, string $targetLang): array
+    {
+        $terms = (array) config('glossary.terms', []);
+        if ($terms === []) {
+            return [$text, []];
+        }
+
+        $map = [];
+        $i = 0;
+
+        foreach ($terms as $stem => $translations) {
+            $replacement = $translations[$targetLang] ?? null;
+            if (! is_string($replacement) || $replacement === '') {
+                continue;
+            }
+
+            $pattern = '/' . preg_quote((string) $stem, '/') . '[\x{0561}-\x{0587}\x{0531}-\x{0556}]*/u';
+            $text = preg_replace_callback($pattern, function () use (&$map, &$i, $replacement) {
+                $token = 'QZX' . $i++ . 'XZQ';
+                $map[$token] = $replacement;
+
+                return $token;
+            }, $text) ?? $text;
+        }
+
+        return [$text, $map];
+    }
+
+    /** @param array<string, string> $map */
+    private function restoreTerms(string $text, array $map): string
+    {
+        foreach ($map as $token => $replacement) {
+            // engines may alter spacing or case around the token
+            $text = preg_replace('/' . preg_quote($token, '/') . '/iu', $replacement, $text) ?? $text;
+        }
+
+        return $text;
+    }
+
     private function resolveTranslations(array $sources, string $targetLang, bool $html): array
     {
         $resolved = [];
@@ -229,9 +274,21 @@ class TranslationService
             $pending = array_slice($pending, 0, $maxCalls);
         }
 
-        $fetched = $this->fetchInParallel($pending, $targetLang, $html);
+        $shielded = [];
+        $maps = [];
+        foreach ($pending as $source) {
+            [$masked, $map] = $this->shieldTerms($source, $targetLang);
+            $shielded[$source] = $masked;
+            $maps[$source] = $map;
+        }
 
-        foreach ($fetched as $source => $translation) {
+        $fetched = $this->fetchInParallel(array_values($shielded), $targetLang, $html);
+
+        foreach ($pending as $source) {
+            $masked = $shielded[$source];
+            $translation = $fetched[$masked] ?? $source;
+            $translation = $this->restoreTerms($translation, $maps[$source]);
+
             Cache::put($this->cacheKey($source, $targetLang, $html), $translation, now()->addDays(30));
             $resolved[$source] = $translation;
         }
@@ -312,6 +369,7 @@ class TranslationService
             'source' => config('services.translate.source', self::DEFAULT_SOURCE),
             'target' => $targetLang,
             'html' => $html,
+            'glossary' => config('glossary.version', 1),
             'text' => $text,
         ], JSON_UNESCAPED_UNICODE));
     }
