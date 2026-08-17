@@ -83,6 +83,23 @@ class FacebookRefreshToken extends Command
             return self::SUCCESS;
         }
 
+        // A usable Page token never expires (expires_at = 0). Exchanging a Page
+        // token can hand back a ~1 day token, which would silently kill the
+        // integration a day later — refuse to store that and keep the old one.
+        $freshExpires = $this->tokenExpiry($graph, $fresh, $appToken);
+        if ($freshExpires !== null && $freshExpires > 0) {
+            $hours = (int) floor(($freshExpires - time()) / 3600);
+            if ($hours < 24 * 30) {
+                return $this->fail(
+                    "Re-exchange returned a short-lived token (expires in {$hours}h, on "
+                    . date('Y-m-d H:i', $freshExpires) . '). Keeping the current token. '
+                    . 'Issue a permanent Page token: Graph API Explorer -> User token with '
+                    . 'pages_show_list,pages_read_engagement,pages_read_user_content,pages_manage_posts,pages_manage_engagement '
+                    . '-> php artisan facebook:exchange-token <USER_TOKEN> --write-env'
+                );
+            }
+        }
+
         if ($this->option('no-write')) {
             $this->info('Got a fresh token (not written, --no-write set).');
 
@@ -103,6 +120,25 @@ class FacebookRefreshToken extends Command
         ]);
 
         return self::SUCCESS;
+    }
+
+    /** expires_at of a token, 0 = never, null = could not read. */
+    private function tokenExpiry(FacebookGraphClient $graph, string $token, string $appToken): ?int
+    {
+        try {
+            $response = $graph->get('debug_token', [
+                'input_token' => $token,
+                'access_token' => $appToken,
+            ]);
+
+            if (! $response->ok()) {
+                return null;
+            }
+
+            return (int) ($response->json('data.expires_at') ?? 0);
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     private function fail(string $message): int
