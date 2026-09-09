@@ -1,0 +1,4 @@
+# Shell scripts run on the Linux server — they must keep LF endings,
+# otherwise bash fails on the shebang and `set -euo pipefail`.
+*.sh text eol=lf
+deploy/*.sh text eol=lf

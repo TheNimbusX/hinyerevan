@@ -58,6 +58,7 @@ const authForm = ref({
   password: '',
   password_confirmation: '',
   recaptcha_token: '',
+  consent: false,
 })
 const forgotEmail = ref('')
 const forgotMessage = ref('')
@@ -331,16 +332,22 @@ async function submitAuth() {
 }
 
 async function sendRegisterCode() {
+  if (!authForm.value.consent) {
+    throw new Error(t('consentRequired'))
+  }
+
   if (import.meta.env.VITE_RECAPTCHA_SITE_KEY && !recaptchaToken.value) {
     throw new Error(t('captchaRequired'))
   }
 
   const body = new FormData()
   Object.entries(authForm.value).forEach(([key, value]) => {
+    if (key === 'consent') return
     if (value !== null && value !== undefined && value !== '') {
       body.append(key, value)
     }
   })
+  body.append('consent', '1')
   body.append('lang', getUiLanguage())
   body.set('recaptcha_token', recaptchaToken.value)
 
@@ -816,6 +823,15 @@ onBeforeUnmount(() => {
               </label>
               <small class="form-help">{{ t('passwordHelp') }}</small>
             </template>
+            <label v-if="authMode === 'register'" class="consent-check">
+              <input v-model="authForm.consent" type="checkbox" required />
+              <span>
+                {{ t('consentIntro') }}
+                <RouterLink to="/pages/agreement" target="_blank">{{ t('agreement') }}</RouterLink>
+                {{ t('consentAnd') }}
+                <RouterLink to="/pages/privacy" target="_blank">{{ t('privacyPolicy') }}</RouterLink>.
+              </span>
+            </label>
             <RecaptchaField
               v-if="needsCaptcha && authMode === 'register'"
               ref="recaptchaField"

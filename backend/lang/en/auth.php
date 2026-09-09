@@ -5,6 +5,7 @@ return [
     'login_required' => 'Enter your username or email.',
     'password_required' => 'Enter your password.',
     'account_blocked' => 'This account is blocked.',
+    'consent_required' => 'You must consent to the processing of personal data to register.',
     'username_required' => 'Enter a username.',
     'username_invalid' => 'Username may contain only latin letters and digits.',
     'username_min' => 'Username must be at least 3 characters.',

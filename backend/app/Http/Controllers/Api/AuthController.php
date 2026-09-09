@@ -84,7 +84,9 @@ class AuthController extends Controller
             'birth_year' => ['nullable', 'integer', 'between:1900,2026'],
             'password' => ['required', 'string', 'min:6', 'confirmed'],
             'recaptcha_token' => ['nullable', 'string'],
+            'consent' => ['accepted'],
         ], [
+            'consent.accepted' => __('auth.consent_required'),
             'uid.required' => __('auth.username_required'),
             'uid.alpha_num' => __('auth.username_invalid'),
             'uid.min' => __('auth.username_min'),
