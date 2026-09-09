@@ -642,15 +642,6 @@ onBeforeUnmount(() => {
           />
 
           <template v-if="authMode !== 'forgot' && registerStep === 'form'">
-            <label v-if="authMode === 'register'" class="consent-check">
-              <input v-model="authForm.consent" type="checkbox" />
-              <span>
-                {{ t('consentIntro') }}
-                <RouterLink to="/pages/agreement" target="_blank">{{ t('agreement') }}</RouterLink>
-                {{ t('consentAnd') }}
-                <RouterLink to="/pages/privacy" target="_blank">{{ t('privacyPolicy') }}</RouterLink>.
-              </span>
-            </label>
             <div v-if="socialProviders.length" class="auth-social">
               <button
                 v-for="provider in socialProviders"
@@ -678,6 +669,15 @@ onBeforeUnmount(() => {
             >
               {{ t('captchaSocialHint') }}
             </p>
+            <label v-if="authMode === 'register'" class="consent-check">
+              <input v-model="authForm.consent" type="checkbox" />
+              <span>
+                {{ t('consentIntro') }}
+                <RouterLink to="/pages/agreement" target="_blank">{{ t('agreement') }}</RouterLink>
+                {{ t('consentAnd') }}
+                <RouterLink to="/pages/privacy" target="_blank">{{ t('privacyPolicy') }}</RouterLink>.
+              </span>
+            </label>
           </template>
 
           <p v-if="authMode !== 'forgot' && registerStep === 'form' && socialProviders.length" class="auth-divider"><span>{{ t('orContinueWithEmail') }}</span></p>

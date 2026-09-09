@@ -228,9 +228,12 @@
     margin-top: 2px;
   }
 
+  // Fine print: fixed size so it stays small at any root font size.
   > span {
     flex: 1 1 auto;
     min-width: 0;
+    font-size: 12px;
+    margin-bottom: 1em;
   }
 
   a {
