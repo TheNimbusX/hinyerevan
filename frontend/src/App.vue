@@ -76,7 +76,10 @@ const socialProviders = ref([])
 const socialRedirecting = ref(null)
 const socialCaptchaRequired = computed(() => Boolean(import.meta.env.VITE_RECAPTCHA_SITE_KEY))
 const socialLoginDisabled = computed(
-  () => Boolean(socialRedirecting.value) || (socialCaptchaRequired.value && !recaptchaToken.value),
+  () => Boolean(socialRedirecting.value)
+    || (socialCaptchaRequired.value && !recaptchaToken.value)
+    // signing up through a provider still needs the data-processing consent
+    || (authMode.value === 'register' && !authForm.value.consent),
 )
 function providerIcon(id) {
   return socialProviderIcon(id)
@@ -402,6 +405,10 @@ function selectAvatar(event) {
 }
 
 function socialLogin(providerId) {
+  if (authMode.value === 'register' && !authForm.value.consent) {
+    authError.value = t('consentRequired')
+    return
+  }
   if (socialCaptchaRequired.value && !recaptchaToken.value) {
     authError.value = t('captchaRequired')
     return
@@ -635,6 +642,15 @@ onBeforeUnmount(() => {
           />
 
           <template v-if="authMode !== 'forgot' && registerStep === 'form'">
+            <label v-if="authMode === 'register'" class="consent-check">
+              <input v-model="authForm.consent" type="checkbox" />
+              <span>
+                {{ t('consentIntro') }}
+                <RouterLink to="/pages/agreement" target="_blank">{{ t('agreement') }}</RouterLink>
+                {{ t('consentAnd') }}
+                <RouterLink to="/pages/privacy" target="_blank">{{ t('privacyPolicy') }}</RouterLink>.
+              </span>
+            </label>
             <div v-if="socialProviders.length" class="auth-social">
               <button
                 v-for="provider in socialProviders"
@@ -651,7 +667,13 @@ onBeforeUnmount(() => {
             </div>
             <p v-else class="auth-social-empty">{{ t('socialLoginNoneConfigured') }}</p>
             <p
-              v-if="socialProviders.length && socialCaptchaRequired && !recaptchaToken"
+              v-if="socialProviders.length && authMode === 'register' && !authForm.consent"
+              class="auth-social-hint"
+            >
+              {{ t('consentRequired') }}
+            </p>
+            <p
+              v-else-if="socialProviders.length && socialCaptchaRequired && !recaptchaToken"
               class="auth-social-hint"
             >
               {{ t('captchaSocialHint') }}
@@ -823,15 +845,6 @@ onBeforeUnmount(() => {
               </label>
               <small class="form-help">{{ t('passwordHelp') }}</small>
             </template>
-            <label v-if="authMode === 'register'" class="consent-check">
-              <input v-model="authForm.consent" type="checkbox" required />
-              <span>
-                {{ t('consentIntro') }}
-                <RouterLink to="/pages/agreement" target="_blank">{{ t('agreement') }}</RouterLink>
-                {{ t('consentAnd') }}
-                <RouterLink to="/pages/privacy" target="_blank">{{ t('privacyPolicy') }}</RouterLink>.
-              </span>
-            </label>
             <RecaptchaField
               v-if="needsCaptcha && authMode === 'register'"
               ref="recaptchaField"

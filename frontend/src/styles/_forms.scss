@@ -219,9 +219,18 @@
   line-height: 1.45;
   cursor: pointer;
 
+  // Forms stretch inputs to 100%; a checkbox must stay its own size.
   input[type='checkbox'] {
     flex: 0 0 auto;
+    width: 16px !important;
+    min-width: 16px;
+    height: 16px;
     margin-top: 2px;
+  }
+
+  > span {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   a {
