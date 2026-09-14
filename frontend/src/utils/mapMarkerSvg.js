@@ -42,11 +42,11 @@ export function clusterMarkerMetrics(count) {
   const len = label.length
 
   if (len <= 1) return { label, size: 32, fontSize: 14 }
-  if (len === 2) return { label, size: 36, fontSize: 13 }
-  if (len === 3) return { label, size: 44, fontSize: 12 }
-  if (len === 4) return { label, size: 50, fontSize: 11 }
+  if (len === 2) return { label, size: 38, fontSize: 15 }
+  if (len === 3) return { label, size: 48, fontSize: 16 }
+  if (len === 4) return { label, size: 56, fontSize: 16 }
 
-  return { label, size: 58, fontSize: 10 }
+  return { label, size: 64, fontSize: 16 }
 }
 
 const CLUSTER_STYLE =

@@ -160,6 +160,29 @@ function scheduleMapInvalidate() {
   })
 }
 
+const mapExpanded = ref(false)
+
+async function toggleMapExpanded() {
+  mapExpanded.value = !mapExpanded.value
+  await nextTick()
+  const center = editMarker?.getLatLng()
+  ;[0, 150].forEach((delay) => {
+    setTimeout(() => {
+      editMap?.invalidateSize()
+      if (center) editMap?.panTo(center, { animate: false })
+    }, delay)
+  })
+}
+
+function onMapExpandedKey(event) {
+  if (event.key === 'Escape') toggleMapExpanded()
+}
+
+watch(mapExpanded, (value) => {
+  if (value) window.addEventListener('keydown', onMapExpandedKey)
+  else window.removeEventListener('keydown', onMapExpandedKey)
+})
+
 async function mountEditMap() {
   await nextTick()
   if (!editMapElement.value) {
@@ -316,6 +339,7 @@ onBeforeUnmount(() => {
   editMarker = null
   editMap?.remove()
   editMap = null
+  window.removeEventListener('keydown', onMapExpandedKey)
 })
 </script>
 
@@ -344,10 +368,26 @@ onBeforeUnmount(() => {
 
         <div class="map-picker-field">
           <span class="upload-field-label">{{ t('location') }}</span>
-          <div class="upload-map-shell">
+          <Teleport to="body" :disabled="!mapExpanded">
+          <div class="upload-map-shell" :class="{ 'upload-map-shell--expanded': mapExpanded }">
             <div ref="editMapElement" class="upload-map"></div>
+            <button
+              type="button"
+              class="upload-map-expand"
+              :aria-label="mapExpanded ? t('mapCollapse') : t('mapExpand')"
+              :title="mapExpanded ? t('mapCollapse') : t('mapExpand')"
+              @click="toggleMapExpanded"
+            >
+              <svg v-if="mapExpanded" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M9 3v6H3M15 3v6h6M9 21v-6H3M15 21v-6h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                <path d="M3 9V3h6M21 9V3h-6M3 15v6h6M21 15v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </button>
             <MapTypeToggle v-model="mapType" class="map-type-toggle--bottom" />
           </div>
+          </Teleport>
         </div>
 
         <label class="check-line review-check">
@@ -419,7 +459,6 @@ onBeforeUnmount(() => {
               required
               placeholder="https://www.youtube.com/watch?v=…"
             />
-            <small>{{ t('videoThumbNote') }}</small>
           </label>
         </template>
 

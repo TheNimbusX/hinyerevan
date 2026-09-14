@@ -793,7 +793,7 @@ watch([hasMore, loading], async () => {
             >
               <td class="admin__thumb">
                 <a href="#" @click.prevent="openPhoto(row)">
-                  <img :src="imageUrl(row.images?.thumb)" :alt="row.title" loading="lazy" width="112" height="84" />
+                  <img :src="imageUrl(row.images?.thumb)" :alt="row.title" loading="lazy" width="160" height="120" />
                 </a>
               </td>
               <td>
@@ -1273,10 +1273,17 @@ watch([hasMore, loading], async () => {
   }
 }
 
+// Table auto-layout squeezed this column.
+.admin__table td.admin__thumb {
+  width: 160px;
+  min-width: 160px;
+}
+
 .admin__thumb img {
   display: block;
-  width: 112px;
-  height: 84px;
+  width: 160px;
+  max-width: none;
+  height: 120px;
   border-radius: 4px;
   object-fit: cover;
   background: $surface-soft;

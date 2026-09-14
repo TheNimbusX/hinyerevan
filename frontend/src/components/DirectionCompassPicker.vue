@@ -262,14 +262,14 @@ onBeforeUnmount(() => {
 
 .compass-expand-enter-to,
 .compass-expand-leave-from {
-  max-height: 260px;
+  max-height: 340px;
   opacity: 1;
   transform: translateY(0);
 }
 
 .compass-dial {
   position: relative;
-  width: min(100%, 200px);
+  width: min(100%, 270px);
   aspect-ratio: 1;
   margin-inline: auto;
   border: 1px solid rgba($primary, 0.12);
@@ -289,15 +289,15 @@ onBeforeUnmount(() => {
 .compass-wedge {
   position: absolute;
   display: grid;
-  width: 34px;
-  height: 34px;
+  width: 46px;
+  height: 46px;
   place-items: center;
   border: 1px solid rgba($primary, 0.14);
   border-radius: 50%;
   background: #fff;
   color: $primary;
   cursor: pointer;
-  font-size: 0.7143rem;
+  font-size: 0.8571rem;
   font-weight: 600;
   transition:
     background 0.15s ease,
@@ -369,8 +369,8 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
+  width: 66px;
+  height: 66px;
   padding: 0;
   border: 2px solid rgba($primary, 0.16);
   border-radius: 50%;
@@ -411,7 +411,7 @@ onBeforeUnmount(() => {
 .direction-chip {
   border: 1px solid rgba($primary, 0.14);
   border-radius: $radius-pill;
-  padding: 7px 11px;
+  padding: 9px 14px;
   background: $surface-soft;
   color: $primary;
   cursor: pointer;

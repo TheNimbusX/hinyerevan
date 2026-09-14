@@ -8,6 +8,7 @@ import { getUiLanguage } from './utils/browserTranslate'
 import { formatAuthError } from './utils/authErrors'
 import { useI18n } from './i18n'
 import siteLogo from './assets/logos/Logo2026.png'
+import { scrollUpIfScrolled } from './utils/scrollTop'
 import { socialProviderIcon } from './utils/socialProviderIcons'
 import ThemeToggle from './components/ThemeToggle.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
@@ -195,6 +196,7 @@ function closeMenu() {
 
 function handleBrandClick() {
   closeMenu()
+  if (scrollUpIfScrolled()) return
   sessionStorage.removeItem(HOME_MAP_RESTORE_KEY)
   if (route.path === '/') {
     window.dispatchEvent(new CustomEvent('hinyerevan:reset-home-map'))

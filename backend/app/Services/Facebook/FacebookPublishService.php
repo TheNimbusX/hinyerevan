@@ -320,7 +320,7 @@ class FacebookPublishService
 
         $authorName = trim((string) ($photo->author?->name ?? ''));
         if ($authorName !== '') {
-            $lines[] = '📷 ' . $authorName;
+            $lines[] = ($photo->video ? 'Տեսանյութը տեղադրել է ' : 'Լուսանկարը տեղադրել է ') . $authorName;
         }
 
         $lines[] = $photoUrl;

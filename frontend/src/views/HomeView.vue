@@ -15,6 +15,7 @@ import { useTheme } from '../composables/useTheme'
 import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
 import { createClusterIconFactory, getActiveDirectionIcon, getActiveVideoIcon, getDirectionIcon, getLastDirectionIcon, getLastVideoIcon, getVideoIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import MapTypeToggle from '../components/MapTypeToggle.vue'
+import { scrollUpIfScrolled } from '../utils/scrollTop'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { playVideo } from '../utils/video'
 import googleLogo from '../assets/logos/google-logo.svg'
@@ -451,6 +452,11 @@ function resetHomeState() {
   if (map) {
     map.setView(DEFAULT_CENTER, DEFAULT_ZOOM, { animate: true })
   }
+}
+
+function onBrandLogoClick() {
+  if (scrollUpIfScrolled()) return
+  resetHomeState()
 }
 
 function openPhoto(id) {
@@ -1037,11 +1043,11 @@ onBeforeUnmount(() => {
 
       <aside class="panel latest-panel home-latest-sidebar" :aria-busy="secondaryLoading">
         <div class="home-brand">
-          <button type="button" class="home-brand__logo-link" :aria-label="t('backToHome')" @click="resetHomeState">
+          <button type="button" class="home-brand__logo-link" :aria-label="t('backToHome')" @click="onBrandLogoClick">
             <img class="home-brand__logo" :src="siteLogo" alt="HinYerevan.com" />
           </button>
           <div class="home-brand__text">
-            <strong class="home-brand__name" style="cursor:pointer" @click="resetHomeState">HinYerevan<em>.com</em></strong>
+            <strong class="home-brand__name" style="cursor:pointer" @click="onBrandLogoClick">HinYerevan<em>.com</em></strong>
             <small class="home-brand__tagline">{{ t('tagline') }}</small>
             <FacebookPageBadge variant="inline" class="home-brand__fb" @open="openFacebookPage" />
           </div>
@@ -2067,13 +2073,13 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 18px;
-  min-width: 34px;
-  padding: 0 5px;
+  height: 22px;
+  min-width: 40px;
+  padding: 0 6px;
   border-radius: 5px;
   background: linear-gradient(135deg, #c43d30, #8a1c14);
   color: #fff;
-  font-size: 0.7857rem;
+  font-size: calc(0.7857rem + 2px);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
