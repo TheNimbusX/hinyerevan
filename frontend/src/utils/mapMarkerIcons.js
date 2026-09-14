@@ -14,6 +14,12 @@ const clusterIcons = new Map()
 /** @type {Record<number, L.DivIcon>} */
 let activeDirectionIcons = {}
 
+/** @type {Record<number, L.Icon>} */
+let lastDirectionIcons = {}
+
+/** @type {L.Icon|null} */
+let lastVideoIcon = null
+
 /** @type {L.Icon|null} */
 let videoIcon = null
 
@@ -34,8 +40,10 @@ function svgDataUri(direction, options = {}) {
 export function initMapMarkerIcons() {
   directionIcons = {}
   activeDirectionIcons = {}
+  lastDirectionIcons = {}
   videoIcon = null
   activeVideoIcon = null
+  lastVideoIcon = null
   clusterIcons.clear()
   for (const direction of DIRECTIONS) {
     directionIcons[direction] = L.icon({
@@ -69,6 +77,36 @@ export function getActiveDirectionIcon(direction) {
   const key = Number(direction)
   if (Number.isFinite(key) && activeDirectionIcons[key]) return activeDirectionIcons[key]
   return activeDirectionIcons[1]
+}
+
+// Last viewed marker: orange, no ring.
+export function getLastDirectionIcon(direction) {
+  if (!lastDirectionIcons[1]) {
+    for (const dir of DIRECTIONS) {
+      lastDirectionIcons[dir] = L.icon({
+        className: 'camera-direction-icon camera-direction-icon--last',
+        iconUrl: svgDataUri(dir, { fill: ACTIVE_PIN_FILL, centerFill: ACTIVE_PIN_FILL }),
+        iconSize: [PIN_SIZE, PIN_SIZE],
+        iconAnchor: [PIN_ANCHOR, PIN_ANCHOR],
+      })
+    }
+  }
+  const key = Number(direction)
+  if (Number.isFinite(key) && lastDirectionIcons[key]) return lastDirectionIcons[key]
+  return lastDirectionIcons[1]
+}
+
+export function getLastVideoIcon() {
+  if (!lastVideoIcon) {
+    const uri = `data:image/svg+xml,${encodeURIComponent(videoMarkerSvg(PIN_SIZE, { fill: ACTIVE_PIN_FILL }))}`
+    lastVideoIcon = L.icon({
+      className: 'camera-direction-icon camera-direction-icon--last camera-direction-icon--video',
+      iconUrl: uri,
+      iconSize: [PIN_SIZE, PIN_SIZE],
+      iconAnchor: [PIN_ANCHOR, PIN_ANCHOR],
+    })
+  }
+  return lastVideoIcon
 }
 
 export function getVideoIcon() {

@@ -1010,11 +1010,6 @@
     }
   }
 
-  .sheet-coords {
-    background: #1e2330;
-    border-color: #2a313d;
-  }
-
   .sheet-related h3,
   .sheet-comments h3 {
     color: #f4f7ff;
@@ -1081,16 +1076,6 @@
     &:hover {
       color: #fff;
     }
-  }
-
-  .map-picker-hint {
-    color: #98a0ae;
-  }
-
-  .map-picker-coords input {
-    background: #161b25;
-    border-color: #2a313d;
-    color: #e7ebf3;
   }
 
   .upload-map {

@@ -13,10 +13,13 @@ import { setupLeaflet } from '../utils/leafletSetup'
 import { isYoutubeUrl, youtubeId } from '../utils/video'
 import CompassNeedle from '../components/CompassNeedle.vue'
 import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
+import MapTypeToggle from '../components/MapTypeToggle.vue'
+import { useMiniMapType } from '../composables/useMiniMapType'
 
 const router = useRouter()
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
+const mapType = useMiniMapType()
 const currentUser = inject('currentUser', ref(null))
 const isAdmin = computed(() => isAdminUser(currentUser.value))
 const error = ref('')
@@ -96,7 +99,7 @@ function setCoordinates(latlng) {
 function initUploadMap() {
   if (uploadMap || !uploadMapElement.value) return
   setupLeaflet()
-  const layer = getMapTileLayer('google', theme.value, currentLanguage.value)
+  const layer = getMapTileLayer('google', theme.value, currentLanguage.value, mapType.value)
   uploadMap = L.map(uploadMapElement.value, {
     center: YEREVAN_CENTER,
     zoom: UPLOAD_MAP_ZOOM,
@@ -113,9 +116,9 @@ function centerMapOnYerevan() {
   uploadMap.setView(YEREVAN_CENTER, UPLOAD_MAP_ZOOM, { animate: true })
 }
 
-watch([theme, currentLanguage], () => {
+watch([theme, currentLanguage, mapType], () => {
   if (!uploadMap) return
-  uploadMapTileLayer = applyMapTileLayer(uploadMap, uploadMapTileLayer, 'google', theme.value, currentLanguage.value)
+  uploadMapTileLayer = applyMapTileLayer(uploadMap, uploadMapTileLayer, 'google', theme.value, currentLanguage.value, mapType.value)
 })
 
 watch(
@@ -249,7 +252,6 @@ onBeforeUnmount(() => {
         <header class="upload-modal-head">
           <p class="eyebrow">{{ t('upload') }}</p>
           <h1>{{ t('addHistoricPhoto') }}</h1>
-          <p class="muted">{{ t('mapCoordinateHint') }}</p>
         </header>
 
         <form class="stack-form upload-form" @submit.prevent="submit">
@@ -279,6 +281,7 @@ onBeforeUnmount(() => {
               <span>{{ t('mapRecenterYerevan') }}</span>
             </button>
             <span class="upload-map-hint">{{ t('clickMapToSetPoint') }}</span>
+            <MapTypeToggle v-model="mapType" class="map-type-toggle--bottom" />
           </div>
           <div class="upload-meta-row">
             <div class="upload-field upload-field--direction">
@@ -302,7 +305,7 @@ onBeforeUnmount(() => {
               </label>
             </div>
           </div>
-          <label>
+          <label class="year-field">
             <span>{{ t('year') }}</span>
             <input v-model="form.year" type="number" min="1800" max="2000" :placeholder="t('year')" required />
           </label>
@@ -485,6 +488,12 @@ onBeforeUnmount(() => {
   color: $muted;
   font-size: 0.8571rem;
   font-weight: 500;
+}
+
+.upload-form .year-field,
+.admin-photo-editor__form .year-field {
+  width: 9rem;
+  max-width: 100%;
 }
 
 .upload-field-label {

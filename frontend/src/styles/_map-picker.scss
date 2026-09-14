@@ -73,35 +73,3 @@
   display: grid;
   gap: 8px;
 }
-
-.map-picker-coords {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-
-  label {
-    display: grid;
-    gap: 6px;
-    color: $muted;
-    font-size: 0.8571rem;
-    font-weight: 500;
-  }
-
-  input {
-    min-height: 38px;
-    padding: 8px 11px;
-    border: 1px solid $line;
-    border-radius: $radius-sm;
-    background: $surface;
-    color: $ink;
-    font: inherit;
-    font-size: 1rem;
-  }
-}
-
-.map-picker-hint {
-  margin: 0;
-  color: $muted;
-  font-size: 0.8571rem;
-  line-height: 1.4;
-}

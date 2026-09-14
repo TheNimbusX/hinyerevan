@@ -13,7 +13,8 @@ import { useLanguageReload, useLocalizedReady } from '../composables/useLanguage
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
-import { createClusterIconFactory, getActiveDirectionIcon, getActiveVideoIcon, getDirectionIcon, getVideoIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
+import { createClusterIconFactory, getActiveDirectionIcon, getActiveVideoIcon, getDirectionIcon, getLastDirectionIcon, getLastVideoIcon, getVideoIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
+import MapTypeToggle from '../components/MapTypeToggle.vue'
 import { directionLabel, formatDateTime } from '../utils/locale'
 import { playVideo } from '../utils/video'
 import googleLogo from '../assets/logos/google-logo.svg'
@@ -60,6 +61,7 @@ const mapType = ref('scheme')
 const mapPanelOpen = ref(false)
 const mapCompassOpen = ref(false)
 const activePhotoId = ref(null)
+const lastPhotoId = ref(null)
 const DEFAULT_CENTER = [40.179136, 44.511623]
 const DEFAULT_ZOOM = 13
 const earliestAllowedYear = 1500
@@ -364,6 +366,7 @@ function persistHomeMapState() {
     rangeTouched: rangeTouched.value,
     mapProvider: mapProvider.value,
     mapType: mapType.value,
+    lastPhotoId: activePhotoId.value ?? lastPhotoId.value,
     query: { ...route.query },
     scrollY: window.scrollY,
   })
@@ -380,6 +383,19 @@ function getActiveIconForEntry(entry) {
 
 function getNormalIconForEntry(entry) {
   return entry.data.has_video ? getVideoIcon() : getDirectionIcon(entry.data.direction)
+}
+
+function getLastIconForEntry(entry) {
+  return entry.data.has_video ? getLastVideoIcon() : getLastDirectionIcon(entry.data.direction)
+}
+
+function markLastMarker(id) {
+  if (id == null) return
+  lastPhotoId.value = Number(id)
+  const entry = markerRegistry.get(Number(id))
+  if (!entry) return
+  entry.layer.setIcon(getLastIconForEntry(entry))
+  entry.layer.setZIndexOffset(500)
 }
 
 function activateMarker(id) {
@@ -399,7 +415,9 @@ function activateMarker(id) {
 function deactivateMarker(id) {
   if (id == null) return
   const entry = markerRegistry.get(Number(id))
-  if (entry) entry.layer.setIcon(getNormalIconForEntry(entry))
+  if (!entry) return
+  entry.layer.setIcon(getNormalIconForEntry(entry))
+  entry.layer.setZIndexOffset(0)
 }
 
 function resetHomeState() {
@@ -408,6 +426,10 @@ function resetHomeState() {
   if (activePhotoId.value != null) {
     deactivateMarker(activePhotoId.value)
     activePhotoId.value = null
+  }
+  if (lastPhotoId.value != null) {
+    deactivateMarker(lastPhotoId.value)
+    lastPhotoId.value = null
   }
 
   mapPanelOpen.value = false
@@ -470,8 +492,16 @@ function userAvatarUrl(user) {
 }
 
 function createLeafletMarker(data) {
+  const id = Number(data.id)
+  let icon = data.has_video ? getVideoIcon() : getDirectionIcon(data.direction)
+  if (id === Number(activePhotoId.value)) {
+    icon = data.has_video ? getActiveVideoIcon() : getActiveDirectionIcon(data.direction)
+  } else if (id === Number(lastPhotoId.value)) {
+    icon = data.has_video ? getLastVideoIcon() : getLastDirectionIcon(data.direction)
+  }
   const layer = L.marker([data.lat, data.lng], {
-    icon: data.has_video ? getVideoIcon() : getDirectionIcon(data.direction),
+    icon,
+    zIndexOffset: id === Number(lastPhotoId.value) ? 500 : 0,
   })
 
   layer.on('click', () => {
@@ -750,6 +780,7 @@ onMounted(async () => {
   if (restore) {
     if (restore.mapProvider) mapProvider.value = restore.mapProvider
     if (restore.mapType) mapType.value = restore.mapType
+    if (restore.lastPhotoId != null) lastPhotoId.value = Number(restore.lastPhotoId)
     if (Array.isArray(restore.yearRange) && restore.yearRange.length === 2) {
       rangeTouched.value = Boolean(restore.rangeTouched)
       suppressNextRangeWatch = true
@@ -850,7 +881,16 @@ watch(yearBounds, () => {
 })
 
 watch(activePhotoId, (newId, oldId) => {
+  if (newId == null) {
+    // Sheet closed: keep the marker highlighted.
+    markLastMarker(oldId)
+    return
+  }
   deactivateMarker(oldId)
+  if (lastPhotoId.value != null && lastPhotoId.value !== Number(newId)) {
+    deactivateMarker(lastPhotoId.value)
+  }
+  lastPhotoId.value = null
   activateMarker(newId)
 })
 
@@ -869,6 +909,7 @@ onBeforeUnmount(() => {
   <section class="legacy-map-shell">
     <div class="real-map">
       <div ref="mapElement" class="leaflet-map"></div>
+      <MapTypeToggle v-model="mapType" class="map-type-toggle--home" />
       <div class="map-tools" :class="{ open: mapPanelOpen }">
         <button
           type="button"
@@ -1389,6 +1430,12 @@ onBeforeUnmount(() => {
 .leaflet-map {
   width: 100%;
   height: 100%;
+}
+
+.map-type-toggle--home {
+  top: auto;
+  right: 16px;
+  bottom: 16px;
 }
 
 // ---------- Collapsible map tools (type + filters) ---------------

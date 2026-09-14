@@ -96,7 +96,11 @@ class FacebookPublishService
                 return is_string($error) ? $error : 'Facebook publish failed.';
             }
 
-            $postId = (string) ($response->json('post_id') ?? $response->json('id') ?? '');
+            $postId = (string) ($response->json('post_id') ?? '');
+            if ($postId === '') {
+                $photoObjectId = (string) ($response->json('id') ?? '');
+                $postId = $this->storyIdForPhoto($photoObjectId) ?? $photoObjectId;
+            }
             if ($postId === '') {
                 return 'Facebook returned an empty post id.';
             }
@@ -161,9 +165,12 @@ class FacebookPublishService
             return;
         }
 
+        // Photo objects have no permalink_url.
+        $isPhotoObject = ! str_contains((string) $photo->facebook_post_id, '_');
+
         try {
             $response = $this->graph->get($photo->facebook_post_id, [
-                'fields' => 'permalink_url,reactions.summary(total_count)',
+                'fields' => $isPhotoObject ? 'link,reactions.summary(total_count)' : 'permalink_url,reactions.summary(total_count)',
                 'access_token' => $this->pageAccessToken(),
             ]);
 
@@ -179,7 +186,7 @@ class FacebookPublishService
 
             $data = $response->json();
             $likes = (int) ($data['reactions']['summary']['total_count'] ?? 0);
-            $postUrl = (string) ($data['permalink_url'] ?? $photo->facebook_post_url ?? '');
+            $postUrl = (string) ($data['permalink_url'] ?? $photo->facebook_post_url ?? $data['link'] ?? '');
             $fbViews = $this->fetchPostImpressions($photo->facebook_post_id);
 
             $fill = [
@@ -227,6 +234,25 @@ class FacebookPublishService
             $value = is_array($last) ? ($last['value'] ?? null) : null;
 
             return is_numeric($value) ? max(0, (int) $value) : null;
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    public function storyIdForPhoto(string $photoId): ?string
+    {
+        if ($photoId === '' || str_contains($photoId, '_')) {
+            return null;
+        }
+
+        try {
+            $response = $this->graph->get($photoId, [
+                'fields' => 'page_story_id',
+                'access_token' => $this->pageAccessToken(),
+            ]);
+            $storyId = $response->ok() ? (string) ($response->json('page_story_id') ?? '') : '';
+
+            return $storyId !== '' ? $storyId : null;
         } catch (\Throwable) {
             return null;
         }

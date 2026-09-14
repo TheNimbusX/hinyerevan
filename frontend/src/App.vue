@@ -71,6 +71,7 @@ const registerMessage = ref('')
 const resendCooldown = ref(0)
 let resendTimer = null
 const showRegisterPassword = ref(false)
+const showLoginPassword = ref(false)
 const showRegisterPasswordConfirm = ref(false)
 const socialProviders = ref([])
 const socialRedirecting = ref(null)
@@ -811,7 +812,29 @@ onBeforeUnmount(() => {
                 </button>
               </label>
             </template>
-            <input v-else v-model="authForm.password" type="password" :placeholder="t('password')" required />
+            <label v-else class="password-field">
+              <input
+                v-model="authForm.password"
+                :type="showLoginPassword ? 'text' : 'password'"
+                :placeholder="t('password')"
+                autocomplete="current-password"
+                required
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                :aria-label="showLoginPassword ? t('hidePassword') : t('showPassword')"
+                @click="showLoginPassword = !showLoginPassword"
+              >
+                <svg v-if="showLoginPassword" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path fill="none" stroke="currentColor" stroke-width="2" d="M3 3l18 18M10.5 10.7A3 3 0 0 0 12 15a3 3 0 0 0 2.8-2.1M6.7 6.8C4.6 8.1 3 10 3 10s3 7 9 7c1.5 0 2.9-.4 4.1-1M14 5.2C15.3 4.8 16.6 4.6 18 4.6c6 0 9 7 9 7s-1.2 2.1-3.4 3.6" stroke-linecap="round" />
+                </svg>
+                <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                  <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                  <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                </svg>
+              </button>
+            </label>
             <button
               v-if="authMode === 'login'"
               type="button"

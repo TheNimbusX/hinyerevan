@@ -11,6 +11,8 @@ import { setupLeaflet } from '../utils/leafletSetup'
 import { isYoutubeUrl, youtubeId } from '../utils/video'
 import CompassNeedle from './CompassNeedle.vue'
 import DirectionCompassPicker from './DirectionCompassPicker.vue'
+import MapTypeToggle from './MapTypeToggle.vue'
+import { useMiniMapType } from '../composables/useMiniMapType'
 
 const props = defineProps({
   photoId: {
@@ -23,6 +25,7 @@ const emit = defineEmits(['close', 'saved'])
 
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
+const mapType = useMiniMapType()
 
 const loading = ref(true)
 const saving = ref(false)
@@ -92,7 +95,7 @@ function setCoordinates(latlng) {
 function initEditMap() {
   if (editMap || !editMapElement.value) return
   setupLeaflet()
-  const layer = getMapTileLayer('google', theme.value, currentLanguage.value)
+  const layer = getMapTileLayer('google', theme.value, currentLanguage.value, mapType.value)
   const lat = Number(form.value.lat) || 40.179136
   const lng = Number(form.value.lng) || 44.511623
   editMap = L.map(editMapElement.value, {
@@ -252,9 +255,9 @@ async function save() {
   }
 }
 
-watch([theme, currentLanguage], () => {
+watch([theme, currentLanguage, mapType], () => {
   if (!editMap) return
-  editMapTileLayer = applyMapTileLayer(editMap, editMapTileLayer, 'google', theme.value, currentLanguage.value)
+  editMapTileLayer = applyMapTileLayer(editMap, editMapTileLayer, 'google', theme.value, currentLanguage.value, mapType.value)
 })
 
 watch(
@@ -341,19 +344,9 @@ onBeforeUnmount(() => {
 
         <div class="map-picker-field">
           <span class="upload-field-label">{{ t('location') }}</span>
-          <p class="map-picker-hint">{{ t('mapCoordinateHint') }}</p>
-          <div class="map-picker-coords">
-            <label>
-              <span>Lat</span>
-              <input v-model="form.lat" inputmode="decimal" required />
-            </label>
-            <label>
-              <span>Lng</span>
-              <input v-model="form.lng" inputmode="decimal" required />
-            </label>
-          </div>
           <div class="upload-map-shell">
             <div ref="editMapElement" class="upload-map"></div>
+            <MapTypeToggle v-model="mapType" class="map-type-toggle--bottom" />
           </div>
         </div>
 
@@ -383,7 +376,7 @@ onBeforeUnmount(() => {
           <DirectionCompassPicker v-model="form.direction" />
         </div>
 
-        <label>
+        <label class="year-field">
           <span>{{ t('year') }}</span>
           <input v-model="form.year" inputmode="numeric" :placeholder="t('year')" required />
         </label>

@@ -180,13 +180,6 @@ function retryDetailImage() {
   detailImageSrc.value = `${base}${base.includes('?') ? '&' : '?'}retry=1`
 }
 
-function formatCoords(lat, lng) {
-  const la = Number(lat)
-  const ln = Number(lng)
-  if (!Number.isFinite(la) || !Number.isFinite(ln)) return ''
-  return `${la.toFixed(6)}, ${ln.toFixed(6)}`
-}
-
 function openLightbox() {
   lightboxOpen.value = true
 }
@@ -542,11 +535,6 @@ onBeforeUnmount(() => {
                   </div>
                   <span class="author-card-arrow" aria-hidden="true">→</span>
                 </RouterLink>
-
-                <div class="sheet-coords">
-                  <p class="eyebrow">{{ t('location') }}</p>
-                  <p class="location-coords">{{ formatCoords(photo.lat, photo.lng) }}</p>
-                </div>
               </div>
             </div>
 
@@ -754,13 +742,16 @@ onBeforeUnmount(() => {
 
 .sheet-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
   align-items: start;
+}
 
-  @include mq-down($bp-md) {
-    grid-template-columns: 1fr;
-    gap: 14px;
+.photo-sheet .photo-detail-image img {
+  max-height: min(64vh, 720px);
+
+  @include mq-down($bp-sm) {
+    max-height: min(56vh, 420px);
   }
 }
 
@@ -794,20 +785,10 @@ onBeforeUnmount(() => {
   display: grid;
   gap: 12px;
   align-content: start;
-}
+  max-width: 460px;
 
-.sheet-coords {
-  padding: 12px 14px;
-  border: 1px solid $line;
-  border-radius: $radius-md;
-  background: $surface-soft;
-
-  .eyebrow {
-    margin: 0 0 4px;
-  }
-
-  .location-coords {
-    margin: 0;
+  &:empty {
+    display: none;
   }
 }
 

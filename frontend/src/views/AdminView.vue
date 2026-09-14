@@ -38,6 +38,9 @@ const newsForm = ref(emptyNewsForm())
 const userEditorId = ref(null)
 const userDetailId = ref(null)
 const userPassword = ref('')
+const showUserPassword = ref(false)
+const userProfileEditId = ref(null)
+const userProfileForm = ref({ first_name: '', last_name: '', email: '' })
 const feedbackDetailId = ref(null)
 
 const pendingCount = computed(() => stats.value?.photos_pending ?? 0)
@@ -426,6 +429,45 @@ async function changeUserRole(user, event) {
 function toggleUserEditor(user) {
   userEditorId.value = userEditorId.value === user.id ? null : user.id
   userPassword.value = ''
+  showUserPassword.value = false
+  userProfileEditId.value = null
+}
+
+function toggleUserProfileEditor(user) {
+  if (userProfileEditId.value === user.id) {
+    userProfileEditId.value = null
+    return
+  }
+  userEditorId.value = null
+  userProfileEditId.value = user.id
+  userProfileForm.value = {
+    first_name: user.first_name || '',
+    last_name: user.last_name || '',
+    email: user.email || '',
+  }
+}
+
+async function saveUserProfile(user) {
+  const body = {
+    first_name: userProfileForm.value.first_name.trim(),
+    last_name: userProfileForm.value.last_name.trim(),
+  }
+  const email = userProfileForm.value.email.trim()
+  if (email) body.email = email
+
+  busyId.value = user.id
+  actionError.value = ''
+  try {
+    const updated = await api(`/admin/users/${user.id}`, { method: 'PUT', body })
+    user.first_name = updated?.first_name ?? body.first_name
+    user.last_name = updated?.last_name ?? body.last_name
+    user.email = updated?.email ?? user.email
+    userProfileEditId.value = null
+  } catch (event) {
+    actionError.value = event.message
+  } finally {
+    busyId.value = null
+  }
 }
 
 function toggleUserDetail(user) {
@@ -541,6 +583,9 @@ function onPhotoSaved(updated) {
   const index = rows.value.findIndex((item) => item.id === updated.id)
   if (index >= 0) rows.value[index] = updated
   photoEditorId.value = null
+  if (updated?.facebook_publish_error) {
+    actionError.value = `${t('facebookPublishFailed')}: ${updated.facebook_publish_error}`
+  }
   loadDashboard()
 }
 
@@ -748,7 +793,7 @@ watch([hasMore, loading], async () => {
             >
               <td class="admin__thumb">
                 <a href="#" @click.prevent="openPhoto(row)">
-                  <img :src="imageUrl(row.images?.thumb)" :alt="row.title" loading="lazy" width="64" height="48" />
+                  <img :src="imageUrl(row.images?.thumb)" :alt="row.title" loading="lazy" width="112" height="84" />
                 </a>
               </td>
               <td>
@@ -801,9 +846,49 @@ watch([hasMore, loading], async () => {
                   <p><strong>{{ t('unique') }}:</strong> {{ row.unique }}</p>
                 </div>
                 <div v-if="userEditorId === row.id" class="admin__inline">
-                  <input v-model="userPassword" type="password" class="admin__input" :placeholder="t('adminNewPassword')" />
+                  <span class="admin__password">
+                    <input
+                      v-model="userPassword"
+                      :type="showUserPassword ? 'text' : 'password'"
+                      class="admin__input"
+                      autocomplete="new-password"
+                      :placeholder="t('adminNewPassword')"
+                    />
+                    <button
+                      type="button"
+                      class="admin__password-toggle"
+                      :aria-label="showUserPassword ? t('hidePassword') : t('showPassword')"
+                      @click="showUserPassword = !showUserPassword"
+                    >
+                      <svg v-if="showUserPassword" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M3 3l18 18M10.5 10.7A3 3 0 0 0 12 15a3 3 0 0 0 2.8-2.1M6.7 6.8C4.6 8.1 3 10 3 10s3 7 9 7c1.5 0 2.9-.4 4.1-1M14 5.2C15.3 4.8 16.6 4.6 18 4.6c6 0 9 7 9 7s-1.2 2.1-3.4 3.6" stroke-linecap="round" />
+                      </svg>
+                      <svg v-else viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                        <path fill="none" stroke="currentColor" stroke-width="2" d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+                        <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2" />
+                      </svg>
+                    </button>
+                  </span>
                   <button type="button" class="admin__btn" :disabled="busyId === row.id" @click="saveUserPassword(row)">{{ t('save') }}</button>
                 </div>
+                <form v-if="userProfileEditId === row.id" class="admin__user-form" @submit.prevent="saveUserProfile(row)">
+                  <label>
+                    <span>{{ t('firstName') }}</span>
+                    <input v-model="userProfileForm.first_name" class="admin__input" required />
+                  </label>
+                  <label>
+                    <span>{{ t('lastName') }}</span>
+                    <input v-model="userProfileForm.last_name" class="admin__input" />
+                  </label>
+                  <label>
+                    <span>{{ t('email') }}</span>
+                    <input v-model="userProfileForm.email" type="email" class="admin__input" />
+                  </label>
+                  <div class="admin__act-group">
+                    <button type="submit" class="admin__btn" :disabled="busyId === row.id">{{ t('save') }}</button>
+                    <button type="button" class="admin__act" @click="userProfileEditId = null">{{ t('cancel') }}</button>
+                  </div>
+                </form>
               </td>
               <td>
                 <select
@@ -819,7 +904,7 @@ watch([hasMore, loading], async () => {
               </td>
               <td>
                 <div class="admin__act-group">
-                  <button type="button" class="admin__act" @click="toggleUserDetail(row)">{{ t('adminEdit') }}</button>
+                  <button type="button" class="admin__act" @click="toggleUserProfileEditor(row)">{{ t('adminEdit') }}</button>
                   <button type="button" class="admin__act" @click="toggleUserEditor(row)">{{ t('changePassword') }}</button>
                   <button type="button" class="admin__act admin__act--danger" :disabled="busyId === row.id" @click="deleteUser(row)">
                     {{ t('adminDelete') }}
@@ -1190,6 +1275,9 @@ watch([hasMore, loading], async () => {
 
 .admin__thumb img {
   display: block;
+  width: 112px;
+  height: 84px;
+  border-radius: 4px;
   object-fit: cover;
   background: $surface-soft;
 }
@@ -1238,12 +1326,12 @@ watch([hasMore, loading], async () => {
 .admin__act {
   display: inline-flex;
   align-items: center;
-  padding: 5px 11px;
+  padding: 3px 8px;
   border: 1px solid $line;
   background: $surface;
   color: $ink;
   font: inherit;
-  font-size: 0.8571rem;
+  font-size: 0.7857rem;
   font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
@@ -1409,6 +1497,57 @@ a.admin__link {
   width: 100%;
   font-family: ui-monospace, monospace;
   resize: vertical;
+}
+
+.admin__password {
+  position: relative;
+  display: inline-flex;
+
+  .admin__input {
+    padding-right: 38px;
+  }
+}
+
+.admin__password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $muted;
+  cursor: pointer;
+  transform: translateY(-50%);
+
+  &:hover {
+    color: $ink;
+  }
+}
+
+.admin__user-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid $line;
+  background: $surface-soft;
+
+  label {
+    display: grid;
+    gap: 4px;
+    color: $muted;
+    font-size: 0.8571rem;
+  }
+
+  .admin__act-group {
+    grid-column: 1 / -1;
+  }
 }
 
 .admin__inline {

@@ -726,6 +726,9 @@ watch(isAuthenticated, () => {
 
 .photo-detail-frame {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .photo-detail-image {
@@ -754,16 +757,15 @@ watch(isAuthenticated, () => {
   @include focus-ring(rgba($primary, 0.45), 3px);
 }
 
+// Above the photo, not over it.
 .photo-detail-actions {
-  position: absolute;
-  top: 14px;
-  right: 14px;
+  order: -1;
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
 
   @include mq-down($bp-sm) {
-    top: 10px;
-    right: 10px;
     gap: 6px;
   }
 }

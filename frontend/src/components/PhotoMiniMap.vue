@@ -16,6 +16,8 @@ import {
 import { createClusterIconFactory, getActiveDirectionIcon, getDirectionIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import { setupLeaflet } from '../utils/leafletSetup'
 import { directionLabel, formatDateTime } from '../utils/locale'
+import { useMiniMapType } from '../composables/useMiniMapType'
+import MapTypeToggle from './MapTypeToggle.vue'
 
 const props = defineProps({
   photoId: { type: [Number, String], required: true },
@@ -27,6 +29,7 @@ const props = defineProps({
 const router = useRouter()
 const { t, currentLanguage } = useI18n()
 const { theme } = useTheme()
+const mapType = useMiniMapType()
 const mapElement = ref(null)
 const markers = ref([])
 const mapLoading = ref(true)
@@ -192,7 +195,7 @@ function initMap() {
   setupLeaflet()
   initMapMarkerIcons()
 
-  const layer = getMapTileLayer('google', theme.value, currentLanguage.value)
+  const layer = getMapTileLayer('google', theme.value, currentLanguage.value, mapType.value)
 
   map = L.map(mapElement.value, {
     center: position,
@@ -290,9 +293,9 @@ watch(() => props.photoId, () => {
   focusPhoto()
 })
 
-watch([theme, currentLanguage], () => {
+watch([theme, currentLanguage, mapType], () => {
   if (!map) return
-  tileLayer = applyMapTileLayer(map, tileLayer, 'google', theme.value, currentLanguage.value)
+  tileLayer = applyMapTileLayer(map, tileLayer, 'google', theme.value, currentLanguage.value, mapType.value)
   requestAnimationFrame(() => {
     map?.invalidateSize()
     tileLayer?.redraw()
@@ -311,6 +314,7 @@ watch([theme, currentLanguage], () => {
       ref="mapElement"
       class="photo-mini-map"
     />
+    <MapTypeToggle v-model="mapType" />
   </div>
 </template>
 
