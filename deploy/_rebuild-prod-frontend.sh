@@ -8,6 +8,8 @@ YANDEX_MAPS_KEY=$(grep -m1 '^YANDEX_MAPS_KEY=' ../backend/.env | cut -d= -f2- | 
 GOOGLE_MAPS_KEY=$(grep -m1 '^GOOGLE_MAPS_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
 FACEBOOK_APP_ID=$(grep -m1 '^FACEBOOK_PLUGIN_APP_ID=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
 {
+  # Relative base: works on any host (IP, domain, dev stand).
+  printf 'VITE_API_URL=%s\n' '/api'
   [ -n "$RECAPTCHA_SITE_KEY" ] && printf 'VITE_RECAPTCHA_SITE_KEY=%s\n' "$RECAPTCHA_SITE_KEY"
   [ -n "$YANDEX_MAPS_KEY" ] && printf 'VITE_YANDEX_MAPS_KEY=%s\n' "$YANDEX_MAPS_KEY"
   [ -n "$GOOGLE_MAPS_KEY" ] && printf 'VITE_GOOGLE_MAPS_KEY=%s\n' "$GOOGLE_MAPS_KEY"
