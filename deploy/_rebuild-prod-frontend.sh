@@ -1,7 +1,13 @@
 #!/bin/bash
 set -euo pipefail
 cd /var/www/hinyerevan/backend
-php artisan config:cache
+# PHP runs in a container on the Dubai VM.
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^hinyerevan-php$'; then
+  docker exec -u www-data -w /var/www/hinyerevan/backend hinyerevan-php php artisan config:cache
+  docker exec -u www-data -w /var/www/hinyerevan/backend hinyerevan-php php artisan route:cache
+else
+  php artisan config:cache
+fi
 cd ../frontend
 RECAPTCHA_SITE_KEY=$(grep -m1 '^RECAPTCHA_SITE_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)
 YANDEX_MAPS_KEY=$(grep -m1 '^YANDEX_MAPS_KEY=' ../backend/.env | cut -d= -f2- | tr -d '\r"' || true)

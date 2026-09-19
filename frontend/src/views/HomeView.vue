@@ -773,9 +773,13 @@ onMounted(async () => {
 
   if (typeof ResizeObserver !== 'undefined') {
     yearBubbleResizeObserver = new ResizeObserver(() => recomputeYearBubbleShift())
-    if (yearBubblesEl.value) yearBubbleResizeObserver.observe(yearBubblesEl.value)
+    // Bubbles too: their width changes with text and late fonts.
+    for (const el of [yearBubblesEl.value, yearBubbleFromEl.value, yearBubbleToEl.value]) {
+      if (el) yearBubbleResizeObserver.observe(el)
+    }
   }
   nextTick(recomputeYearBubbleShift)
+  document.fonts?.ready?.then(() => recomputeYearBubbleShift())
 
   const restore = consumeHomeMapRestore()
 
@@ -1442,6 +1446,12 @@ onBeforeUnmount(() => {
   top: auto;
   right: 16px;
   bottom: 16px;
+
+  // Map tools button sits bottom-right on narrow screens.
+  @include mq-down($bp-md) {
+    right: 66px;
+    bottom: 16px;
+  }
 }
 
 // ---------- Collapsible map tools (type + filters) ---------------
