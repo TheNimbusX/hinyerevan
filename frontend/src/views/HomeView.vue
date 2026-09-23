@@ -7,7 +7,7 @@ import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import Slider from '@vueform/slider'
 import '@vueform/slider/themes/default.css'
-import { api, avatarForUser, cachedApi, imageUrl, localizedApi, safeAvatarUrl } from '../api'
+import { api, avatarForUser, cachedApi, imageUrl, localizedApi, markerImagePath, safeAvatarUrl } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
@@ -342,7 +342,7 @@ function markerPreview(marker) {
     <a class="marker-preview-card" href="/photos/${marker.id}">
       <span class="marker-preview-media">
         <span class="marker-preview-skeleton" aria-hidden="true"></span>
-        <img src="${imageUrl(marker.large_url || marker.thumb_url)}" alt="" loading="lazy" decoding="async"
+        <img src="${imageUrl(markerImagePath(marker, 'medium'))}" alt="" loading="lazy" decoding="async"
           onload="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()"
           onerror="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()">
         ${videoBadge}

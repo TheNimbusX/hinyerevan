@@ -5,7 +5,7 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
-import { cachedApi, imageUrl } from '../api'
+import { cachedApi, imageUrl, markerImagePath } from '../api'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
 import {
@@ -73,7 +73,7 @@ function markerPreview(marker) {
     <a class="marker-preview-card" href="/photos/${marker.id}">
       <span class="marker-preview-media">
         <span class="marker-preview-skeleton" aria-hidden="true"></span>
-        <img src="${imageUrl(marker.thumb_url)}" alt="" loading="lazy" decoding="async"
+        <img src="${imageUrl(markerImagePath(marker, 'thumb'))}" alt="" loading="lazy" decoding="async"
           onload="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()"
           onerror="this.classList.add('is-loaded');var s=this.previousElementSibling;if(s)s.remove()">
         ${videoBadge}

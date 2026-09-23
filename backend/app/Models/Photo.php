@@ -108,6 +108,7 @@ class Photo extends Model
         return [
             'original' => "/api/photos/file/original/{$this->file_id}",
             'large' => "/api/photos/file/large/{$this->file_id}",
+            'medium' => "/api/photos/file/medium/{$this->file_id}",
             'thumb' => "/api/photos/file/thumb/{$this->file_id}",
         ];
     }

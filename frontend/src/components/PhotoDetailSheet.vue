@@ -1,6 +1,6 @@
 <script setup>
 import { computed, inject, onBeforeUnmount, ref, watch } from 'vue'
-import { api, clearApiCacheForPath, fullPhotoPath, getToken, imageUrl, localizedApi, photoDownloadUrl, safeAvatarUrl } from '../api'
+import { api, clearApiCacheForPath, fullPhotoPath, getToken, imageUrl, localizedApi, photoDownloadUrl, previewPhotoPath, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { directionLabel, formatDateTime } from '../utils/locale'
@@ -548,7 +548,7 @@ onBeforeUnmount(() => {
                   class="related-card sheet-related-card"
                   @click="navigate(item.id)"
                 >
-                  <img :src="imageUrl(item.images.large || item.images.thumb)" :alt="item.title" />
+                  <img :src="imageUrl(previewPhotoPath(item.images))" :alt="item.title" loading="lazy" />
                   <span class="related-year">{{ item.year }}</span>
                   <strong>{{ item.title }}</strong>
                 </button>

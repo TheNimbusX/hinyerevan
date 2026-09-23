@@ -281,7 +281,7 @@ export function imageUrl(path) {
   }
 
   let url = `${API_URL.replace(/\/api$/, '')}${path}`
-  if (/\/api\/photos\/file\/(large|original)\//.test(path)) {
+  if (/\/api\/photos\/file\/(large|medium|original)\//.test(path)) {
     url += `${url.includes('?') ? '&' : '?'}wm=${WATERMARK_CACHE_VERSION}`
   }
 
@@ -292,8 +292,14 @@ export function fullPhotoPath(images) {
   return images?.original || images?.large || images?.thumb || ''
 }
 
+// Cards and lists: ~560px copy instead of the 800px one.
 export function previewPhotoPath(images) {
-  return images?.large || images?.thumb || images?.original || ''
+  return images?.medium || images?.large || images?.thumb || images?.original || ''
+}
+
+export function markerImagePath(marker, variant = 'medium') {
+  if (marker?.file_id) return `/api/photos/file/${variant}/${marker.file_id}`
+  return marker?.large_url || marker?.thumb_url || ''
 }
 
 export function photoDownloadUrl(images, title = 'photo') {
@@ -305,12 +311,13 @@ export function photoDownloadUrl(images, title = 'photo') {
   return `${base}${separator}download=1&filename=${filename}`
 }
 
-export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
+// Avatars are small circles; 192px covers retina.
+export function safeAvatarUrl(photo, fallback = '/Logo2026.png', size = 192) {
   if (!photo) return fallback
 
   if (photo.includes('hinyerevan.com/photos/users/')) {
     const id = photo.split('/').pop()
-    return imageUrl(`/api/photos/file/users/${id}?w=512&v=2`)
+    return imageUrl(`/api/photos/file/users/${id}?w=${size}&v=2`)
   }
 
   if (photo.includes('graph.facebook.com') || photo.includes('fbcdn.net')) {
@@ -334,12 +341,12 @@ export function safeAvatarUrl(photo, fallback = '/Logo2026.png') {
     return fallback
   }
 
-  return imageUrl(`/api/photos/file/users/${photo}?w=512&v=2`)
+  return imageUrl(`/api/photos/file/users/${photo}?w=${size}&v=2`)
 }
 
-export function avatarForUser(user, fallback = '/Logo2026.png') {
+export function avatarForUser(user, fallback = '/Logo2026.png', size = 192) {
   const NO_PHOTO = '\u0000no-photo'
-  const own = safeAvatarUrl(user?.photo, NO_PHOTO)
+  const own = safeAvatarUrl(user?.photo, NO_PHOTO, size)
   if (own !== NO_PHOTO) return own
   return socialAvatarUrl(user?.network) || fallback
 }

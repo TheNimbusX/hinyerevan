@@ -28,6 +28,8 @@ class PhotoController extends Controller
 {
     private const MARKERS_CACHE_VERSION_KEY = 'photo_markers_version';
 
+    private const MEDIUM_MAX_SIDE = 560;
+
     public function __construct(
         private TranslationService $translator,
         private FacebookPublishService $facebookPublish,
@@ -115,7 +117,7 @@ class PhotoController extends Controller
         }
 
         $version = (int) Cache::get(self::MARKERS_CACHE_VERSION_KEY, 1);
-        $cacheKey = 'photo_markers:s3:v' . $version . ':' . md5(json_encode([
+        $cacheKey = 'photo_markers:s4:v' . $version . ':' . md5(json_encode([
             'user' => (string) $request->query('user', ''),
             'review' => $request->boolean('review') ? 1 : 0,
             'direction' => (string) $request->query('direction', ''),
@@ -124,8 +126,9 @@ class PhotoController extends Controller
             'year_to' => (string) $request->query('year_to', ''),
         ]));
 
-        return Cache::remember($cacheKey, now()->addMinutes(30), function () use ($request) {
-            return Photo::query()
+        // Pre-encoded JSON: no re-serialising 10k rows, stable ETag.
+        $json = Cache::remember($cacheKey, now()->addMinutes(30), function () use ($request) {
+            $rows = Photo::query()
                 ->published()
                 ->when($request->filled('user'), fn ($query) => $query->where('user', (string) $request->string('user')))
                 ->when($request->filled('year_from'), fn ($query) => $query->where('year', '>=', (int) $request->year_from))
@@ -136,17 +139,19 @@ class PhotoController extends Controller
                 ->select(['id', 'title', 'lat', 'lng', 'direction', 'year', 'file_id', 'datetime', 'video', 'needs_location_review', 'is_winter'])
                 ->get()
                 ->map(function (Photo $photo) {
+                    $datetime = $photo->datetime && $photo->datetime->year > 1970
+                        ? $photo->datetime->copy()->utc()->format('Y-m-d\TH:i:s\Z')
+                        : null;
+
                     $row = [
                         'id' => $photo->id,
                         'title' => LegacyText::decode($photo->title),
-                        'lat' => $photo->lat,
-                        'lng' => $photo->lng,
+                        'lat' => round((float) $photo->lat, 6),
+                        'lng' => round((float) $photo->lng, 6),
                         'year' => $photo->year,
                         'direction' => $photo->direction,
-                        'direction_label' => $photo->direction_label,
-                        'thumb_url' => $photo->image_urls['thumb'],
-                        'large_url' => $photo->image_urls['large'],
-                        'datetime' => optional($photo->datetime)->toISOString(),
+                        'file_id' => $photo->file_id,
+                        'datetime' => $datetime,
                     ];
 
                     if ($photo->video) {
@@ -163,7 +168,24 @@ class PhotoController extends Controller
                     return $row;
                 })
                 ->all();
+
+            return json_encode($rows, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         });
+
+        $etag = '"' . md5($json) . '"';
+        $headers = [
+            'Content-Type' => 'application/json',
+            'Cache-Control' => 'public, no-cache',
+            'ETag' => $etag,
+        ];
+
+        // nginx gzip weakens the ETag to W/"..."
+        $sent = str_replace('W/', '', (string) $request->header('If-None-Match'));
+        if ($sent !== '' && in_array($etag, array_map('trim', explode(',', $sent)), true)) {
+            return response('', 304, $headers);
+        }
+
+        return response($json, 200, $headers);
     }
 
     public static function flushMarkersCache(): void
@@ -472,10 +494,10 @@ class PhotoController extends Controller
 
     public function serve(string $variant, string $fileId, LegacyPhotoStorage $storage)
     {
-        abort_unless(in_array($variant, ['original', 'large', 'thumb', 'users'], true), 404);
+        abort_unless(in_array($variant, ['original', 'large', 'medium', 'thumb', 'users'], true), 404);
 
         $order = match ($variant) {
-            'large' => ['large', 'original', 'thumb'],
+            'large', 'medium' => ['large', 'original', 'thumb'],
             'original' => ['original', 'large', 'thumb'],
             'thumb' => ['thumb', 'large', 'original'],
             default => ['users'],
@@ -487,12 +509,20 @@ class PhotoController extends Controller
                 if ($variant === 'users') {
                     $target = min(768, max(128, (int) request()->integer('w', LegacyPhotoStorage::USER_AVATAR_TARGET)));
                     $display = $storage->userAvatarDisplayPath($path, $target);
+                    $display = $storage->resizedPath($display, $target, 'avatars') ?? $display;
                     $headers = [
                         'Content-Type' => mime_content_type($display) ?: 'image/jpeg',
                         'Cache-Control' => 'public, max-age=604800',
                     ];
 
                     return Response::file($display, $headers);
+                }
+
+                if ($variant === 'medium') {
+                    $source = $storage->watermarkedPath($path) ?? $path;
+                    $medium = $storage->resizedPath($source, self::MEDIUM_MAX_SIDE, 'medium');
+
+                    return $this->fileImageResponse($medium ?? $source, $fileId);
                 }
 
                 if (in_array($variant, ['large', 'original'], true)) {

@@ -118,7 +118,7 @@ const initials = computed(() => {
 })
 
 function avatarFor(u) {
-  return avatarForUser(u, siteLogo)
+  return avatarForUser(u, siteLogo, 384)
 }
 
 function formatDate(value) {

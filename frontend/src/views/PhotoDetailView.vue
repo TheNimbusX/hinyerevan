@@ -597,7 +597,7 @@ watch(isAuthenticated, () => {
         class="related-card"
         :to="`/photos/${item.id}`"
       >
-        <img :src="imageUrl(item.images.large || item.images.thumb)" :alt="item.title" />
+        <img :src="imageUrl(previewPhotoPath(item.images))" :alt="item.title" loading="lazy" />
         <span class="related-year">{{ item.year }}</span>
         <button
           v-if="item.video"
@@ -631,7 +631,7 @@ watch(isAuthenticated, () => {
         class="related-card"
         :to="`/photos/${item.id}`"
       >
-        <img :src="imageUrl(item.images.large || item.images.thumb)" :alt="item.title" />
+        <img :src="imageUrl(previewPhotoPath(item.images))" :alt="item.title" loading="lazy" />
         <span class="related-year">{{ item.year }}</span>
         <button
           v-if="item.video"

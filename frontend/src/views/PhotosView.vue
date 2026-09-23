@@ -1,7 +1,7 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import { imageUrl, localizedApi, api } from '../api'
+import { imageUrl, localizedApi, api, previewPhotoPath } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload } from '../composables/useLanguageReload'
 import { directionLabel } from '../utils/locale'
@@ -451,7 +451,7 @@ onBeforeUnmount(() => {
             <span class="photo-card__media-shimmer" aria-hidden="true"></span>
             <img
               :ref="(el) => bindPhotoImage(el, photo.id)"
-              :src="imageUrl(photo.images.large || photo.images.thumb)"
+              :src="imageUrl(previewPhotoPath(photo.images))"
               :alt="photo.title"
               loading="lazy"
               decoding="async"

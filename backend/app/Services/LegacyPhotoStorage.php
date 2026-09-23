@@ -69,6 +69,62 @@ class LegacyPhotoStorage
         return $this->renderWatermark($sourcePath, $watermark, $info, $cachePath);
     }
 
+    // Downscaled JPEG copy, cached on disk; source returned if already small.
+    public function resizedPath(string $sourcePath, int $maxSide, string $tag): ?string
+    {
+        if (! is_file($sourcePath)) {
+            return null;
+        }
+
+        $info = @getimagesize($sourcePath);
+        if ($info === false) {
+            return null;
+        }
+
+        [$width, $height] = $info;
+        if (max($width, $height) <= $maxSide) {
+            return $sourcePath;
+        }
+
+        $dir = storage_path('app/resized/' . $tag);
+        File::ensureDirectoryExists($dir);
+        $cachePath = $dir . DIRECTORY_SEPARATOR
+            . md5($sourcePath . '|' . filemtime($sourcePath) . '|' . $maxSide) . '.jpg';
+
+        if (is_file($cachePath) && filesize($cachePath) > 0) {
+            return $cachePath;
+        }
+
+        $image = $this->loadRasterImage($sourcePath, (int) $info[2]);
+        if ($image === null) {
+            return null;
+        }
+
+        $scale = $maxSide / max($width, $height);
+        $newWidth = max(1, (int) round($width * $scale));
+        $newHeight = max(1, (int) round($height * $scale));
+
+        $canvas = imagecreatetruecolor($newWidth, $newHeight);
+        imagefill($canvas, 0, 0, imagecolorallocate($canvas, 255, 255, 255));
+        imagecopyresampled($canvas, $image, 0, 0, 0, 0, $newWidth, $newHeight, $width, $height);
+        imageinterlace($canvas, true);
+
+        $tmp = $cachePath . '.tmp';
+        $ok = imagejpeg($canvas, $tmp, 80);
+        imagedestroy($canvas);
+        imagedestroy($image);
+
+        if (! $ok) {
+            @unlink($tmp);
+
+            return null;
+        }
+
+        @rename($tmp, $cachePath);
+
+        return is_file($cachePath) ? $cachePath : null;
+    }
+
     public function burnUploadWatermark(string $path): void
     {
         if (! is_file($path)) {

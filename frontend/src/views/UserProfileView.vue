@@ -1,7 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { localizedApi, imageUrl, safeAvatarUrl } from '../api'
+import { localizedApi, imageUrl, previewPhotoPath, safeAvatarUrl } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { setPageMeta } from '../utils/seo'
@@ -22,7 +22,7 @@ const stats = computed(() => ({
 }))
 
 function avatar() {
-  return safeAvatarUrl(user.value?.photo)
+  return safeAvatarUrl(user.value?.photo, undefined, 384)
 }
 
 function photosPath(page = 1) {
@@ -135,7 +135,7 @@ watch(() => route.params.unique, () => load())
           class="user-photo-tile"
           :to="`/photos/${photo.id}`"
         >
-          <img :src="imageUrl(photo.images.large || photo.images.thumb)" :alt="photo.title" loading="lazy" />
+          <img :src="imageUrl(previewPhotoPath(photo.images))" :alt="photo.title" loading="lazy" />
           <span class="user-photo-year">{{ photo.year }}</span>
           <span class="user-photo-overlay">
             <strong>{{ photo.title }}</strong>
