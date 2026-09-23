@@ -65,7 +65,7 @@ Route::get('/photos/markers', [PhotoController::class, 'markers']);
 Route::get('/photos', [PhotoController::class, 'index']);
 Route::get('/photos/{photo}', [PhotoController::class, 'show'])->whereNumber('photo');
 Route::get('/photos/file/{variant}/{fileId}', [PhotoController::class, 'serve'])
-    ->whereIn('variant', ['original', 'large', 'thumb', 'users'])
+    ->whereIn('variant', ['original', 'large', 'medium', 'thumb', 'users'])
     ->name('legacy.photos.large');
 Route::get('/news', [ContentController::class, 'newsIndex']);
 Route::get('/news/{news}', [ContentController::class, 'newsShow'])->whereNumber('news');
