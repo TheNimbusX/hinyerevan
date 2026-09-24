@@ -1528,6 +1528,7 @@ onBeforeUnmount(() => {
     right: 16px;
     bottom: 10px;
     z-index: 960;
+    grid-template-columns: minmax(0, 1fr);
     width: auto;
     margin: 0;
     padding: 12px 22px;
