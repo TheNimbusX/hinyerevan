@@ -41,12 +41,12 @@ export function clusterMarkerMetrics(count) {
   const label = String(Math.max(0, Number(count) || 0))
   const len = label.length
 
-  if (len <= 1) return { label, size: 34, fontSize: 16 }
-  if (len === 2) return { label, size: 40, fontSize: 17 }
-  if (len === 3) return { label, size: 50, fontSize: 18 }
-  if (len === 4) return { label, size: 58, fontSize: 18 }
+  if (len <= 1) return { label, size: 32, fontSize: 14 }
+  if (len === 2) return { label, size: 38, fontSize: 15 }
+  if (len === 3) return { label, size: 48, fontSize: 16 }
+  if (len === 4) return { label, size: 56, fontSize: 16 }
 
-  return { label, size: 66, fontSize: 18 }
+  return { label, size: 64, fontSize: 16 }
 }
 
 const CLUSTER_STYLE =

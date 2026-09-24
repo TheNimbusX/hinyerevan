@@ -12,7 +12,7 @@ import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
-import { getMapTileLayer, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
+import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
 import { createClusterIconFactory, getActiveDirectionIcon, getActiveVideoIcon, getDirectionIcon, getLastDirectionIcon, getLastVideoIcon, getVideoIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import MapTypeToggle from '../components/MapTypeToggle.vue'
 import { scrollUpIfScrolled } from '../utils/scrollTop'
@@ -310,16 +310,13 @@ function yearFormat(value) {
   return Math.round(Number(value) || 0)
 }
 
-// Smaller radius = clusters split into arrows sooner when zooming in.
 function clusterRadiusForZoom(zoom) {
-  if (zoom >= 16) return 18
-  if (zoom >= 15) return 26
-  if (zoom >= 14) return 34
-  if (zoom >= 13) return 44
-  return 60
+  if (zoom >= 19) return 26
+  if (zoom >= 17) return 42
+  if (zoom >= 15) return 52
+  if (zoom >= 13) return 60
+  return 72
 }
-
-const CLUSTER_OFF_ZOOM = 17
 
 function escapeHtml(value = '') {
   return String(value)
@@ -677,7 +674,7 @@ function initMap() {
     chunkDelay: 40,
     removeOutsideVisibleBounds: true,
     maxClusterRadius: clusterRadiusForZoom,
-    disableClusteringAtZoom: CLUSTER_OFF_ZOOM,
+    disableClusteringAtZoom: MAP_CLUSTER_MAX_ZOOM,
     iconCreateFunction: createClusterIconFactory(),
   }).addTo(map)
   setTileLayer()

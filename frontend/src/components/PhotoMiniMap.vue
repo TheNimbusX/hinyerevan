@@ -44,11 +44,11 @@ const MINI_MAP_DEFAULT_ZOOM = 15
 const MINI_MAP_MAX_ZOOM = 19
 
 function clusterRadiusForZoom(zoom) {
-  if (zoom >= 16) return 18
-  if (zoom >= 15) return 26
-  if (zoom >= 14) return 34
-  if (zoom >= 13) return 44
-  return 60
+  if (zoom >= 19) return 26
+  if (zoom >= 17) return 42
+  if (zoom >= 15) return 52
+  if (zoom >= 13) return 60
+  return 72
 }
 
 function escapeHtml(value = '') {
