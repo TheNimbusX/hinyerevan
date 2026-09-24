@@ -95,8 +95,8 @@
   @include focus-ring(rgba($primary, 0.42), 2px);
 }
 
-// Fullscreen map mode.
-.upload-map-shell--expanded {
+// Fullscreen map mode. Doubled class: page styles also set .upload-map-shell later.
+.upload-map-shell.upload-map-shell--expanded {
   position: fixed;
   inset: 16px;
   z-index: 3000;
