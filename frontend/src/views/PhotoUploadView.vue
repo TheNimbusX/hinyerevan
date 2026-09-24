@@ -30,6 +30,7 @@ const previewUrl = ref('')
 const mediaTab = ref('photo')
 const publishToFacebook = ref(false)
 const facebookConfigured = ref(true)
+const fileMissing = ref(false)
 const uploadMapElement = ref(null)
 let uploadMap
 let uploadMapTileLayer
@@ -62,6 +63,7 @@ function selectFile(event) {
   const file = event.target.files[0]
   error.value = ''
   success.value = false
+  fileMissing.value = false
 
   if (!file) {
     form.value.file = null
@@ -193,7 +195,8 @@ async function submit() {
     }
   } else {
     if (!form.value.file) {
-      error.value = t('chooseFile')
+      fileMissing.value = true
+      error.value = t('uploadChooseFileError')
       return
     }
     if (form.value.file.size > MAX_UPLOAD_BYTES) {
@@ -242,6 +245,7 @@ async function submit() {
     }
     successMessage.value = msg
     resetForm()
+    window.dispatchEvent(new CustomEvent('hinyerevan:photos-changed'))
   } catch (event) {
     error.value = friendlyUploadError(event)
   } finally {
@@ -371,8 +375,9 @@ onBeforeUnmount(() => {
           </div>
 
           <template v-if="mediaTab === 'photo'">
-            <label class="file-picker">
-              <input type="file" accept="image/*" required @change="selectFile" />
+            <!-- No `required`: the hidden input can't show the browser bubble and blocks submit silently. -->
+            <label class="file-picker" :class="{ 'file-picker--error': fileMissing }">
+              <input type="file" accept="image/*" @change="selectFile" />
               <span>{{ form.file?.name || t('chooseFile') }}</span>
             </label>
             <div v-if="previewUrl" class="upload-preview-wrap">
@@ -436,6 +441,12 @@ onBeforeUnmount(() => {
   background: rgba($accent, 0.12);
   font-weight: 600;
   line-height: 1.5;
+}
+
+.file-picker--error {
+  outline: 2px solid #d63b2f;
+  outline-offset: 2px;
+  border-radius: $radius-md;
 }
 
 .facebook-publish-hint {

@@ -12,11 +12,11 @@ import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
-import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
+import { getMapTileLayer, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
 import { createClusterIconFactory, getActiveDirectionIcon, getActiveVideoIcon, getDirectionIcon, getLastDirectionIcon, getLastVideoIcon, getVideoIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import MapTypeToggle from '../components/MapTypeToggle.vue'
 import { scrollUpIfScrolled } from '../utils/scrollTop'
-import { directionLabel, formatDateTime } from '../utils/locale'
+import { directionLabel } from '../utils/locale'
 import { playVideo } from '../utils/video'
 import googleLogo from '../assets/logos/google-logo.svg'
 import yandexLogo from '../assets/logos/yandex-logo.svg'
@@ -310,13 +310,16 @@ function yearFormat(value) {
   return Math.round(Number(value) || 0)
 }
 
+// Smaller radius = clusters split into arrows sooner when zooming in.
 function clusterRadiusForZoom(zoom) {
-  if (zoom >= 19) return 26
-  if (zoom >= 17) return 42
-  if (zoom >= 15) return 52
-  if (zoom >= 13) return 60
-  return 72
+  if (zoom >= 16) return 18
+  if (zoom >= 15) return 26
+  if (zoom >= 14) return 34
+  if (zoom >= 13) return 44
+  return 60
 }
+
+const CLUSTER_OFF_ZOOM = 17
 
 function escapeHtml(value = '') {
   return String(value)
@@ -329,15 +332,11 @@ function escapeHtml(value = '') {
 
 function markerPreview(marker) {
   const dir = directionLabel(marker.direction, t)
-  const added = formatDateTime(marker.datetime, currentLanguage.value)
   const videoBadge = marker.has_video && marker.video
     ? `<button type="button" class="marker-preview-video" data-play-video="${escapeHtml(marker.video)}" data-play-title="${escapeHtml(marker.title || '')}" aria-label="${escapeHtml(t('watchVideo'))}">
         <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
       </button>`
     : (marker.has_video ? `<span class="marker-preview-video" aria-hidden="true">▶</span>` : '')
-  const dateLine = added
-    ? `<time class="marker-preview-date">${escapeHtml(added)}</time>`
-    : ''
   return `
     <a class="marker-preview-card" href="/photos/${marker.id}">
       <span class="marker-preview-media">
@@ -350,7 +349,6 @@ function markerPreview(marker) {
       <span class="marker-preview-year">${marker.year}</span>
       <strong>${escapeHtml(marker.title)}</strong>
       <small>${escapeHtml(dir)}</small>
-      ${dateLine}
     </a>
   `
 }
@@ -591,6 +589,12 @@ function layersInYearRange(from, to) {
     }
   }
 
+  // The selected photo's arrow survives any slider position.
+  for (const id of [activePhotoId.value, lastPhotoId.value]) {
+    const pinned = id != null ? markerRegistry.get(Number(id)) : null
+    if (pinned && !layers.includes(pinned.layer)) layers.push(pinned.layer)
+  }
+
   return layers
 }
 
@@ -673,7 +677,7 @@ function initMap() {
     chunkDelay: 40,
     removeOutsideVisibleBounds: true,
     maxClusterRadius: clusterRadiusForZoom,
-    disableClusteringAtZoom: MAP_CLUSTER_MAX_ZOOM,
+    disableClusteringAtZoom: CLUSTER_OFF_ZOOM,
     iconCreateFunction: createClusterIconFactory(),
   }).addTo(map)
   setTileLayer()
@@ -890,6 +894,12 @@ watch(yearBounds, () => {
   applyMarkerYearBounds(false)
 })
 
+watch(activePhotoId, (id) => {
+  document.documentElement.classList.toggle('home-sheet-open', id != null)
+})
+
+watch([activePhotoId, lastPhotoId], scheduleMarkerSync)
+
 watch(activePhotoId, (newId, oldId) => {
   if (newId == null) {
     // Sheet closed: keep the marker highlighted.
@@ -906,6 +916,7 @@ watch(activePhotoId, (newId, oldId) => {
 
 onBeforeUnmount(() => {
   window.removeEventListener('hinyerevan:reset-home-map', resetHomeState)
+  document.documentElement.classList.remove('home-sheet-open')
   yearBubbleResizeObserver?.disconnect()
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
@@ -1028,6 +1039,21 @@ onBeforeUnmount(() => {
             </div>
           </div>
         </transition>
+      </div>
+      <div v-if="mapFiltersActive" class="map-active-filters" role="status">
+        <span class="map-active-filters__label">{{ t('mapFiltersActive') }}:</span>
+        <button v-if="directionFilter !== ''" type="button" @click="clearDirectionFilter">
+          {{ directionFilterLabel }} <span aria-hidden="true">×</span>
+        </button>
+        <button v-if="winterFilter" type="button" @click="toggleWinterFilter">
+          {{ t('filterWinterPhotos') }} <span aria-hidden="true">×</span>
+        </button>
+        <button v-if="videoFilter" type="button" @click="toggleVideoFilter">
+          {{ t('filterVideo') }} <span aria-hidden="true">×</span>
+        </button>
+        <button v-if="reviewFilter" type="button" @click="toggleReviewFilter">
+          {{ t('reviewFilter') }} <span aria-hidden="true">×</span>
+        </button>
       </div>
       <div v-if="userFilter" class="map-left-controls">
         <div class="map-user-filter">
@@ -1440,6 +1466,97 @@ onBeforeUnmount(() => {
 .leaflet-map {
   width: 100%;
   height: 100%;
+}
+
+.map-active-filters {
+  position: absolute;
+  top: calc(var(--header-h) + 14px);
+  left: 50%;
+  z-index: 600;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  max-width: min(560px, calc(100% - 24px));
+  padding: 6px 8px 6px 14px;
+  border: 2px solid $accent;
+  border-radius: $radius-pill;
+  background: #fff;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.18);
+  transform: translateX(-50%);
+
+  &__label {
+    color: $accent-dark;
+    font-size: 0.8571rem;
+    font-weight: 700;
+  }
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 0;
+    border-radius: $radius-pill;
+    color: #fff;
+    background: $accent;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8571rem;
+    font-weight: 600;
+
+    &:hover {
+      background: $accent-dark;
+    }
+  }
+
+  @include mq-down($bp-md) {
+    top: calc(var(--header-h) + 10px);
+  }
+}
+
+[data-theme='dark'] .map-active-filters {
+  background: #161b25;
+}
+
+// Photo sheet open: slider floats above it and stays usable.
+.home-sheet-open {
+  .year-filter {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 10px;
+    z-index: 960;
+    width: auto;
+    margin: 0;
+    padding: 12px 22px;
+    box-shadow: 0 10px 30px rgba(8, 18, 45, 0.3);
+
+    @include mq-down($bp-md) {
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      padding: 12px 18px;
+      border-radius: $radius-pill;
+    }
+  }
+
+  .year-filter-label {
+    display: none;
+  }
+
+  .photo-sheet {
+    bottom: 76px;
+    height: min(80vh, 840px);
+    border-bottom: 1px solid $line;
+    border-radius: $radius-xl;
+
+    @include mq-down($bp-md) {
+      bottom: 68px;
+      height: 78vh;
+    }
+  }
 }
 
 .map-type-toggle--home {

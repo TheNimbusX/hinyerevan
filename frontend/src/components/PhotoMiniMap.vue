@@ -15,7 +15,7 @@ import {
 } from '../utils/mapTiles'
 import { createClusterIconFactory, getActiveDirectionIcon, getDirectionIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import { setupLeaflet } from '../utils/leafletSetup'
-import { directionLabel, formatDateTime } from '../utils/locale'
+import { directionLabel } from '../utils/locale'
 import { useMiniMapType } from '../composables/useMiniMapType'
 import MapTypeToggle from './MapTypeToggle.vue'
 
@@ -44,11 +44,11 @@ const MINI_MAP_DEFAULT_ZOOM = 15
 const MINI_MAP_MAX_ZOOM = 19
 
 function clusterRadiusForZoom(zoom) {
-  if (zoom >= 19) return 26
-  if (zoom >= 17) return 42
-  if (zoom >= 15) return 52
-  if (zoom >= 13) return 60
-  return 72
+  if (zoom >= 16) return 18
+  if (zoom >= 15) return 26
+  if (zoom >= 14) return 34
+  if (zoom >= 13) return 44
+  return 60
 }
 
 function escapeHtml(value = '') {
@@ -62,12 +62,8 @@ function escapeHtml(value = '') {
 
 function markerPreview(marker) {
   const dir = directionLabel(marker.direction, t)
-  const added = formatDateTime(marker.datetime, currentLanguage.value)
   const videoBadge = marker.has_video
     ? '<span class="marker-preview-video" aria-hidden="true"><svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d="M8 5v14l11-7z"/></svg></span>'
-    : ''
-  const dateLine = added
-    ? `<time class="marker-preview-date">${escapeHtml(added)}</time>`
     : ''
   return `
     <a class="marker-preview-card" href="/photos/${marker.id}">
@@ -81,7 +77,6 @@ function markerPreview(marker) {
       <span class="marker-preview-year">${marker.year}</span>
       <strong>${escapeHtml(marker.title)}</strong>
       <small>${escapeHtml(dir)}</small>
-      ${dateLine}
     </a>
   `
 }

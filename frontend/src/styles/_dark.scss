@@ -36,7 +36,12 @@
   }
 
   .main-nav a {
-    color: #98a0ae;
+    color: #c3c9d4;
+
+    &.main-nav-link--photos,
+    &.main-nav-link--videos {
+      color: #f4f7ff;
+    }
 
     &:hover {
       color: #f4f7ff;

@@ -1,10 +1,10 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { onBeforeRouteLeave } from 'vue-router'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import { imageUrl, localizedApi, api, previewPhotoPath } from '../api'
 import { useI18n } from '../i18n'
 import { useLanguageReload } from '../composables/useLanguageReload'
-import { directionLabel } from '../utils/locale'
+import { directionLabel, formatDate } from '../utils/locale'
 import { playVideo } from '../utils/video'
 import { photoDisplayLikes } from '../utils/photoStats'
 import { saveGalleryRestore, consumeGalleryRestore } from '../utils/navigationRestore'
@@ -13,6 +13,7 @@ import DirectionCompassPicker from '../components/DirectionCompassPicker.vue'
 import LikeIcon from '../components/LikeIcon.vue'
 import WinterBadgeIcon from '../components/WinterBadgeIcon.vue'
 
+const route = useRoute()
 const photoPages = ref([])
 const meta = ref(null)
 const filters = ref({
@@ -81,6 +82,29 @@ const activeFilterCount = computed(() => {
   if (filters.value.winter) count += 1
   return count
 })
+
+function addedLabel(photo) {
+  // Legacy rows carry a zero date.
+  const date = photo?.datetime ? new Date(photo.datetime) : null
+  if (!date || Number.isNaN(date.getTime()) || date.getFullYear() < 1971) return ''
+  return formatDate(date, currentLanguage.value)
+}
+
+function mediaFromRoute() {
+  const media = String(route.query.media || '')
+  return ['photo', 'video'].includes(media) ? media : ''
+}
+
+// Header "N videos" link lands here with ?media=video.
+watch(
+  () => route.query.media,
+  () => {
+    const media = mediaFromRoute()
+    if (filters.value.media === media) return
+    filters.value.media = media
+    applyFilters()
+  },
+)
 
 function resetImageReady() {
   imageReady.value = {}
@@ -275,6 +299,7 @@ onMounted(async () => {
 
   const restored = await restoreGalleryState(consumeGalleryRestore())
   if (!restored) {
+    filters.value.media = mediaFromRoute()
     load()
   }
 
@@ -435,6 +460,7 @@ onBeforeUnmount(() => {
     </div>
   </section>
 
+  <div class="gallery-backdrop" aria-hidden="true"></div>
   <div class="photo-gallery">
     <section v-if="initialLoading" class="photo-grid">
       <article v-for="item in skeletonItems" :key="`skeleton-${item}`" class="photo-card photo-skeleton" aria-hidden="true">
@@ -472,6 +498,7 @@ onBeforeUnmount(() => {
           </div>
           <h3>{{ photo.title }}</h3>
           <small>{{ directionLabel(photo.direction, t) }}</small>
+          <small v-if="addedLabel(photo)" class="photo-card-date">{{ t('addedOn') }}: {{ addedLabel(photo) }}</small>
           <div class="photo-card-meta">
             <span class="like-pill">
               <LikeIcon />{{ photoDisplayLikes(photo) }}
@@ -506,6 +533,20 @@ onBeforeUnmount(() => {
 .photo-gallery {
   display: flex;
   flex-direction: column;
+}
+
+// Faint 1922 panorama behind the gallery.
+.gallery-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: url('/bg-old-yerevan.jpg') center bottom / cover no-repeat;
+  opacity: 0.09;
+  pointer-events: none;
+}
+
+[data-theme='dark'] .gallery-backdrop {
+  opacity: 0.06;
 }
 
 .gallery-toolbar {
@@ -841,11 +882,11 @@ onBeforeUnmount(() => {
 
 .photo-card {
   position: relative;
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   width: 100%;
-  margin: 0 0 14px;
-  break-inside: avoid;
+  min-width: 0;
+  margin: 0;
   padding: 8px;
   border-radius: $radius-lg;
   background: $surface;
@@ -861,6 +902,7 @@ onBeforeUnmount(() => {
   &__media {
     position: relative;
     flex: 0 0 auto;
+    aspect-ratio: 4 / 3;
     overflow: hidden;
     border-radius: $radius-md - 1;
     background: $surface-soft;
@@ -869,20 +911,12 @@ onBeforeUnmount(() => {
     img {
       display: block;
       width: 100%;
-      height: auto;
+      height: 100%;
+      object-fit: cover;
     }
 
-    &.is-loading {
-      aspect-ratio: 4 / 3;
-      min-height: 140px;
-
-      img {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        opacity: 0;
-      }
+    &.is-loading img {
+      opacity: 0;
     }
 
     &.is-loading .photo-card__media-shimmer {
@@ -981,12 +1015,17 @@ onBeforeUnmount(() => {
   box-shadow: 0 3px 10px rgba(20, 24, 34, 0.14);
 }
 
+.photo-card-date {
+  margin-top: 2px;
+}
+
 .photo-card-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: auto;
+  padding-top: 8px;
   color: $muted;
   font-size: 0.7857rem;
   font-weight: 500;

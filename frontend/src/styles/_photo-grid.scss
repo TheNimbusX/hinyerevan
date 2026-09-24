@@ -1,8 +1,10 @@
 @use './tokens' as *;
 
+// Row-by-row, left to right, equal rows.
 .photo-grid {
-  column-count: 4;
-  column-gap: 14px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
   margin-top: 0;
   margin-bottom: 14px;
 
@@ -15,17 +17,17 @@
   }
 
   @include mq-down(1100px) {
-    column-count: 3;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   @include mq-down($bp-md) {
-    column-count: 2;
-    column-gap: 10px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
     padding-inline: 0;
   }
 
   @include mq-down(420px) {
-    column-count: 1;
+    grid-template-columns: minmax(0, 1fr);
     padding-inline: 0;
   }
 }

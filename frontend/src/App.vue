@@ -101,20 +101,31 @@ const needsCaptcha = computed(() => {
   return authMode.value === 'register' && registerStep.value === 'form'
 })
 
+const videosPublishedCount = ref(null)
+
+function formatCount(value) {
+  const locale = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' }[currentLanguage.value] || 'en-US'
+  return Number(value).toLocaleString(locale)
+}
+
 const photosNavLabel = computed(() => {
   if (photosPublishedCount.value == null) return t('photos')
-  const locale = { hy: 'hy-AM', ru: 'ru-RU', en: 'en-US' }[currentLanguage.value] || 'en-US'
-  const count = Number(photosPublishedCount.value).toLocaleString(locale)
-  return t('photosMenu', { count })
+  return t('photosMenu', { count: formatCount(photosPublishedCount.value) })
 })
 
+const videosNavLabel = computed(() =>
+  videosPublishedCount.value ? t('videosMenu', { count: formatCount(videosPublishedCount.value) }) : '',
+)
+
 function loadSitePhotoCount() {
-  api('/photos/site-stats', { ttl: 10 * 60 * 1000 })
+  api('/photos/site-stats')
     .then((payload) => {
       const count = Number(payload?.photos_published)
       if (Number.isFinite(count) && count >= 0) {
         photosPublishedCount.value = count
       }
+      const videos = Number(payload?.videos_published)
+      videosPublishedCount.value = Number.isFinite(videos) ? videos : null
     })
     .catch(() => {})
 }
@@ -446,6 +457,14 @@ watch(authMode, () => {
   recaptchaToken.value = ''
 })
 
+// A stale "username taken" must not outlive the edit that fixes it.
+watch(
+  () => [authForm.value.uid, authForm.value.email, authForm.value.login],
+  () => {
+    if (authError.value) authError.value = ''
+  },
+)
+
 watch(menuOpen, (open) => {
   if (open) {
     document.documentElement.classList.add('menu-open')
@@ -516,6 +535,7 @@ onMounted(async () => {
   window.addEventListener('hinyerevan:auth-changed', syncAuthState)
   window.addEventListener('hinyerevan:open-auth', handleOpenAuth)
   window.addEventListener('hinyerevan:open-facebook', handleOpenFacebook)
+  window.addEventListener('hinyerevan:photos-changed', loadSitePhotoCount)
   window.addEventListener('pageshow', resetUiOverlays)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') resetUiOverlays()
@@ -533,6 +553,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('hinyerevan:auth-changed', syncAuthState)
   window.removeEventListener('hinyerevan:open-auth', handleOpenAuth)
   window.removeEventListener('hinyerevan:open-facebook', handleOpenFacebook)
+  window.removeEventListener('hinyerevan:photos-changed', loadSitePhotoCount)
   window.removeEventListener('pageshow', resetUiOverlays)
   clearInterval(resendTimer)
 })
@@ -554,6 +575,14 @@ onBeforeUnmount(() => {
         <div class="header-menu" :class="{ open: menuOpen }">
           <nav class="main-nav" aria-label="Primary navigation">
             <RouterLink class="main-nav-link main-nav-link--photos" to="/photos" @click="closeMenu">{{ photosNavLabel }}</RouterLink>
+            <RouterLink
+              v-if="videosNavLabel"
+              class="main-nav-link main-nav-link--videos"
+              :to="{ path: '/photos', query: { media: 'video' } }"
+              @click="closeMenu"
+            >
+              {{ videosNavLabel }}
+            </RouterLink>
             <RouterLink class="main-nav-link" to="/photos/random" @click="closeMenu">{{ t('randomPhoto') }}</RouterLink>
             <RouterLink class="main-nav-link main-nav-link--secondary" to="/news" @click="closeMenu">{{ t('news') }}</RouterLink>
             <RouterLink class="main-nav-link main-nav-link--secondary" to="/pages/aboutus" @click="closeMenu">{{ t('about') }}</RouterLink>
@@ -1102,8 +1131,8 @@ $home-sidebar-w: 320px;
     position: relative;
     flex-shrink: 0;
     padding: 8px 12px;
-    color: $muted;
-    font-size: 0.7857rem;
+    color: rgba($ink, 0.82);
+    font-size: 0.9286rem;
     font-weight: 500;
     text-decoration: none;
     border-radius: $radius-pill;
@@ -1135,8 +1164,15 @@ $home-sidebar-w: 320px;
   }
 }
 
-.main-nav-link--photos {
-  font-size: 0.9286rem !important;
+.main-nav a.main-nav-link--photos {
+  color: $ink;
+  font-size: 1.0714rem;
+  font-weight: 700;
+}
+
+.main-nav a.main-nav-link--videos {
+  color: $ink;
+  font-weight: 600;
 }
 
 .header-tools {
@@ -1232,7 +1268,7 @@ html.home-map-page,
 
     .main-nav a {
       padding: 8px 7px;
-      font-size: 0.75rem;
+      font-size: 0.8571rem;
     }
   }
 }

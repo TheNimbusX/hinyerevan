@@ -292,6 +292,7 @@ async function approvePhoto(photo, published) {
       const index = rows.value.findIndex((item) => item.id === photo.id)
       if (index >= 0) rows.value[index] = updated
     }
+    notifyPhotosChanged()
     await loadDashboard()
   } catch (event) {
     actionError.value = event.message
@@ -330,6 +331,7 @@ async function deletePhoto(photo) {
     await api(`/admin/photos/${photo.id}`, { method: 'DELETE' })
     clearPhotosApiCache(photo.id)
     removeRow(photo.id)
+    notifyPhotosChanged()
     await loadDashboard()
   } catch (event) {
     actionError.value = event.message
@@ -586,7 +588,13 @@ function onPhotoSaved(updated) {
   if (updated?.facebook_publish_error) {
     actionError.value = `${t('facebookPublishFailed')}: ${updated.facebook_publish_error}`
   }
+  notifyPhotosChanged()
   loadDashboard()
+}
+
+// Header photo/video counters refresh.
+function notifyPhotosChanged() {
+  window.dispatchEvent(new CustomEvent('hinyerevan:photos-changed'))
 }
 
 function openPhoto(photo) {
@@ -792,12 +800,13 @@ watch([hasMore, loading], async () => {
               :class="row.needs_location_review ? 'admin__photo-row--review' : (row.published ? 'admin__photo-row--published' : 'admin__photo-row--pending')"
             >
               <td class="admin__thumb">
-                <a href="#" @click.prevent="openPhoto(row)">
-                  <img :src="imageUrl(row.images?.thumb)" :alt="row.title" loading="lazy" width="160" height="120" />
+                <!-- Real href: right click → open in new tab works. -->
+                <a :href="`/photos/${row.id}`" @click.exact.prevent="openPhoto(row)">
+                  <img :src="imageUrl(row.images?.medium || row.images?.thumb)" :alt="row.title" loading="lazy" width="220" height="165" />
                 </a>
               </td>
               <td>
-                <a href="#" class="admin__link" @click.prevent="openPhoto(row)">{{ row.title }}</a>
+                <a :href="`/photos/${row.id}`" class="admin__link" @click.exact.prevent="openPhoto(row)">{{ row.title }}</a>
                 <div class="admin__muted">
                   {{ row.author?.name || row.user }}
                   <template v-if="row.datetime"> · {{ formatDate(row.datetime, currentLanguage) }}</template>
@@ -1275,15 +1284,25 @@ watch([hasMore, loading], async () => {
 
 // Table auto-layout squeezed this column.
 .admin__table td.admin__thumb {
-  width: 160px;
-  min-width: 160px;
+  width: 220px;
+  min-width: 220px;
+
+  @include mq-down($bp-sm) {
+    width: 140px;
+    min-width: 140px;
+  }
 }
 
 .admin__thumb img {
   display: block;
-  width: 160px;
+  width: 220px;
   max-width: none;
-  height: 120px;
+  height: 165px;
+
+  @include mq-down($bp-sm) {
+    width: 140px;
+    height: 105px;
+  }
   border-radius: 4px;
   object-fit: cover;
   background: $surface-soft;

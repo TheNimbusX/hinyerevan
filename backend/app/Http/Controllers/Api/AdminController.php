@@ -112,7 +112,8 @@ class AdminController extends Controller
 
         $data = $request->validate([
             'title' => ['sometimes', 'required', 'string', 'max:255'],
-            'year' => ['sometimes', 'required', 'integer', 'min:1', 'max:2100'],
+            // Typos like 19663 hide a photo from the map.
+            'year' => ['sometimes', 'required', 'integer', 'min:1500', 'max:' . date('Y')],
             'lat' => ['sometimes', 'required', 'numeric', 'between:-90,90'],
             'lng' => ['sometimes', 'required', 'numeric', 'between:-180,180'],
             'direction' => ['sometimes', 'required', 'integer', 'between:0,8'],

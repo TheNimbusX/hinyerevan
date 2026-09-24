@@ -30,6 +30,8 @@ class PhotoController extends Controller
 
     private const MEDIUM_MAX_SIDE = 560;
 
+    private const SITE_STATS_CACHE_KEY = 'site:photos_published_count:v2';
+
     public function __construct(
         private TranslationService $translator,
         private FacebookPublishService $facebookPublish,
@@ -97,16 +99,20 @@ class PhotoController extends Controller
     public function siteStats()
     {
         if (! LegacySchema::photosReady()) {
-            return ['photos_published' => 0];
+            return ['photos_published' => 0, 'videos_published' => 0];
         }
 
-        return Cache::remember('site:photos_published_count:v1', now()->addMinutes(10), function () {
-            $count = Photo::query()
+        return Cache::remember(self::SITE_STATS_CACHE_KEY, now()->addMinutes(10), function () {
+            $row = Photo::query()
                 ->alive()
                 ->where('published', 1)
-                ->count();
+                ->selectRaw("COUNT(*) AS total, SUM(video IS NOT NULL AND video <> '') AS videos")
+                ->first();
 
-            return ['photos_published' => $count];
+            return [
+                'photos_published' => (int) ($row?->total ?? 0),
+                'videos_published' => (int) ($row?->videos ?? 0),
+            ];
         });
     }
 
@@ -192,6 +198,7 @@ class PhotoController extends Controller
     {
         $current = (int) Cache::get(self::MARKERS_CACHE_VERSION_KEY, 1);
         Cache::forever(self::MARKERS_CACHE_VERSION_KEY, $current + 1);
+        Cache::forget(self::SITE_STATS_CACHE_KEY);
 
         foreach (['ru', 'en', 'hy', null] as $lang) {
             foreach ([8, 10, 12, 20] as $perPage) {
@@ -374,7 +381,7 @@ class PhotoController extends Controller
 
         $data = $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'year' => ['required', 'integer', 'min:1', 'max:2100'],
+            'year' => ['required', 'integer', 'min:1800', 'max:' . date('Y')],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],
             'lng' => ['nullable', 'numeric', 'between:-180,180'],
             'direction' => ['nullable', 'integer', 'between:0,8'],
