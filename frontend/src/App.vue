@@ -1164,10 +1164,24 @@ $home-sidebar-w: 320px;
   }
 }
 
-.main-nav a.main-nav-link--photos {
-  color: $accent-dark;
+// Burgundy pill, same gradient as the map clusters.
+.main-nav a.main-nav-link.main-nav-link--photos {
+  color: #fff;
+  border-color: transparent;
   font-size: 1.0714rem;
   font-weight: 700;
+  background: linear-gradient(145deg, #d6493b, #8a1c14);
+  box-shadow: 0 3px 8px rgba(138, 28, 20, 0.3);
+
+  &:hover,
+  &.router-link-active {
+    color: #fff;
+    background: linear-gradient(145deg, #c43d30, #6f160f);
+  }
+
+  &.router-link-active::after {
+    background: #fff;
+  }
 }
 
 .main-nav a.main-nav-link--videos {
