@@ -5,14 +5,13 @@ import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
-import Slider from '@vueform/slider'
-import '@vueform/slider/themes/default.css'
+import YearRangeSlider from '../components/YearRangeSlider.vue'
 import { api, avatarForUser, cachedApi, imageUrl, localizedApi, markerImagePath, safeAvatarUrl } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
 import { useTheme } from '../composables/useTheme'
-import { getMapTileLayer, MAP_CLUSTER_MAX_ZOOM, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
+import { getMapTileLayer, MAP_MAX_ZOOM, MAP_MIN_ZOOM, MAP_TYPES, normalizeMapType } from '../utils/mapTiles'
 import { createClusterIconFactory, getActiveDirectionIcon, getActiveVideoIcon, getDirectionIcon, getLastDirectionIcon, getLastVideoIcon, getVideoIcon, initMapMarkerIcons } from '../utils/mapMarkerIcons'
 import MapTypeToggle from '../components/MapTypeToggle.vue'
 import { scrollUpIfScrolled } from '../utils/scrollTop'
@@ -150,55 +149,6 @@ const yearBounds = computed(() => resolveYearBounds())
 const minYear = computed(() => yearBounds.value[0])
 const maxYear = computed(() => yearBounds.value[1])
 
-const yearSliderOptions = computed(() => ({
-  margin: 0,
-}))
-
-const yearSliderClass = computed(() => ({
-  'year-slider--single-year': minYear.value >= maxYear.value,
-}))
-
-function yearToPct(year) {
-  const span = maxYear.value - minYear.value
-  if (span <= 0) return 0
-  const p = ((Number(year) - minYear.value) / span) * 100
-  return Math.min(100, Math.max(0, p))
-}
-const fromPct = computed(() => yearToPct(yearRange.value[0]))
-const toPct = computed(() => yearToPct(yearRange.value[1]))
-
-const yearBubblesEl = ref(null)
-const yearBubbleFromEl = ref(null)
-const yearBubbleToEl = ref(null)
-const yearBubbleShift = ref(0)
-let yearBubbleResizeObserver
-
-function recomputeYearBubbleShift() {
-  const track = yearBubblesEl.value
-  const fromEl = yearBubbleFromEl.value
-  const toEl = yearBubbleToEl.value
-  if (!track || !fromEl || !toEl || !track.clientWidth) {
-    yearBubbleShift.value = 0
-    return
-  }
-  const centerGap = ((toPct.value - fromPct.value) / 100) * track.clientWidth
-  const minGap = (fromEl.offsetWidth + toEl.offsetWidth) / 2
-  const overlap = minGap - centerGap
-  yearBubbleShift.value = overlap > 0 ? overlap / 2 : 0
-}
-
-watch([fromPct, toPct], () => nextTick(recomputeYearBubbleShift))
-
-const yearBubbleStyles = computed(() => ({
-  from: {
-    left: `${fromPct.value}%`,
-    transform: `translate(calc(-50% - ${yearBubbleShift.value}px), -50%)`,
-  },
-  to: {
-    left: `${toPct.value}%`,
-    transform: `translate(calc(-50% + ${yearBubbleShift.value}px), -50%)`,
-  },
-}))
 
 const compassDirection = computed(() =>
   directionFilter.value === '' ? 1 : Number(directionFilter.value),
@@ -306,17 +256,17 @@ function toggleVideoFilter() {
   router.push({ path: '/', query })
 }
 
-function yearFormat(value) {
-  return Math.round(Number(value) || 0)
+
+// Moderately earlier split than the old 72/60/52/42 (fonts unchanged).
+function clusterRadiusForZoom(zoom) {
+  if (zoom >= 18) return 24
+  if (zoom >= 16) return 34
+  if (zoom >= 15) return 42
+  if (zoom >= 13) return 52
+  return 64
 }
 
-function clusterRadiusForZoom(zoom) {
-  if (zoom >= 19) return 26
-  if (zoom >= 17) return 42
-  if (zoom >= 15) return 52
-  if (zoom >= 13) return 60
-  return 72
-}
+const CLUSTER_OFF_ZOOM = 19
 
 function escapeHtml(value = '') {
   return String(value)
@@ -378,7 +328,8 @@ function getActiveIconForEntry(entry) {
 }
 
 function getNormalIconForEntry(entry) {
-  return entry.data.has_video ? getVideoIcon() : getDirectionIcon(entry.data.direction)
+  const filtered = mapFiltersActive.value
+  return entry.data.has_video ? getVideoIcon(filtered) : getDirectionIcon(entry.data.direction, filtered)
 }
 
 function getLastIconForEntry(entry) {
@@ -494,7 +445,7 @@ function userAvatarUrl(user) {
 
 function createLeafletMarker(data) {
   const id = Number(data.id)
-  let icon = data.has_video ? getVideoIcon() : getDirectionIcon(data.direction)
+  let icon = getNormalIconForEntry({ data })
   if (id === Number(activePhotoId.value)) {
     icon = data.has_video ? getActiveVideoIcon() : getActiveDirectionIcon(data.direction)
   } else if (id === Number(lastPhotoId.value)) {
@@ -674,7 +625,7 @@ function initMap() {
     chunkDelay: 40,
     removeOutsideVisibleBounds: true,
     maxClusterRadius: clusterRadiusForZoom,
-    disableClusteringAtZoom: MAP_CLUSTER_MAX_ZOOM,
+    disableClusteringAtZoom: CLUSTER_OFF_ZOOM,
     iconCreateFunction: createClusterIconFactory(),
   }).addTo(map)
   setTileLayer()
@@ -771,16 +722,6 @@ useLocalizedReady(async ({ path }) => {
 
 onMounted(async () => {
   window.addEventListener('hinyerevan:reset-home-map', resetHomeState)
-
-  if (typeof ResizeObserver !== 'undefined') {
-    yearBubbleResizeObserver = new ResizeObserver(() => recomputeYearBubbleShift())
-    // Bubbles too: their width changes with text and late fonts.
-    for (const el of [yearBubblesEl.value, yearBubbleFromEl.value, yearBubbleToEl.value]) {
-      if (el) yearBubbleResizeObserver.observe(el)
-    }
-  }
-  nextTick(recomputeYearBubbleShift)
-  document.fonts?.ready?.then(() => recomputeYearBubbleShift())
 
   const restore = consumeHomeMapRestore()
 
@@ -897,6 +838,14 @@ watch(activePhotoId, (id) => {
 
 watch([activePhotoId, lastPhotoId], scheduleMarkerSync)
 
+// Recolour plain arrows when a filter toggles (video filter doesn't reload markers).
+watch(mapFiltersActive, () => {
+  const keep = new Set([Number(activePhotoId.value), Number(lastPhotoId.value)])
+  for (const [id, entry] of markerRegistry) {
+    if (!keep.has(Number(id))) entry.layer.setIcon(getNormalIconForEntry(entry))
+  }
+})
+
 watch(activePhotoId, (newId, oldId) => {
   if (newId == null) {
     // Sheet closed: keep the marker highlighted.
@@ -914,7 +863,6 @@ watch(activePhotoId, (newId, oldId) => {
 onBeforeUnmount(() => {
   window.removeEventListener('hinyerevan:reset-home-map', resetHomeState)
   document.documentElement.classList.remove('home-sheet-open')
-  yearBubbleResizeObserver?.disconnect()
   resetMarkerState()
   window.cancelAnimationFrame(yearApplyFrame)
   mapElement.value?.removeEventListener('click', onMapPreviewClick)
@@ -1097,21 +1045,7 @@ onBeforeUnmount(() => {
   <section class="year-filter">
     <span class="year-filter-label">{{ t('yearRange') }}</span>
     <div class="year-filter-track">
-      <Slider
-        v-model="yearRange"
-        :min="minYear"
-        :max="maxYear"
-        :step="1"
-        :tooltips="false"
-        :format="yearFormat"
-        :lazy="false"
-        :options="yearSliderOptions"
-        :class="['year-slider', 'year-slider--bare', yearSliderClass]"
-      />
-      <div ref="yearBubblesEl" class="year-bubbles" aria-hidden="true">
-        <span ref="yearBubbleFromEl" class="year-bubble year-bubble--from" :style="yearBubbleStyles.from">{{ yearRange[0] }}</span>
-        <span ref="yearBubbleToEl" class="year-bubble year-bubble--to" :style="yearBubbleStyles.to">{{ yearRange[1] }}</span>
-      </div>
+      <YearRangeSlider v-model="yearRange" :min="minYear" :max="maxYear" />
     </div>
   </section>
 
@@ -2070,155 +2004,6 @@ onBeforeUnmount(() => {
   @include mq-down($bp-md) {
     display: none;
   }
-}
-
-.year-slider {
-  --slider-bg: #e4eaf6;
-  --slider-connect-bg: #ae2b21;
-  --slider-handle-bg: #fff;
-  --slider-handle-border: 0;
-  --slider-handle-ring-color: rgba(174, 43, 33, 0.22);
-  --slider-height: 4px;
-  --slider-radius: 999px;
-  --slider-handle-width: 14px;
-  --slider-handle-height: 14px;
-  --slider-handle-shadow: 0 4px 10px rgba($accent-dark, 0.32);
-  padding: 0;
-  min-width: 0;
-
-  &.slider-target {
-    height: 18px;
-    padding-inline: 26px;
-    border: 0;
-    background: transparent;
-    box-shadow: none;
-  }
-
-  .slider-base {
-    top: 7px;
-    height: 4px;
-    border: 0;
-    border-radius: $radius-pill;
-    background: #e4eaf6;
-    box-shadow: inset 0 1px 1px rgba(23, 52, 126, 0.08);
-  }
-
-  .slider-connect {
-    height: 100%;
-    border-radius: $radius-pill;
-    background: linear-gradient(90deg, #c43d30, #8a1c14);
-  }
-
-  .slider-handle {
-    top: -5px;
-    width: var(--slider-handle-width);
-    height: var(--slider-handle-height);
-    border: 0;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow:
-      0 0 0 2px $accent,
-      0 4px 8px rgba($accent-dark, 0.32);
-    cursor: grab;
-    @include interactive((box-shadow, scale));
-
-    &:hover,
-    &:focus {
-      scale: 1.18;
-      box-shadow:
-        0 0 0 2px $accent,
-        0 0 0 6px rgba($accent, 0.2),
-        0 6px 14px rgba($accent-dark, 0.4);
-    }
-
-    &:active {
-      cursor: grabbing;
-      scale: 1.22;
-    }
-  }
-
-  .slider-touch-area {
-    inset: -10px;
-    width: auto;
-    height: auto;
-  }
-
-  .slider-tooltip {
-    display: none;
-  }
-}
-
-.year-slider--bare {
-  --slider-handle-width: 44px;
-  --slider-handle-height: 18px;
-
-  .slider-handle {
-    width: var(--slider-handle-width);
-    min-width: var(--slider-handle-width);
-    height: var(--slider-handle-height);
-    top: calc((var(--slider-handle-height) - var(--slider-height)) / -2 - 1px);
-    border: 0;
-    border-radius: 6px;
-    background: transparent;
-    box-shadow: none;
-    transform: none;
-    cursor: grab;
-
-    &::after,
-    &::before {
-      content: none;
-    }
-
-    &:hover,
-    &:focus,
-    &:active {
-      scale: 1;
-      box-shadow: none;
-    }
-
-    &:active {
-      cursor: grabbing;
-    }
-  }
-}
-
-// ---- Decoupled year bubbles --------------------------------------------------
-.year-bubbles {
-  position: absolute;
-  inset: 0;
-  left: 26px;
-  right: 26px;
-  z-index: 10;
-  pointer-events: none;
-}
-
-.year-bubble {
-  position: absolute;
-  top: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 22px;
-  min-width: 40px;
-  padding: 0 6px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, #c43d30, #8a1c14);
-  color: #fff;
-  font-size: calc(0.7857rem + 2px);
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1;
-  white-space: nowrap;
-  box-shadow: 0 3px 8px rgba(138, 28, 20, 0.35);
-  transform: translate(-50%, -50%);
-}
-
-.year-bubble--from {
-  z-index: 1;
-}
-
-.year-bubble--to {
-  z-index: 2;
 }
 
 .camera-direction-icon,

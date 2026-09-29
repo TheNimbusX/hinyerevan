@@ -1096,7 +1096,7 @@ watch([hasMore, loading], async () => {
   img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
   }
 }
@@ -1304,7 +1304,7 @@ watch([hasMore, loading], async () => {
     height: 105px;
   }
   border-radius: 4px;
-  object-fit: cover;
+  object-fit: contain;
   background: $surface-soft;
 }
 

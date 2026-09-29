@@ -17,6 +17,15 @@ let activeDirectionIcons = {}
 /** @type {Record<number, L.Icon>} */
 let lastDirectionIcons = {}
 
+/** @type {Record<number, L.Icon>} */
+let filteredDirectionIcons = {}
+
+/** @type {L.Icon|null} */
+let filteredVideoIcon = null
+
+// Map filter on: arrows turn blue.
+const FILTERED_PIN_FILL = '#1e88e5'
+
 /** @type {L.Icon|null} */
 let lastVideoIcon = null
 
@@ -41,9 +50,11 @@ export function initMapMarkerIcons() {
   directionIcons = {}
   activeDirectionIcons = {}
   lastDirectionIcons = {}
+  filteredDirectionIcons = {}
   videoIcon = null
   activeVideoIcon = null
   lastVideoIcon = null
+  filteredVideoIcon = null
   clusterIcons.clear()
   for (const direction of DIRECTIONS) {
     directionIcons[direction] = L.icon({
@@ -55,11 +66,28 @@ export function initMapMarkerIcons() {
   }
 }
 
-export function getDirectionIcon(direction) {
+export function getDirectionIcon(direction, filtered = false) {
+  if (filtered) return getFilteredDirectionIcon(direction)
   if (!directionIcons[1]) initMapMarkerIcons()
   const key = Number(direction)
   if (Number.isFinite(key) && directionIcons[key]) return directionIcons[key]
   return directionIcons[1]
+}
+
+function getFilteredDirectionIcon(direction) {
+  if (!filteredDirectionIcons[1]) {
+    for (const dir of DIRECTIONS) {
+      filteredDirectionIcons[dir] = L.icon({
+        className: 'camera-direction-icon camera-direction-icon--filtered',
+        iconUrl: svgDataUri(dir, { fill: FILTERED_PIN_FILL, centerFill: FILTERED_PIN_FILL }),
+        iconSize: [PIN_SIZE, PIN_SIZE],
+        iconAnchor: [PIN_ANCHOR, PIN_ANCHOR],
+      })
+    }
+  }
+  const key = Number(direction)
+  if (Number.isFinite(key) && filteredDirectionIcons[key]) return filteredDirectionIcons[key]
+  return filteredDirectionIcons[1]
 }
 
 export function getActiveDirectionIcon(direction) {
@@ -109,7 +137,19 @@ export function getLastVideoIcon() {
   return lastVideoIcon
 }
 
-export function getVideoIcon() {
+export function getVideoIcon(filtered = false) {
+  if (filtered) {
+    if (!filteredVideoIcon) {
+      const uri = `data:image/svg+xml,${encodeURIComponent(videoMarkerSvg(PIN_SIZE, { fill: FILTERED_PIN_FILL }))}`
+      filteredVideoIcon = L.icon({
+        className: 'camera-direction-icon camera-direction-icon--video camera-direction-icon--filtered',
+        iconUrl: uri,
+        iconSize: [PIN_SIZE, PIN_SIZE],
+        iconAnchor: [PIN_ANCHOR, PIN_ANCHOR],
+      })
+    }
+    return filteredVideoIcon
+  }
   if (!videoIcon) {
     const uri = `data:image/svg+xml,${encodeURIComponent(videoMarkerSvg(PIN_SIZE))}`
     videoIcon = L.icon({

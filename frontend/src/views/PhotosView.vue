@@ -908,11 +908,12 @@ onBeforeUnmount(() => {
     background: $surface-soft;
     line-height: 0;
 
+    // Whole photo, no crop: the corner logo stays visible.
     img {
       display: block;
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
     }
 
     &.is-loading img {

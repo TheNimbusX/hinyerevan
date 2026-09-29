@@ -344,7 +344,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="admin-photo-editor-backdrop" @click.self="emit('close')">
+  <!-- Closes only via × or Cancel: a stray click must not lose edits. -->
+  <div class="admin-photo-editor-backdrop">
     <section class="admin-photo-editor panel" role="dialog" aria-modal="true">
       <header class="admin-photo-editor__head">
         <div>
@@ -361,11 +362,7 @@ onBeforeUnmount(() => {
       <p v-if="loading" class="admin-photo-editor__status">{{ t('loading') }}</p>
 
       <form v-else class="admin-photo-editor__form" @submit.prevent="save">
-        <label>
-          <span>{{ t('title') }}</span>
-          <input v-model="form.title" :placeholder="t('title')" required />
-        </label>
-
+        <div class="admin-photo-editor__col admin-photo-editor__col--media">
         <div class="map-picker-field">
           <span class="upload-field-label">{{ t('location') }}</span>
           <Teleport to="body" :disabled="!mapExpanded">
@@ -389,6 +386,20 @@ onBeforeUnmount(() => {
           </div>
           </Teleport>
         </div>
+
+        <div v-if="currentPreview" class="upload-preview-wrap">
+          <img class="upload-preview" :src="currentPreview" alt="" />
+          <span class="upload-preview-direction" :title="t('direction')">
+            <CompassNeedle :direction="form.direction" size="md" />
+          </span>
+        </div>
+        </div>
+
+        <div class="admin-photo-editor__col">
+        <label>
+          <span>{{ t('title') }}</span>
+          <input v-model="form.title" :placeholder="t('title')" required />
+        </label>
 
         <label class="check-line review-check">
           <input v-model="form.needs_location_review" type="checkbox" />
@@ -462,13 +473,6 @@ onBeforeUnmount(() => {
           </label>
         </template>
 
-        <div v-if="currentPreview" class="upload-preview-wrap">
-          <img class="upload-preview" :src="currentPreview" alt="" />
-          <span class="upload-preview-direction" :title="t('direction')">
-            <CompassNeedle :direction="form.direction" size="md" />
-          </span>
-        </div>
-
         <template v-if="!existingFacebookPost">
           <label class="check-line">
             <input v-model="publishToFacebook" type="checkbox" />
@@ -496,6 +500,7 @@ onBeforeUnmount(() => {
         </div>
 
         <p v-if="error" class="error">{{ error }}</p>
+        </div>
       </form>
     </section>
   </div>
@@ -508,16 +513,18 @@ onBeforeUnmount(() => {
   z-index: 1200;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: 12px;
   background: rgba(12, 18, 32, 0.55);
   backdrop-filter: blur(4px);
 }
 
+// Near-fullscreen: map + preview left, fields right.
 .admin-photo-editor {
   display: flex;
   flex-direction: column;
-  width: min(720px, 100%);
-  max-height: calc(100vh - 40px);
+  width: min(1600px, 100%);
+  height: calc(100vh - 24px);
+  max-height: calc(100vh - 24px);
   padding: 0;
   overflow: hidden;
 }
@@ -557,15 +564,38 @@ onBeforeUnmount(() => {
   line-height: 1;
 }
 
+.admin-photo-editor__col {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
 .admin-photo-editor__status {
   padding: 24px 22px;
 }
 
 .admin-photo-editor__form {
+  flex: 1;
+  min-height: 0;
   display: grid;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1.5fr) minmax(320px, 1fr);
+  align-items: start;
+  gap: 22px;
   padding: 16px 22px 24px;
   overflow-y: auto;
+
+  @include mq-down($bp-md) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .upload-map-shell:not(.upload-map-shell--expanded) .upload-map {
+    height: min(58vh, 640px);
+  }
+
+  .upload-preview {
+    max-height: 42vh;
+  }
 
   label,
   .upload-field {

@@ -1165,7 +1165,7 @@ $home-sidebar-w: 320px;
 }
 
 .main-nav a.main-nav-link--photos {
-  color: $ink;
+  color: $accent-dark;
   font-size: 1.0714rem;
   font-weight: 700;
 }
