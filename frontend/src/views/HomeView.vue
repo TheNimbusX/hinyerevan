@@ -61,6 +61,19 @@ const mapType = ref('scheme')
 const mapPanelOpen = ref(false)
 const mapCompassOpen = ref(false)
 const activePhotoId = ref(null)
+const ads = ref({ enabled: false, banners: [] })
+const adsVisible = computed(() => Boolean(ads.value.enabled && ads.value.banners?.length))
+// Matches the CSS breakpoint of .home-ads-sidebar.
+const ADS_SIDEBAR_MIN_WIDTH = 1200
+
+async function loadAds() {
+  try {
+    const payload = await api('/ads')
+    ads.value = { enabled: Boolean(payload?.enabled), banners: payload?.banners || [] }
+  } catch {
+    ads.value = { enabled: false, banners: [] }
+  }
+}
 const lastPhotoId = ref(null)
 const DEFAULT_CENTER = [40.179136, 44.511623]
 const DEFAULT_ZOOM = 13
@@ -352,7 +365,9 @@ function activateMarker(id) {
   entry.layer.setIcon(getActiveIconForEntry(entry))
   if (map) {
     const size = map.getSize()
-    const offsetX = size.x >= 1100 ? Math.round(size.x * 0.38) : 0
+    // Keep the selected arrow clear of the ads column on wide screens.
+    const adsInset = adsVisible.value && window.innerWidth >= ADS_SIDEBAR_MIN_WIDTH ? 200 : 0
+    const offsetX = size.x >= 1100 ? Math.round(size.x * 0.38) - adsInset : 0
     const targetPx = map.project([entry.data.lat, entry.data.lng], map.getZoom())
     const newCenterPx = targetPx.subtract([offsetX, 0])
     map.panTo(map.unproject(newCenterPx, map.getZoom()), { animate: true })
@@ -722,6 +737,7 @@ useLocalizedReady(async ({ path }) => {
 
 onMounted(async () => {
   window.addEventListener('hinyerevan:reset-home-map', resetHomeState)
+  loadAds()
 
   const restore = consumeHomeMapRestore()
 
@@ -873,7 +889,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="legacy-map-shell">
-    <div class="real-map">
+    <div class="real-map" :class="{ 'has-ads': adsVisible }">
       <div ref="mapElement" class="leaflet-map"></div>
       <MapTypeToggle v-model="mapType" class="map-type-toggle--home" />
       <div class="map-tools" :class="{ open: mapPanelOpen }">
@@ -1039,6 +1055,26 @@ onBeforeUnmount(() => {
           />
         </div>
       </aside>
+
+      <aside v-if="adsVisible" class="panel home-ads-sidebar" :aria-label="t('adsTitle')">
+        <div class="home-latest-sidebar__head">
+          <h2>{{ t('adsTitle') }}</h2>
+        </div>
+        <div class="home-ads-sidebar__scroll">
+          <component
+            :is="banner.link_url ? 'a' : 'div'"
+            v-for="banner in ads.banners"
+            :key="banner.id"
+            class="home-ad"
+            :href="banner.link_url || undefined"
+            :target="banner.link_url ? '_blank' : undefined"
+            :rel="banner.link_url ? 'noopener sponsored nofollow' : undefined"
+          >
+            <img :src="imageUrl(banner.image_url)" :alt="banner.title || t('adsTitle')" loading="lazy" decoding="async" />
+            <span v-if="banner.title" class="home-ad__title">{{ banner.title }}</span>
+          </component>
+        </div>
+      </aside>
     </div>
   </section>
 
@@ -1053,6 +1089,25 @@ onBeforeUnmount(() => {
     <RouterLink class="button" to="/photos">{{ t('explorePhotos') }}</RouterLink>
     <button class="button button-ghost" type="button" @click="requireAuth('/photos/add')">{{ t('addPhoto') }}</button>
   </div>
+
+  <!-- Narrow screens: banners under the map instead of the side column. -->
+  <section v-if="adsVisible" class="panel home-ads-inline" :aria-label="t('adsTitle')">
+    <h2>{{ t('adsTitle') }}</h2>
+    <div class="home-ads-inline__grid">
+      <component
+        :is="banner.link_url ? 'a' : 'div'"
+        v-for="banner in ads.banners"
+        :key="banner.id"
+        class="home-ad"
+        :href="banner.link_url || undefined"
+        :target="banner.link_url ? '_blank' : undefined"
+        :rel="banner.link_url ? 'noopener sponsored nofollow' : undefined"
+      >
+        <img :src="imageUrl(banner.image_url)" :alt="banner.title || t('adsTitle')" loading="lazy" decoding="async" />
+        <span v-if="banner.title" class="home-ad__title">{{ banner.title }}</span>
+      </component>
+    </div>
+  </section>
 
   <section class="section-grid rating-grid" :aria-busy="secondaryLoading">
     <article class="panel latest-panel latest-panel--mobile">
@@ -1328,6 +1383,142 @@ onBeforeUnmount(() => {
   &::-webkit-scrollbar-thumb {
     border-radius: 999px;
     background: rgba($ink, 0.18);
+  }
+}
+
+// ---------- Ads column (mirror of the latest-photos sidebar) ----------
+.real-map {
+  --home-ads-w: 260px;
+}
+
+.home-ads-sidebar {
+  display: none;
+
+  // Starts under the floating header so the header layout stays untouched.
+  @media (min-width: 1200px) {
+    position: absolute;
+    top: calc(var(--header-h) + 8px);
+    right: 0;
+    bottom: 0;
+    z-index: 550;
+    display: flex;
+    flex-direction: column;
+    width: var(--home-ads-w);
+    padding: 0;
+    border: 0;
+    border-left: 1px solid rgba($ink, 0.08);
+    border-radius: $radius-lg 0 0 0;
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: -8px 0 24px rgba(20, 24, 34, 0.12);
+    overflow: hidden;
+  }
+}
+
+.home-ads-sidebar__scroll {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  padding: 12px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba($ink, 0.18);
+  }
+}
+
+.home-ad {
+  display: block;
+  overflow: hidden;
+  border: 1px solid $line;
+  border-radius: $radius-sm;
+  background: $surface;
+  color: inherit;
+  text-decoration: none;
+  @include interactive((box-shadow, transform));
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+    object-fit: contain;
+    background: $surface-soft;
+  }
+
+  &:is(a):hover {
+    box-shadow: $shadow-sm;
+    transform: translateY(-1px);
+  }
+}
+
+.home-ad__title {
+  display: block;
+  padding: 8px 10px;
+  font-size: 0.8571rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.home-ads-inline {
+  margin: 0 0 18px;
+
+  h2 {
+    margin: 0 0 12px;
+    font-size: 1.0714rem;
+  }
+
+  @media (min-width: 1200px) {
+    display: none;
+  }
+}
+
+.home-ads-inline__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+// Right-hand map controls move clear of the ads column.
+@media (min-width: 1200px) {
+  .real-map.has-ads {
+    .map-tools,
+    .map-type-toggle--home {
+      right: calc(var(--home-ads-w) + 16px);
+    }
+
+    .map-active-filters {
+      left: calc(50% + (var(--home-sidebar-w, 320px) - var(--home-ads-w)) / 2);
+    }
+  }
+}
+
+[data-theme='dark'] {
+  .home-ads-sidebar {
+    border-left-color: #2a313d;
+    background:
+      linear-gradient(180deg, rgba(22, 27, 37, 0.96), rgba(16, 20, 28, 0.94)),
+      #161b25;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+  }
+
+  .home-ad {
+    border-color: #2a313d;
+    background: #161b25;
+
+    img {
+      background: #20262f;
+    }
   }
 }
 

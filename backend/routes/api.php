@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\DevAuthController;
+use App\Http\Controllers\Api\AdController;
 use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CommentController;
@@ -74,6 +75,8 @@ Route::get('/pages', [ContentController::class, 'pagesIndex']);
 Route::get('/pages/{alias}', [ContentController::class, 'pageShow']);
 Route::post('/feedback', [FeedbackController::class, 'store']);
 Route::get('/ratings', [RatingController::class, 'index']);
+Route::get('/ads', [AdController::class, 'index']);
+Route::get('/ads/{banner}/image', [AdController::class, 'image'])->whereNumber('banner');
 Route::get('/facebook/page', [FacebookController::class, 'page']);
 Route::get('/facebook/plugin-config', [FacebookController::class, 'pluginConfig']);
 Route::get('/facebook-incoming/{post}/image', [AdminController::class, 'facebookIncomingImage'])->whereNumber('post');
@@ -128,6 +131,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::post('/facebook-incoming/{post}/import', [AdminController::class, 'importFacebookIncoming'])->whereNumber('post');
         Route::post('/facebook-incoming/{post}/dismiss', [AdminController::class, 'dismissFacebookIncoming'])->whereNumber('post');
         Route::post('/facebook-incoming/{post}/restore', [AdminController::class, 'restoreFacebookIncoming'])->whereNumber('post');
+
+        Route::get('/ads', [AdController::class, 'adminIndex']);
+        Route::put('/ads/settings', [AdController::class, 'setEnabled']);
+        Route::post('/ads', [AdController::class, 'store']);
+        Route::post('/ads/reorder', [AdController::class, 'reorder']);
+        Route::post('/ads/{banner}', [AdController::class, 'update'])->whereNumber('banner');
+        Route::delete('/ads/{banner}', [AdController::class, 'destroy'])->whereNumber('banner');
 
         Route::get('/feedback', [AdminController::class, 'feedback']);
         Route::put('/feedback/{feedback}', [AdminController::class, 'markFeedbackRead'])->whereNumber('feedback');

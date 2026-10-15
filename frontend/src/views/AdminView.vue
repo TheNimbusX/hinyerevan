@@ -6,6 +6,7 @@ import { useI18n } from '../i18n'
 import { formatDate } from '../utils/locale'
 import { isAdminUser, parseBirthdate, sexLabel } from '../utils/user'
 import AdminPhotoEditor from '../components/AdminPhotoEditor.vue'
+import AdminAdsPanel from '../components/AdminAdsPanel.vue'
 
 const router = useRouter()
 const { t, currentLanguage } = useI18n()
@@ -56,6 +57,7 @@ const tabs = computed(() => [
   { id: 'news', label: t('news'), badge: 0 },
   { id: 'fb_incoming', label: t('fbIncoming'), badge: fbIncomingCount.value },
   { id: 'feedback', label: t('feedback'), badge: feedbackUnreadCount.value },
+  { id: 'ads', label: t('adminAdsTab'), badge: 0 },
 ])
 
 const fbIncomingCount = ref(0)
@@ -74,6 +76,7 @@ const tabDescription = computed(
       news: t('adminTabNewsDesc'),
       fb_incoming: t('adminTabFbDesc'),
       feedback: t('adminTabFeedbackDesc'),
+      ads: t('adminTabAdsDesc'),
     })[tab.value] || '',
 )
 
@@ -146,6 +149,14 @@ async function loadTab(nextTab = tab.value, { append = false, page = 1 } = {}) {
   if (!append) {
     tab.value = nextTab
     closeEditors()
+  }
+
+  // The ads panel loads its own data.
+  if (nextTab === 'ads') {
+    rows.value = []
+    meta.value = null
+    error.value = ''
+    return
   }
 
   if (append) {
@@ -774,7 +785,9 @@ watch([hasMore, loading], async () => {
       </div>
     </section>
 
-    <section class="admin__box">
+    <AdminAdsPanel v-if="tab === 'ads'" />
+
+    <section v-else class="admin__box">
       <p v-if="loading && !rows.length" class="admin__empty">{{ t('loading') }}</p>
       <p v-else-if="!rows.length" class="admin__empty">{{ t('adminEmpty') }}</p>
 
