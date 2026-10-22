@@ -1070,7 +1070,9 @@ onBeforeUnmount(() => {
             :target="banner.link_url ? '_blank' : undefined"
             :rel="banner.link_url ? 'noopener sponsored nofollow' : undefined"
           >
-            <img :src="imageUrl(banner.image_url)" :alt="banner.title || t('adsTitle')" loading="lazy" decoding="async" />
+            <span class="home-ad__media">
+              <img :src="imageUrl(banner.image_url)" :alt="banner.title || t('adsTitle')" loading="lazy" decoding="async" />
+            </span>
             <span v-if="banner.title" class="home-ad__title">{{ banner.title }}</span>
           </component>
         </div>
@@ -1103,7 +1105,9 @@ onBeforeUnmount(() => {
         :target="banner.link_url ? '_blank' : undefined"
         :rel="banner.link_url ? 'noopener sponsored nofollow' : undefined"
       >
-        <img :src="imageUrl(banner.image_url)" :alt="banner.title || t('adsTitle')" loading="lazy" decoding="async" />
+        <span class="home-ad__media">
+          <img :src="imageUrl(banner.image_url)" :alt="banner.title || t('adsTitle')" loading="lazy" decoding="async" />
+        </span>
         <span v-if="banner.title" class="home-ad__title">{{ banner.title }}</span>
       </component>
     </div>
@@ -1446,18 +1450,23 @@ onBeforeUnmount(() => {
   text-decoration: none;
   @include interactive((box-shadow, transform));
 
-  img {
-    display: block;
-    width: 100%;
-    height: auto;
-    max-height: 320px;
-    object-fit: contain;
-    background: $surface-soft;
-  }
-
   &:is(a):hover {
     box-shadow: $shadow-sm;
     transform: translateY(-1px);
+  }
+}
+
+// One 16:9 frame for every banner: odd-sized images no longer break the row.
+.home-ad__media {
+  display: block;
+  aspect-ratio: 16 / 9;
+  background: $surface-soft;
+
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
   }
 }
 
@@ -1467,6 +1476,7 @@ onBeforeUnmount(() => {
   font-size: 0.8571rem;
   font-weight: 600;
   line-height: 1.3;
+  @include truncate;
 }
 
 .home-ads-inline {
@@ -1484,9 +1494,13 @@ onBeforeUnmount(() => {
 
 .home-ads-inline__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
-  align-items: start;
+  align-items: stretch;
+
+  @include mq-down($bp-md) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 // Right-hand map controls move clear of the ads column.
@@ -1515,10 +1529,10 @@ onBeforeUnmount(() => {
   .home-ad {
     border-color: #2a313d;
     background: #161b25;
+  }
 
-    img {
-      background: #20262f;
-    }
+  .home-ad__media {
+    background: #20262f;
   }
 }
 

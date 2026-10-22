@@ -336,16 +336,17 @@ onMounted(load)
   }
 }
 
+// Same 16:9 frame as on the site.
 .admin-ads__media {
   position: relative;
   align-self: start;
+  aspect-ratio: 16 / 9;
   background: $surface-soft;
 
   img {
     display: block;
     width: 100%;
-    height: auto;
-    max-height: 260px;
+    height: 100%;
     object-fit: contain;
   }
 }

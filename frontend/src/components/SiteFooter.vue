@@ -31,14 +31,6 @@ const year = new Date().getFullYear()
           <RouterLink to="/pages/privacy">{{ t('privacyPolicy') }}</RouterLink>
           <RouterLink to="/pages/agreement">{{ t('agreement') }}</RouterLink>
         </section>
-
-        <section class="footer-col">
-          <h4>{{ t('partners') }}</h4>
-          <a href="https://www.haystory.com/" target="_blank" rel="noopener noreferrer">
-            HayStory
-            <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4 2h6v6M10 2 3 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" /></svg>
-          </a>
-        </section>
       </div>
     </div>
 
@@ -114,7 +106,7 @@ const year = new Date().getFullYear()
 
 .footer-columns {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
 
   @include mq-down($bp-md) {
