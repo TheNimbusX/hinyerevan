@@ -1619,14 +1619,21 @@ onBeforeUnmount(() => {
 
 // One 16:9 frame for every banner: odd-sized images no longer break the row.
 .home-ad__media {
+  position: relative;
   display: block;
   aspect-ratio: 16 / 9;
+  min-height: 0;
+  overflow: hidden;
   background: $surface-soft;
 
+  // Absolute: a tall image can't stretch the 16:9 frame over the caption.
   img {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;
+    max-width: none;
     object-fit: contain;
   }
 }

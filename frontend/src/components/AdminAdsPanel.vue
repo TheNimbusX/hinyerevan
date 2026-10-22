@@ -340,10 +340,12 @@ onMounted(load)
 
 .admin-ads__card {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr);
-  gap: 16px;
-  padding: 12px;
+  grid-template-columns: 240px minmax(0, 1fr);
+  align-items: start;
+  gap: 18px;
+  padding: 14px;
   border: 1px solid $line;
+  border-radius: $radius-md;
   background: $surface;
 
   &.is-off {
@@ -364,12 +366,18 @@ onMounted(load)
   position: relative;
   align-self: start;
   aspect-ratio: 16 / 9;
+  min-height: 0;
+  overflow: hidden;
+  border-radius: $radius-sm;
   background: $surface-soft;
 
   img {
+    position: absolute;
+    inset: 0;
     display: block;
     width: 100%;
     height: 100%;
+    max-width: none;
     object-fit: contain;
   }
 }
@@ -424,12 +432,63 @@ onMounted(load)
   font-size: 1.1429rem !important;
 }
 
+// Admin pages are dark-themed too; white cards looked out of place.
+[data-theme='dark'] {
+  .admin-ads__card {
+    border-color: #2a313d;
+    background: #1b212c;
+  }
+
+  .admin-ads__media {
+    background: #0f131a;
+  }
+
+  .admin-ads__stats {
+    background: #1e2330;
+
+    dt {
+      color: #98a0ae;
+    }
+
+    dd {
+      color: #e7ebf3;
+    }
+  }
+
+  .admin-ads__clicks {
+    color: #8fb0ff !important;
+  }
+
+  .admin-ads__new {
+    border-color: #3a4250;
+  }
+
+  .admin-ads__switch-ui {
+    background: #3a4250;
+  }
+
+  .admin-ads__status {
+    background: rgba(255, 255, 255, 0.06);
+    color: #98a0ae;
+
+    &.on {
+      background: rgba(76, 175, 120, 0.18);
+      color: #7fd1a3;
+    }
+  }
+
+  .admin-ads input[type='file'] {
+    color: #c3c9d4;
+  }
+}
+
 .admin-ads__new {
   display: grid;
   gap: 8px;
   max-width: 520px;
   padding: 14px;
   border: 1px dashed $line;
+  border-radius: $radius-md;
 
   h3 {
     margin: 0;
