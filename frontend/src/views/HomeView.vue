@@ -65,24 +65,11 @@ const ads = ref({ enabled: false, banners: [] })
 const adsVisible = computed(() => Boolean(ads.value.enabled && ads.value.banners?.length))
 // Matches the CSS breakpoint of .home-ads-sidebar.
 const ADS_SIDEBAR_MIN_WIDTH = 1200
-const ADS_COLLAPSED_KEY = 'hinyerevan:ads-collapsed'
-const adsCollapsed = ref(readAdsCollapsed())
-
-function readAdsCollapsed() {
-  try {
-    return localStorage.getItem(ADS_COLLAPSED_KEY) === '1'
-  } catch {
-    return false
-  }
-}
+// Not persisted: every page load starts with the panel open.
+const adsCollapsed = ref(false)
 
 function toggleAdsCollapsed() {
   adsCollapsed.value = !adsCollapsed.value
-  try {
-    localStorage.setItem(ADS_COLLAPSED_KEY, adsCollapsed.value ? '1' : '0')
-  } catch {
-    // storage unavailable
-  }
 }
 
 // sendBeacon survives the tab switch when the link opens.
