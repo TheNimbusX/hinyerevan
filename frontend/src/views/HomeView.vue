@@ -65,6 +65,25 @@ const ads = ref({ enabled: false, banners: [] })
 const adsVisible = computed(() => Boolean(ads.value.enabled && ads.value.banners?.length))
 // Matches the CSS breakpoint of .home-ads-sidebar.
 const ADS_SIDEBAR_MIN_WIDTH = 1200
+const ADS_COLLAPSED_KEY = 'hinyerevan:ads-collapsed'
+const adsCollapsed = ref(readAdsCollapsed())
+
+function readAdsCollapsed() {
+  try {
+    return localStorage.getItem(ADS_COLLAPSED_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function toggleAdsCollapsed() {
+  adsCollapsed.value = !adsCollapsed.value
+  try {
+    localStorage.setItem(ADS_COLLAPSED_KEY, adsCollapsed.value ? '1' : '0')
+  } catch {
+    // storage unavailable
+  }
+}
 
 async function loadAds() {
   try {
@@ -366,7 +385,7 @@ function activateMarker(id) {
   if (map) {
     const size = map.getSize()
     // Keep the selected arrow clear of the ads column on wide screens.
-    const adsInset = adsVisible.value && window.innerWidth >= ADS_SIDEBAR_MIN_WIDTH ? 200 : 0
+    const adsInset = adsVisible.value && !adsCollapsed.value && window.innerWidth >= ADS_SIDEBAR_MIN_WIDTH ? 200 : 0
     const offsetX = size.x >= 1100 ? Math.round(size.x * 0.38) - adsInset : 0
     const targetPx = map.project([entry.data.lat, entry.data.lng], map.getZoom())
     const newCenterPx = targetPx.subtract([offsetX, 0])
@@ -889,7 +908,7 @@ onBeforeUnmount(() => {
 
 <template>
   <section class="legacy-map-shell">
-    <div class="real-map" :class="{ 'has-ads': adsVisible }">
+    <div class="real-map" :class="{ 'has-ads': adsVisible && !adsCollapsed }">
       <div ref="mapElement" class="leaflet-map"></div>
       <MapTypeToggle v-model="mapType" class="map-type-toggle--home" />
       <div class="map-tools" :class="{ open: mapPanelOpen }">
@@ -1056,9 +1075,27 @@ onBeforeUnmount(() => {
         </div>
       </aside>
 
-      <aside v-if="adsVisible" class="panel home-ads-sidebar" :aria-label="t('adsTitle')">
-        <div class="home-latest-sidebar__head">
+      <aside
+        v-if="adsVisible"
+        class="panel home-ads-sidebar"
+        :class="{ 'is-collapsed': adsCollapsed }"
+        :aria-label="t('adsTitle')"
+        :aria-hidden="adsCollapsed ? 'true' : undefined"
+        :inert="adsCollapsed || undefined"
+      >
+        <div class="home-latest-sidebar__head home-ads-sidebar__head">
           <h2>{{ t('adsTitle') }}</h2>
+          <button
+            type="button"
+            class="home-ads-toggle"
+            :aria-label="t('adsHide')"
+            :title="t('adsHide')"
+            @click="toggleAdsCollapsed"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </button>
         </div>
         <div class="home-ads-sidebar__scroll">
           <component
@@ -1077,6 +1114,22 @@ onBeforeUnmount(() => {
           </component>
         </div>
       </aside>
+
+      <button
+        v-if="adsVisible"
+        type="button"
+        class="home-ads-reopen"
+        :class="{ 'is-shown': adsCollapsed }"
+        :tabindex="adsCollapsed ? 0 : -1"
+        :aria-hidden="adsCollapsed ? undefined : 'true'"
+        :aria-label="t('adsShow')"
+        @click="toggleAdsCollapsed"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>{{ t('adsTitle') }}</span>
+      </button>
     </div>
   </section>
 
@@ -1417,6 +1470,100 @@ onBeforeUnmount(() => {
     -webkit-backdrop-filter: blur(12px);
     box-shadow: -8px 0 24px rgba(20, 24, 34, 0.12);
     overflow: hidden;
+    transition:
+      transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+      visibility 0s linear 0s;
+
+    // Extra 24px hides the shadow too.
+    &.is-collapsed {
+      transform: translateX(calc(100% + 24px));
+      visibility: hidden;
+      transition:
+        transform 0.38s cubic-bezier(0.22, 1, 0.36, 1),
+        visibility 0s linear 0.38s;
+    }
+  }
+}
+
+.home-ads-sidebar__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.home-ads-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  margin: -4px -6px -4px 0;
+  padding: 0;
+  border: 1px solid $line;
+  border-radius: 50%;
+  background: $surface;
+  color: $muted;
+  cursor: pointer;
+  @include interactive((color, border-color, background));
+
+  &:hover {
+    color: $ink;
+    border-color: rgba($ink, 0.3);
+  }
+
+  @include focus-ring(rgba($primary, 0.4), 2px);
+}
+
+// Vertical tab on the right edge brings the column back.
+.home-ads-reopen {
+  display: none;
+
+  @media (min-width: 1200px) {
+    position: absolute;
+    top: 50%;
+    right: 0;
+    z-index: 560;
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 7px;
+    border: 1px solid rgba($ink, 0.1);
+    border-right: 0;
+    border-radius: $radius-md 0 0 $radius-md;
+    background: rgba(255, 255, 255, 0.95);
+    color: $ink;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8571rem;
+    font-weight: 600;
+    box-shadow: -6px 0 18px rgba(20, 24, 34, 0.14);
+    opacity: 0;
+    pointer-events: none;
+    transform: translate(100%, -50%);
+    transition:
+      opacity 0.25s ease,
+      transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+
+    span {
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+
+    &.is-shown {
+      opacity: 1;
+      pointer-events: auto;
+      transform: translate(0, -50%);
+      transition-delay: 0.15s;
+    }
+
+    &:hover {
+      background: #fff;
+      color: $primary;
+    }
+
+    @include focus-ring(rgba($primary, 0.4), 2px);
   }
 }
 
@@ -1505,6 +1652,15 @@ onBeforeUnmount(() => {
 
 // Right-hand map controls move clear of the ads column.
 @media (min-width: 1200px) {
+  .real-map .map-tools,
+  .real-map .map-type-toggle--home {
+    transition: right 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .real-map .map-active-filters {
+    transition: left 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
   .real-map.has-ads {
     .map-tools,
     .map-type-toggle--home {
@@ -1529,6 +1685,27 @@ onBeforeUnmount(() => {
   .home-ad {
     border-color: #2a313d;
     background: #161b25;
+  }
+
+  .home-ads-toggle {
+    border-color: #2a313d;
+    background: #161b25;
+    color: #98a0ae;
+
+    &:hover {
+      color: #f4f7ff;
+    }
+  }
+
+  .home-ads-reopen {
+    border-color: #2a313d;
+    background: rgba(22, 27, 37, 0.96);
+    color: #e7ebf3;
+
+    &:hover {
+      background: #1e2330;
+      color: #fff;
+    }
   }
 
   .home-ad__media {
