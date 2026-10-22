@@ -157,9 +157,8 @@ onMounted(load)
           {{ enabled ? t('adminAdsStatusOn') : t('adminAdsStatusOff') }}
         </span>
       </div>
-      <p class="admin-ads__hint">
-        {{ t('adminAdsHint', { max: maxPublic }) }}
-        <template v-if="activeCount > maxPublic"> {{ t('adminAdsTooMany', { count: activeCount, max: maxPublic }) }}</template>
+      <p v-if="activeCount > maxPublic" class="admin-ads__hint">
+        {{ t('adminAdsTooMany', { count: activeCount, max: maxPublic }) }}
       </p>
 
       <p v-if="error" class="admin__msg admin__msg--err">{{ error }}</p>
