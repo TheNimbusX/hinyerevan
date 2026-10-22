@@ -1581,12 +1581,18 @@ onBeforeUnmount(() => {
   }
 }
 
+// Column, not grid: a fixed-height grid squeezed overflow:hidden cards and cut captions.
 .home-ads-sidebar__scroll {
   flex: 1;
   min-height: 0;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+
+  > .home-ad {
+    flex: 0 0 auto;
+  }
+
   padding: 12px;
   overflow-y: auto;
   scrollbar-gutter: stable;
