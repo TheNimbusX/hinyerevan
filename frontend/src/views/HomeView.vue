@@ -6,7 +6,7 @@ import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import YearRangeSlider from '../components/YearRangeSlider.vue'
-import { api, avatarForUser, cachedApi, imageUrl, localizedApi, markerImagePath, safeAvatarUrl } from '../api'
+import { api, apiUrl, avatarForUser, cachedApi, imageUrl, localizedApi, markerImagePath, safeAvatarUrl } from '../api'
 import { useAuthGate } from '../composables/useAuthGate'
 import { useLanguageReload, useLocalizedReady } from '../composables/useLanguageReload'
 import { useI18n } from '../i18n'
@@ -83,6 +83,18 @@ function toggleAdsCollapsed() {
   } catch {
     // storage unavailable
   }
+}
+
+// sendBeacon survives the tab switch when the link opens.
+function trackAdClick(banner) {
+  if (!banner?.id) return
+  const url = apiUrl(`/ads/${banner.id}/click`)
+  try {
+    if (navigator.sendBeacon?.(url)) return
+  } catch {
+    // fall back to fetch
+  }
+  fetch(url, { method: 'POST', keepalive: true }).catch(() => {})
 }
 
 async function loadAds() {
@@ -1106,6 +1118,7 @@ onBeforeUnmount(() => {
             :href="banner.link_url || undefined"
             :target="banner.link_url ? '_blank' : undefined"
             :rel="banner.link_url ? 'noopener sponsored nofollow' : undefined"
+            @click="trackAdClick(banner)"
           >
             <span class="home-ad__media">
               <img :src="imageUrl(banner.image_url)" :alt="banner.title || t('adsTitle')" loading="lazy" decoding="async" />
@@ -1157,6 +1170,7 @@ onBeforeUnmount(() => {
         :href="banner.link_url || undefined"
         :target="banner.link_url ? '_blank' : undefined"
         :rel="banner.link_url ? 'noopener sponsored nofollow' : undefined"
+            @click="trackAdClick(banner)"
       >
         <span class="home-ad__media">
           <img :src="imageUrl(banner.image_url)" :alt="banner.title || t('adsTitle')" loading="lazy" decoding="async" />

@@ -2,8 +2,13 @@
 import { computed, onMounted, ref } from 'vue'
 import { api, imageUrl } from '../api'
 import { useI18n } from '../i18n'
+import { formatDateTime } from '../utils/locale'
 
-const { t } = useI18n()
+const { t, currentLanguage } = useI18n()
+
+function when(value) {
+  return value ? formatDateTime(value, currentLanguage.value) : '—'
+}
 
 const loading = ref(true)
 const busy = ref(false)
@@ -172,6 +177,24 @@ onMounted(load)
             <span class="admin-ads__pos">{{ index + 1 }}</span>
           </div>
           <div class="admin-ads__fields">
+            <dl class="admin-ads__stats">
+              <div>
+                <dt>{{ t('adminAdsClicks') }}</dt>
+                <dd class="admin-ads__clicks">{{ banner.clicks ?? 0 }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('adminAdsLastClick') }}</dt>
+                <dd>{{ when(banner.last_clicked_at) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('adminAdsCreated') }}</dt>
+                <dd>{{ when(banner.created_at) }}</dd>
+              </div>
+              <div>
+                <dt>{{ t('adminAdsUpdated') }}</dt>
+                <dd>{{ when(banner.updated_at) }}</dd>
+              </div>
+            </dl>
             <label class="admin__field">
               <span>{{ t('adminAdsTitle') }}</span>
               <input v-model="banner.title" class="admin__input" maxlength="160" />
@@ -370,6 +393,35 @@ onMounted(load)
   display: grid;
   gap: 8px;
   align-content: start;
+}
+
+.admin-ads__stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 6px 14px;
+  margin: 0 0 4px;
+  padding: 8px 10px;
+  background: $surface-soft;
+
+  div {
+    min-width: 0;
+  }
+
+  dt {
+    color: $muted;
+    font-size: 0.7857rem;
+  }
+
+  dd {
+    margin: 0;
+    font-size: 0.9286rem;
+    font-weight: 600;
+  }
+}
+
+.admin-ads__clicks {
+  color: $primary;
+  font-size: 1.1429rem !important;
 }
 
 .admin-ads__new {

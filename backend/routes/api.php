@@ -77,6 +77,8 @@ Route::post('/feedback', [FeedbackController::class, 'store']);
 Route::get('/ratings', [RatingController::class, 'index']);
 Route::get('/ads', [AdController::class, 'index']);
 Route::get('/ads/{banner}/image', [AdController::class, 'image'])->whereNumber('banner');
+// Throttled per IP so a burst of clicks can't inflate the counter.
+Route::post('/ads/{banner}/click', [AdController::class, 'click'])->whereNumber('banner')->middleware('throttle:20,1');
 Route::get('/facebook/page', [FacebookController::class, 'page']);
 Route::get('/facebook/plugin-config', [FacebookController::class, 'pluginConfig']);
 Route::get('/facebook-incoming/{post}/image', [AdminController::class, 'facebookIncomingImage'])->whereNumber('post');

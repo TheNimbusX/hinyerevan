@@ -8,6 +8,7 @@ use App\Models\SiteSetting;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Response;
 use Illuminate\Support\Facades\Schema;
@@ -58,6 +59,19 @@ class AdController extends Controller
             'Content-Type' => mime_content_type($path) ?: 'image/jpeg',
             'Cache-Control' => 'public, max-age=31536000, immutable',
         ]);
+    }
+
+    // Counter only: a raw update so updated_at (and the image URL version) stays put.
+    public function click(AdBanner $banner)
+    {
+        if ($banner->active) {
+            AdBanner::query()->whereKey($banner->id)->update([
+                'clicks' => DB::raw('clicks + 1'),
+                'last_clicked_at' => now(),
+            ]);
+        }
+
+        return response()->noContent();
     }
 
     public function adminIndex()
@@ -237,6 +251,10 @@ class AdController extends Controller
         if ($admin) {
             $row['active'] = (bool) $banner->active;
             $row['sort'] = (int) $banner->sort;
+            $row['clicks'] = (int) ($banner->clicks ?? 0);
+            $row['last_clicked_at'] = $banner->last_clicked_at?->toISOString();
+            $row['created_at'] = $banner->created_at?->toISOString();
+            $row['updated_at'] = $banner->updated_at?->toISOString();
         }
 
         return $row;

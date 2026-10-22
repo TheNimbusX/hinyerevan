@@ -11,6 +11,8 @@ class AdBanner extends Model
     protected $casts = [
         'active' => 'boolean',
         'sort' => 'integer',
+        'clicks' => 'integer',
+        'last_clicked_at' => 'datetime',
     ];
 
     public function imageUrl(): string
