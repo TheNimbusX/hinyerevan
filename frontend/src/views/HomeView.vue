@@ -1582,28 +1582,30 @@ onBeforeUnmount(() => {
 }
 
 // Column, not grid: a fixed-height grid squeezed overflow:hidden cards and cut captions.
+// No scroll: when 4 banners don't fit, the pictures shrink, captions stay.
 .home-ads-sidebar__scroll {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
+  padding: 12px;
+  overflow: hidden;
 
   > .home-ad {
+    display: flex;
+    flex-direction: column;
+    flex: 0 1 auto;
+    min-height: 0;
+  }
+
+  .home-ad__media {
+    flex: 0 1 auto;
+    min-height: 48px;
+  }
+
+  .home-ad__title {
     flex: 0 0 auto;
-  }
-
-  padding: 12px;
-  overflow-y: auto;
-  scrollbar-gutter: stable;
-
-  &::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    border-radius: 999px;
-    background: rgba($ink, 0.18);
   }
 }
 
