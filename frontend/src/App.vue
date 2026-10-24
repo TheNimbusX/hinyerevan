@@ -134,16 +134,22 @@ function avatarUrl(user) {
   return safeAvatarUrl(user?.photo, siteLogo)
 }
 
-async function loadCurrentUser() {
+async function loadCurrentUser(retried = false) {
   if (!getToken()) {
     currentUser.value = null
     return
   }
   try {
     currentUser.value = await api('/auth/me')
-  } catch {
-    setToken(null)
-    currentUser.value = null
+  } catch (error) {
+    // Only a 401 means the token is dead. A dropped request (reload mid-flight,
+    // flaky network, timeout) must not log the user out.
+    if (error?.status === 401) {
+      setToken(null)
+      currentUser.value = null
+    } else if (!retried) {
+      setTimeout(() => loadCurrentUser(true), 1500)
+    }
   }
 }
 

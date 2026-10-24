@@ -145,7 +145,7 @@ function goAddPhoto() {
   requireAuth('/photos/add')
 }
 
-async function loadAll() {
+async function loadAll(retried = false) {
   loading.value = true
   try {
     const [me, statData, photos, comments, favorites, providers] = await Promise.all([
@@ -163,9 +163,16 @@ async function loadAll() {
     myComments.value = comments.data || []
     myFavorites.value = favorites.data || []
     syncForm()
-  } catch {
-    setToken(null)
-    router.push('/')
+  } catch (error) {
+    // Keep the token unless the server says it is invalid.
+    if (error?.status === 401) {
+      setToken(null)
+      router.push('/')
+    } else if (!retried) {
+      setTimeout(() => loadAll(true), 1500)
+    } else {
+      router.push('/')
+    }
   } finally {
     loading.value = false
   }
